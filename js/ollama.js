@@ -1,5 +1,9 @@
-// Minimal Ollama client (browser -> http://localhost:11434) plus the insight agents.
+// AI client plus the insight agents. Goes through the backend (/api/chat) when server.js or Vercel is
+// running, otherwise talks to Ollama directly (http://localhost:11434). Both speak Ollama's format.
 window.Ollama = (() => {
+  const viaServer = () => window.Store?.mode === 'server';
+  const endpoint = path => viaServer() ? (path === '/api/tags' ? '/api/models' : path) : config.baseUrl + path;
+  const headers = () => viaServer() ? Store.headers() : { 'Content-Type': 'application/json' };
   const KEY = 'tackle.ollama';
   const defaults = { baseUrl: 'http://localhost:11434', model: '' };
   let config = load();
@@ -14,18 +18,19 @@ window.Ollama = (() => {
   }
 
   async function listModels() {
-    const res = await fetch(`${config.baseUrl}/api/tags`);
-    if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
-    const data = await res.json();
+    const res = await fetch(endpoint('/api/tags'), { headers: headers() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `AI server returned ${res.status}`);
+    if (viaServer() && data.default && !data.modelOverride) save({ model: data.default });
     return (data.models || []).map(m => m.name);
   }
 
   // Non-streaming chat. Pass json:true to force a JSON response.
   async function chat(messages, { json = false, temperature = 0.3, signal } = {}) {
-    if (!config.model) throw new Error('No Ollama model selected');
-    const res = await fetch(`${config.baseUrl}/api/chat`, {
+    if (!config.model && !viaServer()) throw new Error('No Ollama model selected'); // the backend falls back to its configured model
+    const res = await fetch(endpoint('/api/chat'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers(),
       signal,
       // think:false stops reasoning models (qwen3, deepseek-r1) spending minutes on hidden thinking
       body: JSON.stringify({ model: config.model, messages, stream: false, think: false, ...(json ? { format: 'json' } : {}), options: { temperature, num_ctx: 8192 } }),
@@ -37,10 +42,10 @@ window.Ollama = (() => {
 
   // Streaming chat; calls onToken with each chunk and resolves with the full text.
   async function stream(messages, onToken, { temperature = 0.5, signal } = {}) {
-    if (!config.model) throw new Error('No Ollama model selected');
-    const res = await fetch(`${config.baseUrl}/api/chat`, {
+    if (!config.model && !viaServer()) throw new Error('No Ollama model selected'); // the backend falls back to its configured model
+    const res = await fetch(endpoint('/api/chat'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers(),
       signal,
       body: JSON.stringify({ model: config.model, messages, stream: true, think: false, options: { temperature, num_ctx: 8192 } }),
     });
@@ -57,6 +62,7 @@ window.Ollama = (() => {
       for (const line of lines) {
         if (!line.trim()) continue;
         const msg = JSON.parse(line);
+        if (msg.error) throw new Error(msg.error);
         const tok = msg.message?.content || '';
         if (tok) { full += tok; onToken(tok, full); }
       }
@@ -105,6 +111,7 @@ Rules:
 - "impact" is the main kind of impact: social (safety, wellbeing, health, belonging, women feeling safe), economic (local business, tourism, jobs, construction, co-investment) or cultural (community gatherings, Pasifika, First Nations, multicultural activation).
 - Copy dollar figures exactly from the data. One region per insight unless comparing.
 - Impact evidence entries are records written by staff; you may quote them, attributed to their source.
+- userFeedback lists items staff verified or disputed. Do not repeat a disputed claim as fact; mention the dispute if relevant.
 
 DATA:
 ${JSON.stringify(ctx)}`;
@@ -125,5 +132,5 @@ ${JSON.stringify(ctx)}`;
     return ['social', 'economic', 'cultural'].find(k => s.includes(k)) || '';
   }
 
-  return { get config() { return config; }, save, listModels, chat, stream, parseJson, runAgent, normaliseImpact, AGENTS, SYSTEM };
+  return { get config() { return config; }, get viaServer() { return viaServer(); }, save, listModels, chat, stream, parseJson, runAgent, normaliseImpact, AGENTS, SYSTEM };
 })();

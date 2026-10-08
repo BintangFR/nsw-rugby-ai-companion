@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+data-store/
+server.js
+serve.ps1
+_selftest.html

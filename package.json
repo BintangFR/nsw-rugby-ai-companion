@@ -1,0 +1,14 @@
+{
+  "name": "tackle-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI companion for the NSW Rugby World Cup Legacy Program",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
