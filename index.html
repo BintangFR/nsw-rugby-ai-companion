@@ -187,6 +187,18 @@
           </div>
         </div>
         <div class="agents" id="agentChips"></div>
+        <div class="run-progress" id="runProgress" hidden>
+          <div class="rp-top">
+            <div><b id="rpTitle">Starting…</b><div class="muted small" id="rpMeta"></div></div>
+            <button class="btn" id="cancelAgents">Cancel</button>
+          </div>
+          <div class="rp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="rpBar"><span id="rpFill"></span></div>
+          <div class="rp-warn" id="rpWarn" hidden></div>
+          <details class="rp-live" open>
+            <summary>Live output from the model</summary>
+            <pre id="rpLive">Waiting for the first words…</pre>
+          </details>
+        </div>
       </div>
 
       <div class="toolbar">

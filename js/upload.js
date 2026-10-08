@@ -269,7 +269,7 @@ FILE: ${ds.name}
 AUTOMATED CHECKS: ${JSON.stringify(q?.rule?.checks || [])}
 CONTENT SAMPLE:
 ${datasetDigest(ds, 3500)}`;
-      const j = O.parseJson(await O.chat([{ role: 'system', content: O.SYSTEM }, { role: 'user', content: prompt }], { json: true }));
+      const j = O.parseJson(await O.chat([{ role: 'system', content: O.SYSTEM }, { role: 'user', content: prompt }], { json: true, label: 'Quality rating' }));
       if (!j?.rating) throw new Error('No rating returned');
       const ai = {
         rating: ['red', 'amber', 'green'].includes(String(j.rating).toLowerCase()) ? String(j.rating).toLowerCase() : 'amber',
@@ -694,7 +694,7 @@ Return JSON: {"insights":[{"title":"max 10 words","insight":"2-3 sentences","sev
 
 CONTENT:
 ${datasetDigest(ds)}`;
-      const text = await O.chat([{ role: 'system', content: O.SYSTEM }, { role: 'user', content: prompt }], { json: true });
+      const text = await O.chat([{ role: 'system', content: O.SYSTEM }, { role: 'user', content: prompt }], { json: true, label: 'Data summary' });
       const parsed = O.parseJson(text);
       const list = (Array.isArray(parsed) ? parsed : parsed?.insights || []).map(i => ({
         title: String(i.title || 'Insight'), insight: String(i.insight || ''), evidence: i.evidence ? String(i.evidence) : '',
@@ -721,7 +721,7 @@ ${datasetDigest(ds)}`;
       ds.tidy = await O.stream([
         { role: 'system', content: 'You restructure messy extracted document text into clean, well-organised markdown: a one-paragraph summary, then headings, bullet lists and markdown tables where the content is tabular. Keep all facts and figures; do not add anything.' },
         { role: 'user', content: ds.text.slice(0, 12000) },
-      ], (_, full) => { if (active === ds) body.innerHTML = md(full); });
+      ], (_, full) => { if (active === ds) body.innerHTML = md(full); }, { label: 'Tidy-up' });
     } catch (e) {
       body.innerHTML = ds.html;
       toast('AI tidy-up failed: ' + e.message, 5000);

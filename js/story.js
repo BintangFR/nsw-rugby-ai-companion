@@ -131,30 +131,34 @@ Structure: a "# " title line; a short opening paragraph; "## " sections for each
 
     btn.disabled = true; btn.textContent = 'Writing…';
     $('#storyStatus').textContent = `Writing with ${O.config.model}${fromRules ? ' (using rule-based insights - run the agents for richer material)' : ''}…`;
-    const uploads = pillars.includes('Uploaded data') ? (window.DataStudio?.datasets || []).map(d => `FILE ${d.name}:\n${window.DataStudio.datasetDigest(d, 2500)}`).join('\n\n') : '';
-    const prompt = `${FORMATS[fmtKey].brief.replaceAll('{year}', year)}
-
-Tone: ${$('#storyTone').value}. Length: about ${$('#storyLength').value} words. Australian English.
-Cover only these areas: ${pillars.join(', ')}.
-Rules: use only facts from INSIGHTS and DATA; never invent numbers, names, quotes or people; describe budgets as allocations, not money spent; be honest about risks and gaps.
-${pillars.includes('Impact') ? `Include a "## Social, economic and cultural impact" section with "### Social", "### Economic" and "### Cultural" sub-headings. Use DATA.impact (spend per lens, which indicators are measured, and the evidence records). Evidence records are real field notes: you may quote them, attributed to their source and region. Where a lens has no evidence, say what will be measured next.` : ''}
-Do not repeat claims listed in DATA.userFeedback.disputedByUsers as fact.
-${$('#storyNotes').value.trim() ? 'Extra direction: ' + $('#storyNotes').value.trim() : ''}
-Output markdown only.
+    // Only files the user uploaded themselves (project files are already summarised in DATA), capped for speed.
+    const uploads = pillars.includes('Uploaded data')
+      ? (window.DataStudio?.datasets || []).filter(d => !d.preloaded && (d.kind === 'table' || d.kind === 'doc')).map(d => `FILE ${d.name}:\n${window.DataStudio.datasetDigest(d, 1500)}`).join('\n\n').slice(0, 4000)
+      : '';
+    // Shared data first (reuses Ollama's prompt cache from the agents), task last.
+    const prompt = `${O.sharedContext()}
 
 INSIGHTS:
-${list.map(i => `- [${i.pillar}${i.region ? ' / ' + i.region : ''}] ${i.title}. ${i.insight} Evidence: ${i.evidence || 'n/a'}. Action: ${i.action || 'n/a'}`).join('\n')}
-
-DATA:
-${JSON.stringify(A.contextFor('IMP'))}
-${uploads ? '\nUPLOADED FILES:\n' + uploads : ''}`;
+${list.slice(0, 20).map(i => `- [${i.pillar}${i.region ? ' / ' + i.region : ''}] ${i.title}. ${i.insight}${i.action ? ' Action: ' + i.action : ''}`).join('\n')}
+${uploads ? '\nUPLOADED FILES:\n' + uploads + '\n' : ''}
+TASK: ${FORMATS[fmtKey].brief.replaceAll('{year}', year)}
+Tone: ${$('#storyTone').value}. Length: about ${$('#storyLength').value} words. Australian English.
+Cover only these areas: ${pillars.join(', ')}.
+Rules: use only facts from INSIGHTS and DATA; never invent numbers, names, quotes or people; describe budgets as allocations, not money spent; be honest about risks and gaps. Do not state anything listed as DISPUTED as fact.
+${pillars.includes('Impact') ? `Include a "## Social, economic and cultural impact" section with "### Social", "### Economic" and "### Cultural" sub-headings, using the IMPACT lines and FIELD EVIDENCE. Evidence records are real field notes: you may quote them, attributed to their source and region. Where a lens has no evidence, say what will be measured next.` : ''}
+${$('#storyNotes').value.trim() ? 'Extra direction: ' + $('#storyNotes').value.trim() : ''}
+Output markdown only.`;
 
     try {
       let last = 0;
       const full = await O.stream([{ role: 'system', content: O.SYSTEM }, { role: 'user', content: prompt }], (_, text) => {
         const now = performance.now();
         if (now - last > 120) { setBody(text); last = now; }
-      }, { temperature: 0.6 });
+      }, { temperature: 0.6, label: 'Story', onProgress: pr => {
+        $('#storyStatus').textContent = pr.phase === 'writing'
+          ? `Writing with ${O.config.model}… ${pr.tokens} tokens so far`
+          : `Reading the data… ${Math.round((Date.now() - pr.start) / 1000)}s (usually ~${Math.round(pr.estReadMs / 1000)}s on this machine)`;
+      } });
       setBody(full);
       $('#storyStatus').textContent = `Drafted by ${O.config.model}. Click the text to edit before exporting.`;
       save();

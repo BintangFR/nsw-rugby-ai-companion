@@ -148,7 +148,49 @@ window.Analytics = (() => {
     return { fe, pw, inc, other };
   }
 
-  // Compact JSON the AI agents receive. Kept small for local models.
+  // Compact plain-text briefing every AI call receives (~2k tokens instead of ~5k of JSON).
+  // It is identical for all agents, so Ollama can reuse its prompt cache: put it FIRST in the prompt.
+  function briefing() {
+    const rows = regionMetrics();
+    const c = centralisation(rows);
+    const p = pillarTotals(rows);
+    const m = n => '$' + Math.round(n).toLocaleString('en-AU');
+    const names = f => rows.filter(f).map(r => r.name).join(', ') || 'none';
+    const imp = impactTotals();
+    const fw = D.impactFramework;
+    const ev = evidenceStore.all().slice(0, 15);
+    const quality = Object.entries(Store.get('quality') || {});
+    const layers = customLayers();
+    const lines = [
+      'PROGRAM: NSW Rugby World Cup Legacy Program, $10M, 2025-2028 (year 1 of 3). All $ are known allocations, not audited spend. Population and First Nations % are indicative.',
+      `PILLAR TOTALS: Facilities & Equipment ${m(p.fe)}; Programs & Workforce ${m(p.pw)}; Inclusion ${m(p.inc)}; RWC activation + M&E + PM ${m(p.other)}.`,
+      `CENTRALISATION: ${m(c.central)} (${pct(c.centralShare)}%) held centrally in statewide NSWRU budgets. Greater Sydney gets ${pct(c.metroShareOfAllocated)}% of regionally allocated spend with ${pct(c.metroPopShare)}% of population. ${pct(1 - c.feMetroShare)}% of facility grant $ went outside Greater Sydney. ${pct(c.incCentralShare)}% of inclusion budget is held centrally. Effective number of regions funded: ${c.hhiEquivalentRegions.toFixed(1)} of ${rows.length}.`,
+      'FLAGS (ground truth - use exactly):',
+      `- Overspend risk (spend share >= 1.75x population share): ${names(r => r.status === 'over')}`,
+      `- Under-served (<= 0.5x): ${names(r => r.status === 'under')}`,
+      `- Balanced: ${names(r => r.status === 'balanced')}`,
+      `- First Nations program reach: ${names(r => r.fnReach)}`,
+      `- First Nations GAP (high First Nations population, no program): ${names(r => r.fnGap)}`,
+      `- Women & girls investment: ${names(r => r.tagSpend.women > 0)}`,
+      `- Pasifika/CALD investment: ${names(r => r.tagSpend.pasifika > 0)}`,
+      `- Accessibility investment: ${names(r => r.tagSpend.access > 0)}`,
+      `- No facility project: ${names(r => r.facilityCount === 0)}`,
+      'REGIONS (name | Greater Sydney? | population | First Nations % | facilities $ | workforce $ | inclusion $ | total $ | $ per resident | spend vs population | status | facility projects | audit gaps fixed | social $ | economic $ | cultural $' + layers.map(l => ' | ' + l.label).join('') + '):',
+      ...rows.map(r => [r.name, r.metro ? 'yes' : 'no', (r.pop * 1000).toLocaleString('en-AU'), r.fnShare + '%', m(r.fe), m(r.pw), m(r.inc), m(r.total), '$' + r.perResident.toFixed(2), r.spendIndex.toFixed(2) + 'x', r.status, r.facilityCount, [...r.gaps].join('+') || '-', m(r.social), m(r.economic), m(r.cultural), ...layers.map(l => l.values[r.name] ?? '-')].join(' | ')),
+      'FACILITY GRANTS: ' + allGrants().filter(g => g.pillar === 'FE').map(g => `${g.town || g.region} (${g.region}) ${g.type} ${m(g.amount)}`).join('; '),
+      'STATEWIDE BUDGET LINES (3 yrs): ' + D.dashboard.filter(d => d.region === 'Statewide').map(d => `${d.initiative} ${m(d.total)}`).join('; '),
+      'KPIs (baseline -> target; growth needed p.a.; 2025 actual; status): ' + D.kpis.map(k => `${k.name} ${k.baseline.toLocaleString('en-AU')}${k.target != null ? ' -> +' + Math.round(k.target * 100) + '%' : ''}; ${pct(k.requiredPa)}%; ${k.actual == null ? 'no data' : pct(k.actual) + '%'}; ${k.status}`).join(' | '),
+      `CONTEXT: Facility audit - ${D.context.facilityAudit.femaleChangerooms}% female-friendly changerooms, ${D.context.facilityAudit.adequateLighting}% adequate lighting, ${D.context.facilityAudit.adequateDrainage}% adequate drainage. Ratios: player:coach ${D.context.ratios.playerToCoach}, player:MO ${D.context.ratios.playerToMO}. ${D.context.workforceRepresentation} ${D.context.westernSydney} ${D.context.volunteers} ${D.context.equipment} ${D.context.round2} ${D.context.socialValue} Wages ${m(D.context.salariesOnDashboard)} of dashboard budget end in 2028; NSWRU 2025 loss ${m(D.context.nswruLoss2025)}. Holroyd: $1 of grant unlocked $${D.context.holroydLeverage} of project spend.`,
+      `IMPACT (lenses overlap): social ${m(imp.lenses.social)}, economic ${m(imp.lenses.economic)}, cultural ${m(imp.lenses.cultural)}.`,
+      ...Object.entries(fw).map(([k, v]) => `- ${v.label} indicators: ` + v.indicators.map(i => `${i.name} [${i.status === 'none' ? 'NO DATA' : i.status}${i.status === 'none' ? '' : ': ' + i.value}]`).join('; ')),
+      `FIELD EVIDENCE (${evidenceStore.all().length} records): ` + (ev.length ? ev.map(e => `[${e.lens}, ${e.region}, ${e.source}] "${e.text}"${e.metric ? ' (' + e.metric + ')' : ''}`).join(' | ') : 'none recorded yet'),
+    ];
+    // Staff ratings are added separately by Feedback.lessons() (see Ollama.sharedContext).
+    if (quality.length) lines.push('DATA SOURCE QUALITY: ' + quality.map(([f, q]) => `${f} ${q.ai?.rating || q.rule?.rating} ${q.ai?.score ?? q.rule?.score}/100`).join('; '));
+    return lines.join('\n');
+  }
+
+  // Older JSON form (kept for debugging/export).
   function contextFor(focus) {
     const rows = regionMetrics();
     const c = centralisation(rows);
@@ -327,5 +369,5 @@ window.Analytics = (() => {
   const sum = (arr, f) => arr.reduce((s, x) => s + (f(x) || 0), 0);
   const pct = x => Math.round(x * 1000) / 10;
 
-  return { regionMetrics, centralisation, pillarTotals, contextFor, ruleInsights, matchRegion, classifySpend, saveDataset, removeDataset, customLayers, uploadedSpend, INCLUSION_TAGS, impactsOf, impactTotals, evidenceStore };
+  return { regionMetrics, centralisation, pillarTotals, contextFor, briefing, ruleInsights, matchRegion, classifySpend, saveDataset, removeDataset, customLayers, uploadedSpend, INCLUSION_TAGS, impactsOf, impactTotals, evidenceStore };
 })();
