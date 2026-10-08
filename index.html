@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tackle AI</title>
+  <meta name="description" content="AI companion for the NSW Rugby World Cup Legacy Program - facilities, workforce and inclusion insights.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><ellipse cx='32' cy='32' rx='26' ry='16' transform='rotate(-35 32 32)' fill='%23157a4c'/><path d='M22 42 42 22M27 33l4 4M31 29l4 4M35 25l4 4' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="32" rx="26" ry="16" transform="rotate(-35 32 32)" fill="currentColor"/><path d="M22 42 42 22M27 33l4 4M31 29l4 4M35 25l4 4" stroke="var(--surface)" stroke-width="3" stroke-linecap="round"/></svg>
+      <div>
+        <strong>Tackle AI</strong>
+        <span>NSW RWC Legacy companion</span>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-tab="impact">Impact</button>
+      <button role="tab" data-tab="insights">Insights</button>
+      <button role="tab" data-tab="data">Data Studio</button>
+      <button role="tab" data-tab="story">Story</button>
+    </nav>
+    <div class="top-actions">
+      <button class="pill" id="ollamaStatus" title="Ollama settings"><span class="dot"></span><span class="label">Ollama: checking…</span></button>
+      <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section id="tab-overview" class="tab-panel active">
+      <div class="kpis" id="kpiRow"></div>
+
+      <div class="grid-2">
+        <article class="card map-card">
+          <div class="card-head">
+            <div>
+              <h2>Spend heatmap across NSW</h2>
+              <p class="muted">Known Legacy spend by region: Round 1 grants plus region-tagged dashboard budgets.</p>
+            </div>
+            <div class="controls">
+              <label class="select">Metric
+                <select id="mapMetric"></select>
+              </label>
+              <label class="check"><input type="checkbox" id="heatToggle" checked> Heat</label>
+            </div>
+          </div>
+          <div id="map" role="img" aria-label="Map of NSW with spend by region"></div>
+          <div class="legend" id="mapLegend"></div>
+        </article>
+
+        <div class="stack">
+          <article class="card">
+            <h2>Is it too centralised?</h2>
+            <p class="muted">Where every known dollar sits today.</p>
+            <div id="centralBar" class="stack-bar"></div>
+            <dl class="facts" id="centralFacts"></dl>
+          </article>
+          <article class="card">
+            <h2>Flags</h2>
+            <p class="muted">Region share of spend compared with share of population.</p>
+            <ul class="flag-list" id="flagList"></ul>
+          </article>
+        </div>
+      </div>
+
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2>Region heatmap</h2>
+            <p class="muted">Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Click a column to sort.</p>
+          </div>
+          <div class="seg" role="group" aria-label="Pillar filter" id="matrixFilter">
+            <button data-f="all" class="on">All</button>
+            <button data-f="FE">Facilities</button>
+            <button data-f="PW">Workforce</button>
+            <button data-f="INC">Inclusion</button>
+            <button data-f="IMP">Impact</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table class="matrix" id="matrix"></table></div>
+        <p class="footnote">Population and First Nations share are indicative ABS 2021 approximations used only to normalise spend. Upload a dataset with a region column in Data Studio to add your own layers.</p>
+      </article>
+
+      <div class="grid-2 even">
+        <article class="card">
+          <h2>Workforce &amp; inclusion targets</h2>
+          <p class="muted">2025 growth compared with the growth a year needed to hit the 3-year target.</p>
+          <div id="kpiProgress" class="progress-list"></div>
+        </article>
+        <article class="card">
+          <h2>Spend by pillar</h2>
+          <p class="muted">Known allocations: dashboard 3-year budgets plus Round 1 grants.</p>
+          <div class="chart-box"><canvas id="pillarChart"></canvas></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- IMPACT -->
+    <section id="tab-impact" class="tab-panel">
+      <div class="card-head">
+        <div>
+          <h2>Impact measurement</h2>
+          <p class="muted">Three lenses for every dollar: social, economic and cultural. Spend shows what is expected to drive each impact; indicators and field evidence show what has actually been measured.</p>
+        </div>
+        <div class="controls">
+          <button class="btn primary" id="runImpactAgent">Run Impact agent</button>
+        </div>
+      </div>
+      <div class="lens-grid" id="lensGrid"></div>
+
+      <div class="bubbles" id="impactBubbles"></div>
+
+      <div class="grid-2 even">
+        <article class="card">
+          <h2>Record impact evidence</h2>
+          <p class="muted">Capture what you see and hear in the community: survey results, business feedback, stories. The AI agents and the Story generator use these records.</p>
+          <form id="evidenceForm" class="evidence-form">
+            <div class="row wrap">
+              <label>Impact
+                <select id="evLens">
+                  <option value="social">Social</option>
+                  <option value="economic">Economic</option>
+                  <option value="cultural">Cultural</option>
+                </select>
+              </label>
+              <label>Region <select id="evRegion"></select></label>
+              <label>Source
+                <select id="evSource">
+                  <option>Participant survey</option>
+                  <option>Interview</option>
+                  <option>Local business feedback</option>
+                  <option>Club report</option>
+                  <option>Community event</option>
+                  <option>Media</option>
+                  <option>Staff observation</option>
+                </select>
+              </label>
+            </div>
+            <label>What happened?
+              <textarea id="evText" rows="3" required></textarea>
+            </label>
+            <div class="row wrap">
+              <label>Measure (optional) <input id="evMetric" placeholder="e.g. 82% feel safe, +30% game-day sales"></label>
+              <label>Date <input id="evDate" type="date"></label>
+            </div>
+            <div class="row end"><button class="btn primary" type="submit">Add evidence</button></div>
+          </form>
+        </article>
+        <article class="card">
+          <div class="card-head">
+            <div><h2>Evidence log</h2><p class="muted" id="evCount"></p></div>
+            <div class="controls">
+              <div class="seg" id="evFilter">
+                <button data-f="all" class="on">All</button>
+                <button data-f="social">Social</button>
+                <button data-f="economic">Economic</button>
+                <button data-f="cultural">Cultural</button>
+              </div>
+              <button class="btn" id="evExport">Export CSV</button>
+            </div>
+          </div>
+          <ul class="evidence-list" id="evList"></ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- INSIGHTS -->
+    <section id="tab-insights" class="tab-panel">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>AI insight agents</h2>
+            <p class="muted">Five local agents read the same data, each with its own brief. They run on your Ollama model, one after another.</p>
+          </div>
+          <div class="controls">
+            <button class="btn primary" id="runAgents">Run agents</button>
+            <button class="btn" id="runRules" title="Insights computed without AI">Rule-based only</button>
+          </div>
+        </div>
+        <div class="agents" id="agentChips"></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Insight filter" id="insightFilter">
+          <button data-f="all" class="on">All</button>
+          <button data-f="Facilities & Equipment">Facilities</button>
+          <button data-f="Programs & Workforce">Workforce</button>
+          <button data-f="Inclusion">Inclusion</button>
+          <button data-f="Centralisation">Centralisation</button>
+          <button data-f="Impact">Impact</button>
+          <button data-f="Uploaded data">Uploads</button>
+        </div>
+        <span class="muted" id="insightCount"></span>
+      </div>
+      <div class="bubbles" id="bubbles"></div>
+
+      <form class="ask card" id="askForm">
+        <input id="askInput" placeholder="Ask a follow-up, e.g. Which regions should Round 2 prioritise for female-friendly changerooms?" autocomplete="off">
+        <button class="btn primary" type="submit">Ask</button>
+      </form>
+    </section>
+
+    <!-- DATA STUDIO -->
+    <section id="tab-data" class="tab-panel">
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" multiple accept=".csv,.tsv,.txt,.md,.json,.xlsx,.xls,.xlsm,.pdf,.docx">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <strong>Upload data</strong>
+        <span class="muted">Drop or choose files: Excel, CSV, JSON, PDF, Word or text. Tables are profiled and charted; documents are cleaned up and summarised.</span>
+      </label>
+      <div class="dataset-tabs" id="datasetTabs"></div>
+      <div id="datasetView"></div>
+    </section>
+
+    <!-- STORY -->
+    <section id="tab-story" class="tab-panel">
+      <div class="story-layout">
+        <aside class="card story-controls">
+          <h2>Story generator</h2>
+          <p class="muted">Turns the insights into a narrative for the yearly report.</p>
+          <label>Format
+            <select id="storyFormat">
+              <option value="annual">Annual report chapter</option>
+              <option value="board">Board summary</option>
+              <option value="acquittal">Funding acquittal (NSW Office of Sport)</option>
+              <option value="community">Community impact story</option>
+              <option value="media">Media release</option>
+            </select>
+          </label>
+          <label>Report year
+            <input id="storyYear" value="2026">
+          </label>
+          <label>Tone
+            <select id="storyTone">
+              <option>Confident and balanced</option>
+              <option>Formal</option>
+              <option>Warm and community-focused</option>
+              <option>Candid about risks</option>
+            </select>
+          </label>
+          <label>Length
+            <select id="storyLength">
+              <option value="400">Short (~400 words)</option>
+              <option value="800" selected>Standard (~800 words)</option>
+              <option value="1400">Long (~1,400 words)</option>
+            </select>
+          </label>
+          <fieldset>
+            <legend>Include</legend>
+            <label class="check"><input type="checkbox" name="pillar" value="Facilities & Equipment" checked> Facilities &amp; Equipment</label>
+            <label class="check"><input type="checkbox" name="pillar" value="Programs & Workforce" checked> Programs &amp; Workforce</label>
+            <label class="check"><input type="checkbox" name="pillar" value="Inclusion" checked> Inclusion</label>
+            <label class="check"><input type="checkbox" name="pillar" value="Centralisation" checked> Centralisation</label>
+            <label class="check"><input type="checkbox" name="pillar" value="Impact" checked> Social, economic &amp; cultural impact</label>
+            <label class="check"><input type="checkbox" name="pillar" value="Uploaded data" checked> Uploaded data</label>
+          </fieldset>
+          <label>Extra direction (optional)
+            <textarea id="storyNotes" rows="3" placeholder="e.g. Open with the Holroyd female-friendly facility story"></textarea>
+          </label>
+          <button class="btn primary wide" id="generateStory">Generate story</button>
+          <div class="row">
+            <button class="btn" id="exportPdf">Export PDF</button>
+            <button class="btn" id="copyStory">Copy text</button>
+          </div>
+          <p class="muted small" id="storyStatus"></p>
+        </aside>
+
+        <article class="report" id="report">
+          <header class="report-head">
+            <div class="report-brand">Tackle AI · NSW Rugby World Cup Legacy Program</div>
+            <h1 id="reportTitle" contenteditable="true">Legacy Program Year in Review</h1>
+            <p class="report-meta" id="reportMeta"></p>
+          </header>
+          <div class="report-kpis" id="reportKpis"></div>
+          <div class="report-body" id="reportBody" contenteditable="true">
+            <p class="placeholder">Run the insight agents (or use rule-based insights), then press <strong>Generate story</strong>. The text is editable before you export.</p>
+          </div>
+          <figure class="report-figure">
+            <img id="reportChart" alt="Spend by pillar">
+            <figcaption>Known Legacy spend by pillar (dashboard 3-year budgets plus Round 1 grants).</figcaption>
+          </figure>
+          <section class="report-appendix" id="reportAppendix"></section>
+          <footer class="report-foot">Generated with Tackle AI from NSW RWC Legacy program data. Figures are known allocations, not audited expenditure. AI-drafted text should be checked before publication.</footer>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="settings">
+    <form method="dialog" class="settings">
+      <h2>Ollama settings</h2>
+      <label>Server URL <input id="ollamaUrl" placeholder="http://localhost:11434"></label>
+      <label>Model
+        <span class="row"><select id="ollamaModel"></select><button type="button" class="btn" id="refreshModels">Refresh</button></span>
+      </label>
+      <p class="muted small" id="settingsMsg"></p>
+      <details>
+        <summary>Can't connect?</summary>
+        <ol class="small">
+          <li>Install Ollama and pull a model: <code>ollama pull llama3.1</code></li>
+          <li>Make sure it is running: <code>ollama serve</code></li>
+          <li>If the browser blocks the request (CORS), allow this page's origin:<br><code>setx OLLAMA_ORIGINS "http://localhost:5173"</code> then restart Ollama.</li>
+        </ol>
+      </details>
+      <div class="row end">
+        <button class="btn" value="cancel">Close</button>
+        <button class="btn primary" id="saveSettings" value="save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="js/nsw-boundary.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/ollama.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/upload.js"></script>
+  <script src="js/impact.js"></script>
+  <script src="js/story.js"></script>
+</body>
+</html>
