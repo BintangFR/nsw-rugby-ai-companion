@@ -25,49 +25,98 @@ window.Ollama = (() => {
     return (data.models || []).map(m => m.name);
   }
 
-  // Non-streaming chat. Pass json:true to force a JSON response.
-  async function chat(messages, { json = false, temperature = 0.3, signal } = {}) {
+  // ---------- speed stats (used for ETAs) ----------
+  // Exponential moving averages of how long this machine takes to read a prompt (per 1k chars)
+  // and how fast it writes. Stored per browser; reasonable CPU defaults until the first run.
+  const STATS_KEY = 'tackle.aiStats';
+  let stats = (() => { try { return { readMsPerKChar: 9000, tokPerSec: 6, ...JSON.parse(localStorage.getItem(STATS_KEY) || '{}') }; } catch { return { readMsPerKChar: 9000, tokPerSec: 6 }; } })();
+  function learnStats(promptChars, readMs, tokens, writeMs, cachedHint) {
+    const a = 0.35;
+    // Calls that re-use the prompt cache are much faster to read; don't let them skew the estimate down.
+    if (promptChars > 500 && readMs > 0 && !cachedHint) stats.readMsPerKChar = stats.readMsPerKChar * (1 - a) + (readMs / (promptChars / 1000)) * a;
+    if (tokens > 20 && writeMs > 0) stats.tokPerSec = stats.tokPerSec * (1 - a) + (tokens / (writeMs / 1000)) * a;
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch {}
+  }
+  const estimateReadMs = chars => Math.max(4000, stats.readMsPerKChar * chars / 1000);
+  const estimateWriteMs = tokens => Math.max(3000, tokens / Math.max(0.5, stats.tokPerSec) * 1000);
+
+  // ---------- activity (top-bar indicator + agent progress) ----------
+  // Every AI call reports phases: 'reading' (model is processing the prompt), 'writing' (tokens arriving), 'done'.
+  let activeCalls = 0;
+  function emit(detail) { document.dispatchEvent(new CustomEvent('ai-activity', { detail: { ...detail, active: activeCalls } })); }
+
+  // Core call: always streams so progress is visible, even when the caller only wants the final text.
+  async function call(messages, { json = false, temperature = 0.3, signal, label = 'AI', onProgress } = {}) {
     if (!config.model && !viaServer()) throw new Error('No Ollama model selected'); // the backend falls back to its configured model
-    const res = await fetch(endpoint('/api/chat'), {
-      method: 'POST',
-      headers: headers(),
-      signal,
-      // think:false stops reasoning models (qwen3, deepseek-r1) spending minutes on hidden thinking
-      body: JSON.stringify({ model: config.model, messages, stream: false, think: false, ...(json ? { format: 'json' } : {}), options: { temperature, num_ctx: 8192 } }),
-    });
-    if (!res.ok) throw new Error(`Ollama returned ${res.status}: ${await res.text()}`);
-    const data = await res.json();
-    return data.message?.content ?? '';
+    const promptChars = messages.reduce((n, m) => n + m.content.length, 0);
+    const p = { label, phase: 'reading', start: Date.now(), firstTokenAt: null, lastTokenAt: null, tokens: 0, text: '', promptChars, estReadMs: estimateReadMs(promptChars) };
+    const report = () => { onProgress?.({ ...p }); emit({ ...p }); };
+    activeCalls++;
+    report();
+    try {
+      const res = await fetch(endpoint('/api/chat'), {
+        method: 'POST',
+        headers: headers(),
+        signal,
+        // think:false stops reasoning models (qwen3, deepseek-r1) spending minutes on hidden thinking
+        body: JSON.stringify({ model: config.model, messages, stream: true, think: false, ...(json ? { format: 'json' } : {}), options: { temperature, num_ctx: 8192 } }),
+      });
+      if (!res.ok || !res.body) throw new Error(`AI server returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line);
+          if (msg.error) throw new Error(msg.error);
+          const tok = msg.message?.content || '';
+          if (!tok) continue;
+          const now = Date.now();
+          if (!p.firstTokenAt) { p.firstTokenAt = now; p.phase = 'writing'; }
+          p.lastTokenAt = now; p.tokens++; p.text += tok;
+          report();
+        }
+      }
+      const end = Date.now();
+      if (p.firstTokenAt) learnStats(promptChars, p.firstTokenAt - p.start, p.tokens, end - p.firstTokenAt, p.firstTokenAt - p.start < p.estReadMs * 0.25);
+      p.phase = 'done';
+      return p.text;
+    } catch (e) {
+      p.phase = signal?.aborted ? 'cancelled' : 'failed';
+      p.error = e.message;
+      throw signal?.aborted ? new Error('Cancelled') : e;
+    } finally {
+      activeCalls--;
+      report();
+    }
   }
 
-  // Streaming chat; calls onToken with each chunk and resolves with the full text.
-  async function stream(messages, onToken, { temperature = 0.5, signal } = {}) {
-    if (!config.model && !viaServer()) throw new Error('No Ollama model selected'); // the backend falls back to its configured model
-    const res = await fetch(endpoint('/api/chat'), {
-      method: 'POST',
-      headers: headers(),
-      signal,
-      body: JSON.stringify({ model: config.model, messages, stream: true, think: false, options: { temperature, num_ctx: 8192 } }),
-    });
-    if (!res.ok || !res.body) throw new Error(`Ollama returned ${res.status}`);
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '', full = '';
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const msg = JSON.parse(line);
-        if (msg.error) throw new Error(msg.error);
-        const tok = msg.message?.content || '';
-        if (tok) { full += tok; onToken(tok, full); }
-      }
-    }
-    return full;
+  // Final text only. Pass json:true to force a JSON response.
+  const chat = (messages, opts = {}) => call(messages, opts);
+
+  // Streaming: calls onToken(token, fullText) as text arrives and resolves with the full text.
+  function stream(messages, onToken, opts = {}) {
+    let seen = 0;
+    return call(messages, { temperature: 0.5, ...opts, onProgress: pr => {
+      if (pr.text.length > seen) { onToken(pr.text.slice(seen), pr.text); seen = pr.text.length; }
+      opts.onProgress?.(pr);
+    } });
+  }
+
+  // Is the model loaded in memory? (Ollama /api/ps via the backend, or directly.)
+  async function status() {
+    try {
+      const res = await fetch(viaServer() ? '/api/status' : `${config.baseUrl}/api/ps`, { headers: headers() });
+      const data = await res.json();
+      const models = data.models || [];
+      return { reachable: res.ok, loaded: data.loaded ?? models.some(m => !config.model || m.name === config.model || m.model === config.model), models };
+    } catch { return { reachable: false, loaded: false, models: [] }; }
   }
 
   function parseJson(text) {
@@ -95,31 +144,40 @@ Write in plain Australian English for program managers and board members.`;
 Social: do people feel safe and welcome (e.g. women feeling safe because of women-only / female-friendly facilities), wellbeing, mental health, safeguarding.
 Economic: local business and tourism around games and events (e.g. a local takeaway shop busier on game days), construction spend, co-investment leverage, jobs, volunteer value.
 Cultural: community activation and gathering (e.g. Pasifika and First Nations communities choosing a ground as their gathering place), multicultural participation.
-Use impact.byLens totals, impact.indicators (which measures have data and which do not) and impact.evidence (records from the field). Where a lens has no evidence yet, say so and recommend how to collect it.`, count: 4 },
+Use the IMPACT lines (spend per lens, which indicators have data and which say NO DATA) and FIELD EVIDENCE. Where a lens has no evidence yet, say so and recommend how to collect it.`, count: 4 },
   ];
 
-  async function runAgent(agent, { count = agent.count || 3, signal } = {}) {
-    const ctx = window.Analytics.contextFor(agent.id);
-    const prompt = `${agent.brief}
+  // Shared data + learned lessons first (identical for every agent, so Ollama reuses its prompt cache
+  // and agents after the first only process their short task), then the agent-specific task.
+  function sharedContext() {
+    const lessons = window.Feedback?.lessons?.() || '';
+    return `DATA:\n${window.Analytics.briefing()}${lessons ? '\n\n' + lessons : ''}`;
+  }
+
+  // Rough output size, for the progress bar: ~110 tokens per insight plus JSON overhead.
+  const expectedTokens = count => 40 + count * 110;
+
+  async function runAgent(agent, { count = agent.count || 3, signal, onProgress } = {}) {
+    const task = `TASK FOR ${agent.name.toUpperCase()}: ${agent.brief}
 
 Return JSON exactly in this shape:
 {"insights":[{"title":"max 10 words","insight":"2-3 sentences","severity":"positive|watch|risk","impact":"social|economic|cultural","region":"region name or empty","evidence":"the key numbers","action":"one recommended action"}]}
 Give ${count} insights.
 Rules:
-- Use the "flags" lists as ground truth. Only call a region overspent if it is in overspendRiskRegions, under-served only if in underServedRegions. Never call a balanced region overspent.
-- For First Nations reach use firstNationsProgramReachRegions and firstNationsGapRegions exactly.
-- "impact" is the main kind of impact: social (safety, wellbeing, health, belonging, women feeling safe), economic (local business, tourism, jobs, construction, co-investment) or cultural (community gatherings, Pasifika, First Nations, multicultural activation).
-- Copy dollar figures exactly from the data. One region per insight unless comparing.
-- Impact evidence entries are records written by staff; you may quote them, attributed to their source.
-- userFeedback lists items staff verified or disputed. Do not repeat a disputed claim as fact; mention the dispute if relevant.
-
-DATA:
-${JSON.stringify(ctx)}`;
-    const text = await chat([{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }], { json: true, signal });
+- The FLAGS lines are ground truth. Only call a region overspent if it is listed under Overspend risk, under-served only if listed under Under-served. Never call a balanced region overspent.
+- For First Nations use the First Nations program reach and GAP lines exactly.
+- Take each dollar figure from that region's own row. Do not move numbers between regions.
+- "impact" is the main kind of impact: social (safety, wellbeing, belonging, women feeling safe), economic (local business, tourism, jobs, construction, co-investment) or cultural (community gatherings, Pasifika, First Nations, multicultural activation).
+- Field evidence records were written by staff; you may quote them, attributed to their source.
+- Follow the LEARNED FROM STAFF FEEDBACK section if present.`;
+    const text = await chat([
+      { role: 'system', content: SYSTEM },
+      { role: 'user', content: `${sharedContext()}\n\n${task}` },
+    ], { json: true, signal, label: agent.name, onProgress: pr => onProgress?.({ ...pr, expectedTokens: expectedTokens(count), insightsWritten: (pr.text.match(/"action"\s*:/g) || []).length, insightsTotal: count }) });
     const parsed = parseJson(text);
     const list = Array.isArray(parsed) ? parsed : parsed?.insights;
     if (!Array.isArray(list) || !list.length) throw new Error('Model did not return insights JSON');
-    return list.map(i => ({
+    return list.map(i => factCheck({
       title: String(i.title || 'Insight'), insight: String(i.insight || i.body || ''),
       severity: ['positive', 'watch', 'risk'].includes(i.severity) ? i.severity : 'watch',
       region: i.region || '', evidence: i.evidence ? String(i.evidence) : '', action: i.action ? String(i.action) : '',
@@ -127,10 +185,29 @@ ${JSON.stringify(ctx)}`;
     }));
   }
 
+  // Small models sometimes contradict the computed flags (e.g. call an overspend region "under-served").
+  // Check over/under claims against the real status and mark contradictions instead of hiding them.
+  const OVER_RE = /over[- ]?(spen|serv|fund|budget|alloc)|too much/i;
+  const UNDER_RE = /under[- ]?(serv|fund|spen|invest|resourc)|neglect/i;
+  function factCheck(ins) {
+    const rows = window.Analytics.regionMetrics();
+    const issues = [];
+    const sentences = `${ins.title}. ${ins.insight}`.split(/(?<=[.!?])\s+/);
+    for (const r of rows) {
+      const about = sentences.filter(s => s.includes(r.name));
+      if (!about.length) continue;
+      const claimsOver = about.some(s => OVER_RE.test(s)), claimsUnder = about.some(s => UNDER_RE.test(s));
+      const label = { over: 'overspend risk', under: 'under-served', balanced: 'balanced' }[r.status];
+      if (claimsOver && r.status !== 'over') issues.push(`${r.name} is ${label} (${r.spendIndex.toFixed(2)}x), not overspent`);
+      if (claimsUnder && r.status !== 'under') issues.push(`${r.name} is ${label} (${r.spendIndex.toFixed(2)}x), not under-served`);
+    }
+    return issues.length ? { ...ins, check: issues.join('; ') } : ins;
+  }
+
   function normaliseImpact(v) {
     const s = String(v || '').toLowerCase();
     return ['social', 'economic', 'cultural'].find(k => s.includes(k)) || '';
   }
 
-  return { get config() { return config; }, get viaServer() { return viaServer(); }, save, listModels, chat, stream, parseJson, runAgent, normaliseImpact, AGENTS, SYSTEM };
+  return { get config() { return config; }, get viaServer() { return viaServer(); }, save, listModels, chat, stream, status, parseJson, runAgent, sharedContext, expectedTokens, estimateReadMs, estimateWriteMs, normaliseImpact, AGENTS, SYSTEM };
 })();

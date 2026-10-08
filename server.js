@@ -59,6 +59,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// Local AI calls can run for many minutes on CPU; don't let Node cut long requests off.
+server.requestTimeout = 0;
+server.timeout = 0;
+
 server.listen(PORT, () => {
   console.log(`Tackle AI running at http://localhost:${PORT}`);
   console.log(`LLM: ${process.env.LLM_PROVIDER || 'ollama'} · model ${process.env.OLLAMA_MODEL || process.env.LLM_MODEL || 'qwen2.5:7b'} · storage: data-store/`);

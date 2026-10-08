@@ -73,7 +73,9 @@
     btn.disabled = true; btn.textContent = 'Assessing impact…';
     try {
       const agent = O.AGENTS.find(a => a.id === 'IMP');
-      const list = await O.runAgent(agent);
+      const list = await O.runAgent(agent, { onProgress: pr => {
+        btn.textContent = pr.phase === 'writing' ? `Writing… ${pr.tokens} tokens (insight ${Math.min(pr.insightsTotal, pr.insightsWritten + 1)} of ${pr.insightsTotal})` : `Reading the data… ${Math.round((Date.now() - pr.start) / 1000)}s`;
+      } });
       window.App.addInsights(list, { replacePillar: 'Impact' });
       toast(`${list.length} impact insights added.`);
     } catch (e) {

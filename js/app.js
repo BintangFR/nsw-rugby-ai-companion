@@ -136,43 +136,78 @@ window.App = (() => {
     $('#kpiRow').innerHTML = tiles.map(([l, v, s]) => `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
   }
 
-  let map, tiles, circles, heat, nswMask, nswOutline;
-  // Esri grey canvas basemaps: no API key needed.
-  const TILE_URL = dark => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/${dark ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base'}/MapServer/tile/{z}/{y}/{x}`;
+  let map, tiles, labels, circles, heat, nswMask, actMask, nswFill, nswGlow, nswOutline, legendCtl;
+  // Esri grey canvas basemap + its place-name overlay: no API key needed.
+  const ESRI = (dark, kind) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${dark ? 'Dark' : 'Light'}_Gray_${kind}/MapServer/tile/{z}/{y}/{x}`;
   const ll = ring => ring.map(([lng, lat]) => [lat, lng]);
+  const VIEWS = {
+    nsw: { label: 'All NSW', bounds: [[-37.6, 140.9], [-28.1, 153.7]] },
+    sydney: { label: 'Greater Sydney', bounds: [[-34.25, 150.6], [-33.55, 151.4]] },
+    coast: { label: 'Hunter & Coast', bounds: [[-35.2, 149.8], [-28.9, 153.7]] },
+  };
+  const shortName = n => n.replace('Sydney - ', 'Syd ').replace(' & Bayside', '');
+
+  function initMap() {
+    map = L.map('map', {
+      scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 5, maxZoom: 11, zoomControl: false,
+      maxBounds: L.latLngBounds(VIEWS.nsw.bounds).pad(0.15), maxBoundsViscosity: 0.9,
+    }).fitBounds(VIEWS.nsw.bounds, { padding: [10, 10] });
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+    map.createPane('mask').style.zIndex = 350;
+    map.createPane('labels').style.zIndex = 340; // under the mask, so place names outside NSW are dimmed
+    map.getPane('labels').style.pointerEvents = 'none';
+    circles = L.layerGroup().addTo(map);
+    if (window.NSW_BOUNDARY) {
+      const nsw = ll(NSW_BOUNDARY.nsw[0]);
+      const act = ll(NSW_BOUNDARY.act[0]);
+      // Dim everything outside NSW (world rectangle with NSW cut out); ACT is dimmed too as it is not NSW.
+      nswMask = L.polygon([[[-90, -180], [-90, 180], [90, 180], [90, -180]], nsw], { pane: 'mask', stroke: false, fillOpacity: 0.62, interactive: false }).addTo(map);
+      actMask = L.polygon(act, { pane: 'mask', stroke: false, fillOpacity: 0.62, interactive: false }).addTo(map);
+      nswFill = L.polygon(nsw, { pane: 'mask', stroke: false, fillOpacity: 0.05, interactive: false }).addTo(map);
+      nswGlow = L.polygon(nsw, { pane: 'mask', fill: false, weight: 9, opacity: 0.16, interactive: false }).addTo(map);
+      nswOutline = L.polygon(nsw, { pane: 'mask', fill: false, weight: 1.6, interactive: false }).addTo(map);
+    }
+    // View switcher (top-left)
+    const views = L.control({ position: 'topleft' });
+    views.onAdd = () => {
+      const el = L.DomUtil.create('div', 'map-views');
+      el.innerHTML = Object.entries(VIEWS).map(([k, v]) => `<button data-view="${k}" class="${k === 'nsw' ? 'on' : ''}">${v.label}</button>`).join('');
+      L.DomEvent.disableClickPropagation(el);
+      el.addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        map.flyToBounds(VIEWS[b.dataset.view].bounds, { padding: [20, 20], duration: 0.8 });
+      });
+      return el;
+    };
+    views.addTo(map);
+    // Floating legend (bottom-left: the area south-west of NSW is empty)
+    legendCtl = L.control({ position: 'bottomleft' });
+    legendCtl.onAdd = () => { const el = L.DomUtil.create('div', 'map-legend'); L.DomEvent.disableClickPropagation(el); return el; };
+    legendCtl.addTo(map);
+    // Metro labels only once zoomed in enough to separate them
+    const zoomClass = () => $('#map').classList.toggle('zoomed-in', map.getZoom() >= 8);
+    map.on('zoomend', zoomClass); zoomClass();
+    $('#heatToggle').addEventListener('change', () => renderMap(A.regionMetrics()));
+    $('#mapMetric').addEventListener('change', () => renderMap(A.regionMetrics()));
+  }
 
   function renderMap(rows) {
     if (!window.L) { $('#map').innerHTML = '<p class="empty">Map library failed to load (offline?).</p>'; return; }
-    if (!map) {
-      const nswBounds = L.latLngBounds([-37.6, 140.9], [-28.1, 153.7]);
-      map = L.map('map', {
-        scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 5, maxZoom: 11,
-        maxBounds: nswBounds.pad(0.15), maxBoundsViscosity: 0.9,
-      }).fitBounds(nswBounds);
-      map.createPane('mask').style.zIndex = 350;
-      map.createPane('regions').style.zIndex = 450; // keep markers above the heat canvas
-      circles = L.layerGroup().addTo(map);
-      if (window.NSW_BOUNDARY) {
-        const nsw = ll(NSW_BOUNDARY.nsw[0]);
-        const act = ll(NSW_BOUNDARY.act[0]);
-        // Dim everything outside NSW (world rectangle with NSW cut out); ACT stays dimmed as it is not NSW.
-        nswMask = L.polygon([[[-90, -180], [-90, 180], [90, 180], [90, -180]], nsw], { pane: 'mask', stroke: false, fillOpacity: 0.55, interactive: false }).addTo(map);
-        L.polygon(act, { pane: 'mask', stroke: false, fillOpacity: 0.55, interactive: false, className: 'act-mask' }).addTo(map);
-        nswOutline = L.polygon(nsw, { pane: 'mask', fill: false, weight: 1.5, interactive: false }).addTo(map);
-      }
-      L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
-      $('#heatToggle').addEventListener('change', () => renderMap(A.regionMetrics()));
-      $('#mapMetric').addEventListener('change', () => renderMap(A.regionMetrics()));
-    }
-    const tileUrl = TILE_URL(isDark());
+    if (!map) initMap();
+    const dark = isDark();
+    const tileUrl = ESRI(dark, 'Base');
     if (!tiles || tiles._url !== tileUrl) {
-      if (tiles) tiles.remove();
+      tiles?.remove(); labels?.remove();
       tiles = L.tileLayer(tileUrl, { attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors', maxZoom: 11 }).addTo(map);
+      labels = L.tileLayer(ESRI(dark, 'Reference'), { pane: 'labels', maxZoom: 11, opacity: 0.75 }).addTo(map);
     }
     if (nswMask) {
-      nswMask.setStyle({ fillColor: css('--page') });
-      map.eachLayer(l => { if (l.options?.className === 'act-mask') l.setStyle({ fillColor: css('--page') }); });
-      nswOutline.setStyle({ color: css('--brand') });
+      const page = css('--page'), brand = css('--brand');
+      nswMask.setStyle({ fillColor: page }); actMask.setStyle({ fillColor: page });
+      nswFill.setStyle({ fillColor: brand }); nswGlow.setStyle({ color: brand }); nswOutline.setStyle({ color: brand });
     }
 
     const sel = $('#mapMetric');
@@ -184,16 +219,28 @@ window.App = (() => {
     const max = Math.max(...vals.map(v => Math.abs(v)), 1e-9);
 
     circles.clearLayers();
-    for (const r of rows) {
+    // Draw small bubbles last so they sit on top of big neighbours.
+    const order = [...rows].sort((a, b) => Math.abs(b[def.id] ?? 0) - Math.abs(a[def.id] ?? 0));
+    for (const r of order) {
       const v = r[def.id] ?? 0;
       const t = Math.abs(v) / max;
-      let fill;
+      let fill, ink = '#ffffff';
       if (def.diverging) fill = r.status === 'over' ? css('--critical') : r.status === 'under' ? css('--series-1') : css('--good');
-      else fill = v ? seqColor(0.15 + t * 0.85) : css('--axis');
-      const radius = def.diverging ? 9 + 6 * Math.min(3, v) : 6 + 24 * Math.sqrt(t);
-      const m = L.circleMarker([r.lat, r.lng], { pane: 'regions', radius, color: css('--surface'), weight: 2, fillColor: fill, fillOpacity: 0.88 });
-      m.bindTooltip(`<b>${esc(r.name)}</b><br>${esc(def.label)}: ${def.fmt(v)}`, { direction: 'top' });
-      m.bindPopup(popupHtml(r));
+      else if (!v) { fill = css('--axis'); ink = css('--ink-2'); }
+      else { const tt = 0.3 + t * 0.7; fill = seqColor(tt); ink = seqInk(tt); }
+      const size = Math.round(def.diverging ? 26 + 12 * Math.min(3, v) : v ? 22 + 46 * Math.sqrt(t) : 16);
+      const flagged = r.status !== 'balanced' || r.fnGap;
+      const ring = r.status === 'over' ? css('--critical') : r.status === 'under' ? css('--series-1') : css('--warning');
+      const icon = L.divIcon({
+        className: `region-marker ${r.metro ? 'metro' : ''}`,
+        iconSize: [size, size],
+        html: `<div class="map-bubble ${flagged ? 'flagged' : ''}" style="--fill:${fill};--vink:${ink};--ring:${ring};width:${size}px;height:${size}px">
+            ${size >= 40 ? `<span class="val">${def.fmt(v)}</span>` : ''}</div>
+          <div class="map-name">${esc(shortName(r.name))}</div>`,
+      });
+      const m = L.marker([r.lat, r.lng], { icon, riseOnHover: true, zIndexOffset: Math.round((1 - t) * 1000) });
+      m.bindTooltip(`<b>${esc(r.name)}</b><br>${esc(def.label)}: <b>${def.fmt(v)}</b>`, { direction: 'top', offset: [0, -size / 2], className: 'map-tip' });
+      m.bindPopup(popupHtml(r), { className: 'map-popup', maxWidth: 320 });
       circles.addLayer(m);
     }
 
@@ -204,24 +251,32 @@ window.App = (() => {
         gradient: { 0.2: css('--seq-200'), 0.5: css('--seq-400'), 0.8: css('--seq-600'), 1: css('--seq-700') } }).addTo(map);
     }
 
-    $('#mapLegend').innerHTML = def.diverging
-      ? `<span><span class="swatch" style="background:var(--series-1)"></span>Under-served (≤0.5x)</span>
-         <span><span class="swatch" style="background:var(--good)"></span>Balanced</span>
-         <span><span class="swatch" style="background:var(--critical)"></span>Overspend risk (≥1.75x)</span>
-         <span class="muted">Circle size = index</span>`
-      : `<span>Low<span class="ramp">${seqVars.map(v => `<span style="background:var(${v})"></span>`).join('')}</span>High</span>
-         <span class="muted">Circle size = ${esc(def.label)} · click a region for detail</span>`;
+    const legendHtml = def.diverging
+      ? `<b>${esc(def.label)}</b>
+         <div><span class="swatch" style="background:var(--series-1)"></span>Under-served ≤0.5x</div>
+         <div><span class="swatch" style="background:var(--good)"></span>Balanced</div>
+         <div><span class="swatch" style="background:var(--critical)"></span>Overspend risk ≥1.75x</div>`
+      : `<b>${esc(def.label)}</b>
+         <div class="ramp">${seqVars.slice(2).map(v => `<span style="background:var(${v})"></span>`).join('')}</div>
+         <div class="ramp-ends"><span>Low</span><span>${def.fmt(max)}</span></div>`;
+    legendCtl.getContainer().innerHTML = legendHtml + `<div class="pulse-key"><span class="pulse-dot"></span>Pulsing = flagged</div>`;
+    $('#mapLegend').innerHTML = `<span class="muted">Bubble size and colour = ${esc(def.label)} · click a region for detail · labels for Sydney regions appear when you zoom in</span>`;
   }
 
   function popupHtml(r) {
     const tags = A.INCLUSION_TAGS.filter(t => r.tagSpend[t] > 0).map(t => ({ women: 'Women & girls', firstNations: 'First Nations', pasifika: 'Pasifika/CALD', access: 'Accessibility' }[t]));
-    return `<h3>${esc(r.name)}</h3>
-      <span class="status ${r.status}">${{ over: 'Overspend risk', under: 'Under-served', balanced: 'Balanced' }[r.status]}</span>
-      <div style="margin-top:6px">Total ${moneyFull(r.total)} · ${r.spendIndex.toFixed(2)}x pop. share<br>
-      Facilities ${money(r.fe)} · Workforce ${money(r.pw)} · Inclusion ${money(r.inc)}<br>
-      Audit gaps addressed: ${r.gaps.size ? [...r.gaps].join(', ') : 'none'}<br>
-      Inclusion focus: ${tags.length ? tags.join(', ') : 'none tagged'}${r.fnGap ? '<br><b>⚠ First Nations gap</b> (~' + r.fnShare + '% of residents)' : ''}</div>
-      <ul>${r.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
+    const parts = [['fe', 'Facilities', 'var(--series-1)'], ['pw', 'Workforce', 'var(--series-2)'], ['inc', 'Inclusion', 'var(--series-3)']];
+    return `<div class="pop-head"><h3>${esc(r.name)}</h3><span class="status ${r.status}">${{ over: 'Overspend risk', under: 'Under-served', balanced: 'Balanced' }[r.status]}</span></div>
+      <div class="pop-stats">
+        <div><b>${money(r.total)}</b><span>known spend</span></div>
+        <div><b>${r.spendIndex.toFixed(2)}x</b><span>vs population</span></div>
+        <div><b>$${r.perResident.toFixed(2)}</b><span>per resident</span></div>
+      </div>
+      ${r.total ? `<div class="pop-bar">${parts.filter(([k]) => r[k] > 0).map(([k, l, c]) => `<span style="flex:${r[k]};background:${c}" title="${l} ${moneyFull(r[k])}"></span>`).join('')}</div>
+      <div class="pop-key">${parts.map(([k, l, c]) => `<span><i style="background:${c}"></i>${l} ${money(r[k])}</span>`).join('')}</div>` : ''}
+      <div class="pop-meta">Audit gaps fixed: <b>${r.gaps.size ? [...r.gaps].join(', ') : 'none'}</b><br>
+      Inclusion focus: <b>${tags.length ? tags.join(', ') : 'none tagged'}</b>${r.fnGap ? `<br><span class="status risk">First Nations gap</span> ~${r.fnShare}% of residents` : ''}</div>
+      ${r.items.length ? `<details><summary>${r.items.length} funded item${r.items.length > 1 ? 's' : ''}</summary><ul>${r.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></details>` : ''}`;
   }
 
   function renderCentral(c) {
@@ -452,6 +507,7 @@ window.App = (() => {
       <div class="meta"><span class="status ${i.severity}">${sev}</span>${i.impact ? `<span class="impact-chip ${i.impact}">${i.impact[0].toUpperCase() + i.impact.slice(1)}</span>` : ''}<span>${esc(i.pillar)}</span>${i.region ? `<span>· ${esc(i.region)}</span>` : ''}<span>· ${esc(i.agent || '')}</span>
         ${F ? F.ratingHtml(key, i.title, 'Insight') : ''}<button class="remove" title="Delete insight" aria-label="Delete insight">×</button></div>
       ${F ? F.badgeHtml(key) : ''}
+      ${i.check ? `<div class="fact-check" title="Automatic check against the dashboard data">⚠ Fails data check: ${esc(i.check)}</div>` : ''}
       <h3>${esc(i.title)}</h3>
       <p>${esc(i.insight)}</p>
       ${i.evidence ? `<div class="evidence">${esc(i.evidence)}</div>` : ''}
@@ -467,38 +523,146 @@ window.App = (() => {
     document.dispatchEvent(new CustomEvent('insights-changed'));
   }
 
-  function renderAgentChips(states = {}) {
+  // ---------- agent run progress ----------
+  // Each agent goes queued -> loading (model into memory) -> reading (processing the prompt) -> writing
+  // (tokens streaming) -> done. Progress, ETA and "may be stuck" warnings are derived from those phases.
+  const fmtDur = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`; };
+  let run = null; // { states: {id: state}, order, start, ctl, ticker, poller, modelLoaded }
+
+  function agentFraction(s) {
+    if (!s || s.phase === 'queued') return 0;
+    if (['done', 'failed', 'cancelled'].includes(s.phase)) return 1;
+    const now = Date.now();
+    if (s.phase === 'writing') return 0.35 + 0.65 * Math.min(0.97, s.tokens / (s.expectedTokens || 400));
+    return 0.35 * Math.min(0.95, (now - s.start) / (s.estReadMs || 30000));
+  }
+
+  function agentRemainingMs(s, agent) {
+    const exp = s?.expectedTokens || O.expectedTokens(agent.count || 3);
+    if (!s || s.phase === 'queued') return O.estimateReadMs(2500) + O.estimateWriteMs(exp); // later agents reuse the prompt cache
+    if (s.phase === 'writing') return O.estimateWriteMs(Math.max(0, exp - s.tokens));
+    if (['done', 'failed', 'cancelled'].includes(s.phase)) return 0;
+    return Math.max(2000, (s.estReadMs || 30000) - (Date.now() - s.start)) + O.estimateWriteMs(exp);
+  }
+
+  function phaseText(s, agent) {
+    const now = Date.now();
+    switch (s?.phase) {
+      case undefined: return 'Ready';
+      case 'queued': return 'Waiting in queue';
+      case 'loading': return `Loading the model into memory… ${fmtDur(now - s.start)}`;
+      case 'reading': return `Reading the data… ${fmtDur(now - s.start)} (usually ~${fmtDur(s.estReadMs)})`;
+      case 'writing': return `Writing · ${s.tokens} tokens · insight ${Math.min(s.insightsTotal, s.insightsWritten + 1)} of ${s.insightsTotal}`;
+      case 'done': return `✓ ${s.count} insights in ${fmtDur(s.end - s.start)}`;
+      case 'cancelled': return 'Cancelled';
+      case 'failed': return `AI failed (${s.error}) - used rule engine`;
+    }
+    return '';
+  }
+
+  function stallWarning(s) {
+    if (!s) return '';
+    const now = Date.now();
+    if (run?.reachable === false) return 'Can\'t reach Ollama right now. Check that it is running (llama icon in the system tray, or "ollama serve").';
+    if ((s.phase === 'reading' || s.phase === 'loading') && now - s.start > Math.max(2.5 * s.estReadMs, 180000))
+      return `Still reading after ${fmtDur(now - s.start)}, which is longer than usual (about ${fmtDur(s.estReadMs)} expected on this machine). Ollama may be busy with another request or stuck. You can keep waiting or press Cancel.`;
+    if (s.phase === 'writing' && now - s.lastTokenAt > 30000)
+      return `No new text for ${fmtDur(now - s.lastTokenAt)}. The model may be stuck. You can keep waiting or press Cancel.`;
+    return '';
+  }
+
+  function renderAgentChips() {
+    const states = run?.states || {};
     $('#agentChips').innerHTML = O.AGENTS.map(a => {
-      const s = states[a.id] || { state: 'idle', text: 'Ready' };
-      return `<div class="agent ${s.state}"><div class="avatar">${a.id}</div><div><b>${a.name}</b><div class="state">${esc(s.text)}</div></div></div>`;
+      const s = states[a.id];
+      const cls = !s ? 'idle' : s.phase === 'done' ? 'done' : ['failed', 'cancelled'].includes(s.phase) ? 'failed' : s.phase === 'queued' ? 'queued' : 'running';
+      const pct = Math.round(agentFraction(s) * 100);
+      const indeterminate = s && (s.phase === 'reading' || s.phase === 'loading');
+      return `<div class="agent ${cls}"><div class="avatar">${a.id}</div>
+        <div class="agent-body"><b>${a.name}</b><div class="state">${esc(phaseText(s, a))}</div>
+        ${s && s.phase !== 'queued' ? `<div class="mini-bar ${indeterminate ? 'indeterminate' : ''}"><span style="width:${pct}%"></span></div>` : ''}</div></div>`;
     }).join('');
+  }
+
+  function renderRunProgress() {
+    if (!run) { $('#runProgress').hidden = true; return; }
+    $('#runProgress').hidden = false;
+    const agents = O.AGENTS;
+    const fractions = agents.map(a => agentFraction(run.states[a.id]));
+    const overall = fractions.reduce((x, y) => x + y, 0) / agents.length;
+    const current = agents.find(a => !['done', 'failed', 'cancelled', 'queued'].includes(run.states[a.id]?.phase));
+    const finished = agents.filter(a => ['done', 'failed', 'cancelled'].includes(run.states[a.id]?.phase)).length;
+    const eta = agents.reduce((t, a) => t + agentRemainingMs(run.states[a.id], a), 0);
+    const pct = Math.round(overall * 100);
+    $('#rpFill').style.width = pct + '%';
+    $('#rpBar').setAttribute('aria-valuenow', pct);
+    $('#rpTitle').textContent = run.finished
+      ? `Finished · ${finished} of ${agents.length} agents · ${fmtDur(run.end - run.start)}`
+      : `${pct}% · agent ${Math.min(agents.length, finished + 1)} of ${agents.length}${current ? ' · ' + current.name : ''}`;
+    $('#rpMeta').textContent = run.finished ? '' : `Elapsed ${fmtDur(Date.now() - run.start)} · about ${fmtDur(eta)} left (estimate from this machine's speed) · model ${O.config.model}`;
+    const warn = current ? stallWarning(run.states[current.id]) : '';
+    $('#rpWarn').hidden = !warn;
+    $('#rpWarn').textContent = warn ? '⚠ ' + warn : '';
+    $('#cancelAgents').hidden = !!run.finished;
+    const s = current && run.states[current.id];
+    $('#rpLive').textContent = s?.text ? s.text.slice(-900) : s ? (s.phase === 'loading' ? 'Loading the model into memory…' : `${current.name} is reading the data (${(s.promptChars / 1000).toFixed(1)}k characters). Text appears here as soon as it starts writing.`) : (run.finished ? 'Done.' : 'Waiting for the first words…');
+    $('#rpLive').scrollTop = $('#rpLive').scrollHeight;
+  }
+
+  async function pollModelStatus() {
+    if (!run || run.finished) return;
+    const current = O.AGENTS.find(a => ['reading', 'loading'].includes(run.states[a.id]?.phase));
+    const st = await O.status();
+    if (!run) return;
+    run.reachable = st.reachable;
+    if (current) {
+      const s = run.states[current.id];
+      if (s.phase === 'reading' && st.reachable && !st.loaded) s.phase = 'loading';
+      else if (s.phase === 'loading' && st.loaded) s.phase = 'reading';
+    }
   }
 
   async function runAgents() {
     if (!requireModel()) return;
     const btn = $('#runAgents');
     btn.disabled = true; btn.textContent = 'Running…';
-    const states = {};
-    O.AGENTS.forEach(a => states[a.id] = { state: 'idle', text: 'Queued' });
-    renderAgentChips(states);
+    run = { states: {}, start: Date.now(), ctl: new AbortController() };
+    O.AGENTS.forEach(a => run.states[a.id] = { phase: 'queued' });
+    const tick = () => { renderAgentChips(); renderRunProgress(); };
+    run.ticker = setInterval(tick, 1000);
+    run.poller = setInterval(pollModelStatus, 4000);
+    tick();
     const rules = A.ruleInsights();
     for (const agent of O.AGENTS) {
-      states[agent.id] = { state: 'running', text: `Thinking with ${O.config.model}…` };
-      renderAgentChips(states);
-      const t0 = performance.now();
+      if (run.ctl.signal.aborted) { run.states[agent.id] = { phase: 'cancelled' }; continue; }
+      run.states[agent.id] = { phase: 'reading', start: Date.now(), tokens: 0, estReadMs: 30000 };
+      tick();
       try {
-        const list = await O.runAgent(agent);
+        const list = await O.runAgent(agent, {
+          signal: run.ctl.signal,
+          onProgress: pr => {
+            const s = run.states[agent.id];
+            Object.assign(s, pr, { phase: pr.phase === 'reading' && s.phase === 'loading' ? 'loading' : pr.phase });
+            if (pr.phase === 'writing') renderRunProgress(); // live text without waiting for the ticker
+          },
+        });
         addInsights(list, { replacePillar: agent.pillar });
-        states[agent.id] = { state: 'done', text: `${list.length} insights in ${((performance.now() - t0) / 1000).toFixed(0)}s` };
+        Object.assign(run.states[agent.id], { phase: 'done', count: list.length, end: Date.now() });
       } catch (e) {
         console.error(agent.name, e);
+        if (run.ctl.signal.aborted) { run.states[agent.id].phase = 'cancelled'; continue; }
         addInsights(rules.filter(r => r.pillar === agent.pillar), { replacePillar: agent.pillar });
-        states[agent.id] = { state: 'failed', text: 'AI failed - used rule engine' };
+        const reason = String(e.message || e).replace(/^Error:\s*/, '').slice(0, 140);
+        Object.assign(run.states[agent.id], { phase: 'failed', error: reason, end: Date.now() });
+        toast(`${agent.name}: ${reason}`, 6000);
       }
-      renderAgentChips(states);
+      tick();
     }
+    clearInterval(run.ticker); clearInterval(run.poller);
+    run.finished = true; run.end = Date.now();
+    tick();
     btn.disabled = false; btn.textContent = 'Run agents';
-    toast('Agents finished.');
+    toast(run.ctl.signal.aborted ? 'Agents cancelled.' : 'Agents finished.');
   }
 
   function runRules() {
@@ -514,13 +678,12 @@ window.App = (() => {
     el.className = 'bubble answer watch thinking';
     el.innerHTML = `<div class="meta"><span>You asked</span></div><h3>${esc(question)}</h3><div class="md"><p></p></div>`;
     $('#bubbles').prepend(el);
-    const ctx = A.contextFor('all');
-    const known = insights.slice(0, 20).map(i => `- [${i.pillar}] ${i.title}: ${i.insight}`).join('\n');
+    const known = insights.slice(0, 12).map(i => `- [${i.pillar}] ${i.title}: ${i.insight}`).join('\n');
     try {
       await O.stream([
         { role: 'system', content: O.SYSTEM },
-        { role: 'user', content: `DATA:\n${JSON.stringify(ctx)}\n\nEXISTING INSIGHTS:\n${known || 'none'}\n\nQUESTION: ${question}\nAnswer in under 200 words using markdown. Cite figures from the data.` },
-      ], (_, full) => { $('.md', el).innerHTML = md(full); });
+        { role: 'user', content: `${O.sharedContext()}\n\nEXISTING INSIGHTS:\n${known || 'none'}\n\nQUESTION: ${question}\nAnswer in under 200 words using markdown. Cite figures from the data.` },
+      ], (_, full) => { $('.md', el).innerHTML = md(full); }, { label: 'Question' });
       el.classList.remove('thinking');
     } catch (e) {
       el.classList.remove('thinking');
@@ -532,6 +695,7 @@ window.App = (() => {
     renderAgentChips();
     renderBubbles();
     $('#runAgents').addEventListener('click', runAgents);
+    $('#cancelAgents').addEventListener('click', () => { run?.ctl.abort(); toast('Cancelling…'); });
     $('#runRules').addEventListener('click', runRules);
     $$('#insightFilter button').forEach(b => b.addEventListener('click', () => {
       $$('#insightFilter button').forEach(x => x.classList.toggle('on', x === b));
@@ -567,6 +731,17 @@ window.App = (() => {
     initInsights();
     checkOllama();
     document.addEventListener('feedback-changed', () => { renderFlags(A.regionMetrics()); renderBubbles(); });
+    // Top-bar pill mirrors whatever the AI is doing anywhere in the app.
+    document.addEventListener('ai-activity', e => {
+      const d = e.detail, pill = $('#ollamaStatus');
+      if (d.active > 0 && (d.phase === 'reading' || d.phase === 'writing')) {
+        pill.classList.add('busy');
+        $('.label', pill).textContent = `AI: ${d.label} · ${d.phase === 'writing' ? `writing ${d.tokens} tokens` : `reading ${fmtDur(Date.now() - d.start)}`}`;
+      } else if (d.active === 0) {
+        pill.classList.remove('busy');
+        if (pill.classList.contains('ok')) $('.label', pill).textContent = (O.viaServer ? 'AI: ' : 'Ollama: ') + O.config.model;
+      }
+    });
     document.dispatchEvent(new CustomEvent('app-ready'));
   });
 

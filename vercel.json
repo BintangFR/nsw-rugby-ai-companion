@@ -6,7 +6,8 @@
     "api/chat.js": { "maxDuration": 120 },
     "api/health.js": { "maxDuration": 15 },
     "api/models.js": { "maxDuration": 15 },
-    "api/store.js": { "maxDuration": 15 }
+    "api/store.js": { "maxDuration": 15 },
+    "api/status.js": { "maxDuration": 10 }
   },
   "headers": [
     {

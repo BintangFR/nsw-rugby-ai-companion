@@ -23,10 +23,13 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Accel-Buffering', 'no');
+  // If the browser cancels (or the tab closes), stop the model instead of letting it run on.
+  const ac = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) ac.abort(); });
   try {
-    await stream(opts, tok => res.write(JSON.stringify({ message: { role: 'assistant', content: tok } }) + '\n'));
+    await stream(opts, tok => res.write(JSON.stringify({ message: { role: 'assistant', content: tok } }) + '\n'), ac.signal);
     res.end(JSON.stringify({ done: true }) + '\n');
   } catch (e) {
-    res.end(JSON.stringify({ error: e.message, done: true }) + '\n');
+    if (!res.writableEnded) res.end(JSON.stringify({ error: e.message, done: true }) + '\n');
   }
 }
