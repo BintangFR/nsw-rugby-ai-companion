@@ -60,11 +60,13 @@ window.App = (() => {
         O.save({ model: pref });
       }
       pill.className = 'pill ok';
-      $('.label', pill).textContent = 'Ollama: ' + O.config.model;
+      $('.label', pill).textContent = (O.viaServer ? 'AI: ' : 'Ollama: ') + O.config.model;
+      pill.title = O.viaServer ? `Via backend (${Store.health?.llm?.provider}) · storage: ${Store.health?.storage?.backend}` : 'Direct to Ollama · storage: this browser';
       return models;
     } catch (e) {
       pill.className = 'pill err';
-      $('.label', pill).textContent = 'Ollama: offline';
+      $('.label', pill).textContent = O.viaServer ? 'AI: offline' : 'Ollama: offline';
+      pill.title = e.message;
       return null;
     }
   }
@@ -77,7 +79,11 @@ window.App = (() => {
       const models = await checkOllama();
       const sel = $('#ollamaModel');
       sel.innerHTML = (models || []).map(m => `<option ${m === O.config.model ? 'selected' : ''}>${esc(m)}</option>`).join('');
-      $('#settingsMsg').textContent = models ? `${models.length} model(s) found.` : `Could not reach Ollama at ${O.config.baseUrl}.`;
+      $('#ollamaUrl').closest('label').hidden = O.viaServer;
+      const h = Store.health;
+      $('#settingsMsg').textContent = O.viaServer
+        ? `Connected through the Tackle AI backend (${h?.deployment}) · provider ${h?.llm?.provider} · storage ${h?.storage?.backend}${h?.storage?.warning ? ' - ' + h.storage.warning : ''}. ${models ? models.length + ' model(s) available.' : 'AI provider unreachable: ' + (h?.llm?.error || '')}`
+        : models ? `${models.length} model(s) found. Storage: this browser only (start server.js for shared storage).` : `Could not reach Ollama at ${O.config.baseUrl}.`;
     };
     $('#ollamaStatus').addEventListener('click', () => { dlg.showModal(); fill(); });
     $('#refreshModels').addEventListener('click', () => { O.save({ baseUrl: $('#ollamaUrl').value.trim() || 'http://localhost:11434' }); fill(); });
@@ -247,9 +253,20 @@ window.App = (() => {
 
   function renderFlags(rows) {
     const flagged = rows.filter(r => r.status !== 'balanced' || r.fnGap).sort((a, b) => b.spendIndex - a.spendIndex);
-    $('#flagList').innerHTML = flagged.map(r => {
-      const label = r.status === 'over' ? 'Overspend risk' : r.status === 'under' ? 'Under-served' : 'Balanced';
-      return `<li><span class="status ${r.status}">${label}</span><div><b>${esc(r.name)}</b> ${r.spendIndex.toFixed(2)}x · ${money(r.total)} · $${r.perResident.toFixed(2)}/resident${r.fnGap ? `<br><span class="status risk">First Nations gap</span> <span class="muted small">~${r.fnShare}% First Nations, no program reach</span>` : ''}</div></li>`;
+    const F = window.Feedback;
+    const items = [];
+    for (const r of flagged) {
+      if (r.status !== 'balanced') {
+        const label = r.status === 'over' ? 'Overspend risk' : 'Under-served';
+        items.push({ key: `flag:${r.name}:${r.status}`, text: `${r.name} - ${label}`, status: r.status, label,
+          body: `<b>${esc(r.name)}</b> ${r.spendIndex.toFixed(2)}x · ${money(r.total)} · $${r.perResident.toFixed(2)}/resident` });
+      }
+      if (r.fnGap) items.push({ key: `flag:${r.name}:fn-gap`, text: `${r.name} - First Nations gap`, status: 'risk', label: 'First Nations gap',
+        body: `<b>${esc(r.name)}</b> <span class="muted small">~${r.fnShare}% First Nations residents, no program reach</span>` });
+    }
+    $('#flagList').innerHTML = items.map(it => {
+      const disputed = F?.ratingFor(it.key)?.vote === 'down';
+      return `<li class="${disputed ? 'disputed' : ''}"><span class="status ${it.status}">${it.label}</span><div>${it.body} ${F ? F.badgeHtml(it.key) : ''}</div>${F ? F.ratingHtml(it.key, it.text, 'Flag') : ''}</li>`;
     }).join('') || '<li class="muted">No regions flagged.</li>';
   }
 
@@ -428,8 +445,13 @@ window.App = (() => {
 
   function bubbleHtml(i) {
     const sev = { positive: 'Positive', watch: 'Watch', risk: 'Risk' }[i.severity] || 'Watch';
-    return `<article class="bubble ${i.severity}">
-      <div class="meta"><span class="status ${i.severity}">${sev}</span><span>${esc(i.pillar)}</span>${i.region ? `<span>· ${esc(i.region)}</span>` : ''}<span>· ${esc(i.agent || '')}</span></div>
+    const F = window.Feedback;
+    const key = 'insight:' + i.id;
+    const disputed = F?.ratingFor(key)?.vote === 'down';
+    return `<article class="bubble ${i.severity} ${disputed ? 'disputed' : ''}" data-id="${esc(i.id)}">
+      <div class="meta"><span class="status ${i.severity}">${sev}</span>${i.impact ? `<span class="impact-chip ${i.impact}">${i.impact[0].toUpperCase() + i.impact.slice(1)}</span>` : ''}<span>${esc(i.pillar)}</span>${i.region ? `<span>· ${esc(i.region)}</span>` : ''}<span>· ${esc(i.agent || '')}</span>
+        ${F ? F.ratingHtml(key, i.title, 'Insight') : ''}<button class="remove" title="Delete insight" aria-label="Delete insight">×</button></div>
+      ${F ? F.badgeHtml(key) : ''}
       <h3>${esc(i.title)}</h3>
       <p>${esc(i.insight)}</p>
       ${i.evidence ? `<div class="evidence">${esc(i.evidence)}</div>` : ''}
@@ -442,6 +464,7 @@ window.App = (() => {
     $('#bubbles').innerHTML = list.length ? list.map(bubbleHtml).join('')
       : `<div class="empty">No insights yet. Press <b>Run agents</b> to have your local Ollama model analyse the data, or <b>Rule-based only</b> for instant insights without AI.</div>`;
     $('#insightCount').textContent = `${list.length} insight${list.length === 1 ? '' : 's'}`;
+    document.dispatchEvent(new CustomEvent('insights-changed'));
   }
 
   function renderAgentChips(states = {}) {
@@ -480,7 +503,7 @@ window.App = (() => {
 
   function runRules() {
     const rules = A.ruleInsights();
-    insights = insights.filter(i => i.pillar === 'Uploaded data');
+    insights = insights.filter(i => i.pillar === 'Uploaded data' || i.pillar === 'Data quality');
     addInsights(rules);
     toast(`${rules.length} rule-based insights added.`);
   }
@@ -520,20 +543,35 @@ window.App = (() => {
       const q = $('#askInput').value.trim();
       if (q) { ask(q); $('#askInput').value = ''; }
     });
+    // Delete an insight (asks why it is inaccurate first). Works for every bubble list.
+    document.addEventListener('click', async e => {
+      const btn = e.target.closest('.bubble .remove');
+      if (!btn) return;
+      const id = btn.closest('.bubble').dataset.id;
+      const ins = insights.find(i => i.id === id);
+      if (!ins || !(await window.Feedback.confirmDelete('Insight', ins.title))) return;
+      insights = insights.filter(i => i.id !== id);
+      persist();
+      renderBubbles();
+    });
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
+    await Store.init();
+    insights = Store.get('insights') || [];
     initTabs();
     initSettings();
     initMatrixFilter();
     renderOverview();
     initInsights();
     checkOllama();
+    document.addEventListener('feedback-changed', () => { renderFlags(A.regionMetrics()); renderBubbles(); });
+    document.dispatchEvent(new CustomEvent('app-ready'));
   });
 
   return {
-    $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, pillarChartImage, showTab,
+    $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, bubbleHtml, pillarChartImage, showTab,
     get insights() { return insights; },
   };
 })();

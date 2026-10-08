@@ -187,6 +187,10 @@ window.Analytics = (() => {
       },
       regions,
       impact: impactContext(focus === 'IMP' ? 40 : 10),
+      userFeedback: window.Feedback?.summary(),
+      dataSourceQuality: Object.entries(Store.get('quality') || {}).map(([file, q]) => ({
+        file, rating: q.ai?.rating || q.rule?.rating, score: q.ai?.score ?? q.rule?.score, verdict: q.ai?.verdict || undefined,
+      })),
       kpis: D.kpis,
       context: D.context,
       notes: 'Population and First Nations % are indicative approximations. spendVsPopIndex = region share of spend / share of population (>=1.75 overspend risk, <=0.5 underserved).',

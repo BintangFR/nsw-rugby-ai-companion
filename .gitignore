@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Tackle AI
+.env.local
+.env.*.local
+data-store/
+.vercel/
+node_modules/
+_selftest.html

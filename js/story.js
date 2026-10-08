@@ -2,13 +2,12 @@
 (() => {
   const { $, $$, esc, md, money, toast } = window.App;
   const A = window.Analytics, O = window.Ollama;
-  const DRAFT_KEY = 'tackle.story';
 
   const FORMATS = {
     annual: {
       label: 'Annual report chapter',
       brief: `Write a chapter for the NSW Rugby Union {year} Annual Report on the Rugby World Cup Legacy Program.
-Structure: a "# " title line; a short opening paragraph; "## " sections for each included pillar (Facilities & Equipment, Programs & Workforce, Inclusion, Where the money goes); a "## Looking ahead" section. Include one "> " pull-out line that states a key figure (not a quote from a person).`,
+Structure: a "# " title line; a short opening paragraph; "## " sections for each included pillar (Facilities & Equipment, Programs & Workforce, Inclusion, Where the money goes, Social, economic and cultural impact); a "## Looking ahead" section. Include one "> " pull-out line that states a key figure (not a quote from a person).`,
     },
     board: {
       label: 'Board summary',
@@ -30,18 +29,36 @@ Structure: a "# " title line; a short opening paragraph; "## " sections for each
 
   const selectedPillars = () => $$('input[name="pillar"]:checked').map(i => i.value);
 
+  // reportstyle.css variant per format
+  const VARIANT = { annual: 'report--annual', board: 'report--board', acquittal: 'report--acquittal', community: 'report--community', media: 'report--media' };
+  const PILLAR_CLASS = { 'Facilities & Equipment': 'pillar-facilities', 'Programs & Workforce': 'pillar-workforce', Inclusion: 'pillar-inclusion', Centralisation: 'pillar-centralisation' };
+
   function refreshFrame() {
     const c = A.centralisation();
     const p = A.pillarTotals();
-    const fmt = FORMATS[$('#storyFormat').value];
-    $('#reportMeta').textContent = `${fmt.label} · ${$('#storyYear').value} · Prepared ${new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    const key = $('#storyFormat').value;
+    const fmt = FORMATS[key];
+    const year = $('#storyYear').value || '2026';
+    const today = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const report = $('#report');
+    report.className = `report ${VARIANT[key]}`;
+    $('#coverYear').textContent = year;
+    $('#reportMeta').textContent = `NSW Rugby World Cup Legacy Program · ${fmt.label} · Prepared ${today}`;
+    $('#releaseMeta').hidden = $('#endMark').hidden = key !== 'media';
+    $('#releaseDate').textContent = today;
     $('#reportKpis').innerHTML = [
-      [money(c.knownTotal), 'Known Legacy spend'], [money(p.fe), 'Facilities & Equipment'],
-      [money(p.pw), 'Programs & Workforce'], [money(p.inc), 'Inclusion'],
-    ].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+      [money(c.knownTotal), 'Known Legacy spend', 'of the $10M program'], [money(p.fe), 'Facilities & Equipment', `${A.regionMetrics().reduce((n, r) => n + r.facilityCount, 0)} facility projects`],
+      [money(p.pw), 'Programs & Workforce', 'coaches, MOs, competitions'], [money(p.inc), 'Inclusion', 'women, First Nations, Pasifika, access'],
+    ].map(([v, l, s]) => `<div class="stat"><b>${v}</b><span>${l}</span><small>${s}</small></div>`).join('');
     const img = window.App.pillarChartImage();
     if (img) $('#reportChart').src = img;
     renderAppendix();
+    numberSections();
+  }
+
+  // Number every .section-head in order (01 At a glance, 02 ..., appendix last).
+  function numberSections() {
+    $$('#report .section-num').forEach((el, i) => { el.textContent = String(i + 1).padStart(2, '0'); });
   }
 
   function storyInsights() {
@@ -54,14 +71,46 @@ Structure: a "# " title line; a short opening paragraph; "## " sections for each
 
   function renderAppendix() {
     const { list } = storyInsights();
-    $('#reportAppendix').innerHTML = list.length ? `<h2>Insight register</h2>` + list.map(i =>
-      `<div class="ins"><b>${esc(i.title)}</b> <span>(${esc(i.pillar)}${i.region ? ', ' + esc(i.region) : ''})</span><br><span>${esc(i.insight)}${i.action ? ' Recommended: ' + esc(i.action) : ''}</span></div>`).join('') : '';
+    $('#reportAppendix').hidden = !list.length;
+    $('#reportAppendix').innerHTML = list.length ? `<div class="section-head"><span class="section-num"></span><h2>Insight register</h2></div>` + list.map(i =>
+      `<div class="insight ${PILLAR_CLASS[i.pillar] || ''}">
+        <h4><span class="tag ${PILLAR_CLASS[i.pillar] || ''}">${esc(i.pillar)}</span>${esc(i.title)}</h4>
+        <p>${esc(i.insight)}${i.action ? ` <b>Recommended:</b> ${esc(i.action)}` : ''}</p>
+        ${i.evidence ? `<p class="evidence">${esc(i.evidence)}${i.region ? ' · ' + esc(i.region) : ''}</p>` : ''}
+      </div>`).join('') : '';
+    numberSections();
   }
 
+  // Markdown -> report template: each "## " starts a numbered .report-section, the first paragraph
+  // becomes the lede, blockquotes become pull quotes and tables become data tables.
   function setBody(markdown) {
     const m = markdown.match(/^\s*#\s+(.+)\n?/);
     if (m) { $('#reportTitle').textContent = m[1].replace(/\*+/g, '').trim(); markdown = markdown.slice(m[0].length); }
-    $('#reportBody').innerHTML = md(markdown);
+    const tmp = document.createElement('div');
+    tmp.innerHTML = md(markdown);
+    const out = document.createElement('div');
+    let section = document.createElement('section');
+    section.className = 'report-section';
+    let firstP = true;
+    for (const node of [...tmp.childNodes]) {
+      if (node.nodeName === 'H2') {
+        if (section.childNodes.length) out.appendChild(section);
+        section = document.createElement('section');
+        section.className = 'report-section';
+        const head = document.createElement('div');
+        head.className = 'section-head';
+        head.innerHTML = `<span class="section-num"></span><h2>${node.innerHTML}</h2>`;
+        section.appendChild(head);
+        continue;
+      }
+      if (node.nodeName === 'P' && firstP && node.textContent.trim()) { node.classList.add('lede'); firstP = false; }
+      if (node.nodeName === 'BLOCKQUOTE') node.className = 'pull-quote';
+      if (node.nodeName === 'TABLE') node.classList.add('data-table');
+      section.appendChild(node);
+    }
+    if (section.childNodes.length) out.appendChild(section);
+    $('#reportBody').innerHTML = out.innerHTML;
+    numberSections();
   }
 
   async function generate() {
@@ -88,6 +137,8 @@ Structure: a "# " title line; a short opening paragraph; "## " sections for each
 Tone: ${$('#storyTone').value}. Length: about ${$('#storyLength').value} words. Australian English.
 Cover only these areas: ${pillars.join(', ')}.
 Rules: use only facts from INSIGHTS and DATA; never invent numbers, names, quotes or people; describe budgets as allocations, not money spent; be honest about risks and gaps.
+${pillars.includes('Impact') ? `Include a "## Social, economic and cultural impact" section with "### Social", "### Economic" and "### Cultural" sub-headings. Use DATA.impact (spend per lens, which indicators are measured, and the evidence records). Evidence records are real field notes: you may quote them, attributed to their source and region. Where a lens has no evidence, say what will be measured next.` : ''}
+Do not repeat claims listed in DATA.userFeedback.disputedByUsers as fact.
 ${$('#storyNotes').value.trim() ? 'Extra direction: ' + $('#storyNotes').value.trim() : ''}
 Output markdown only.
 
@@ -95,7 +146,7 @@ INSIGHTS:
 ${list.map(i => `- [${i.pillar}${i.region ? ' / ' + i.region : ''}] ${i.title}. ${i.insight} Evidence: ${i.evidence || 'n/a'}. Action: ${i.action || 'n/a'}`).join('\n')}
 
 DATA:
-${JSON.stringify(A.contextFor('all'))}
+${JSON.stringify(A.contextFor('IMP'))}
 ${uploads ? '\nUPLOADED FILES:\n' + uploads : ''}`;
 
     try {
@@ -132,46 +183,61 @@ ${uploads ? '\nUPLOADED FILES:\n' + uploads : ''}`;
     return out;
   }
 
-  async function exportPdf() {
+  const fileName = () => ($('#reportTitle').textContent || 'Tackle AI report').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-');
+
+  // Primary export: the browser's print-to-PDF, which honours reportstyle.css (@page running head,
+  // page numbers, cover page, section page breaks) and keeps the text selectable.
+  function exportPdf() {
+    refreshFrame();
+    document.querySelectorAll('#report [contenteditable]').forEach(n => n.blur());
+    const prevTitle = document.title;
+    document.title = fileName(); // becomes the suggested PDF file name
+    toast('Choose "Save as PDF" as the destination.');
+    setTimeout(() => {
+      window.print();
+      document.title = prevTitle;
+    }, 300);
+  }
+
+  // Secondary: one-click download via html2pdf (pages are images; no running heads).
+  async function quickDownload() {
+    if (!window.html2pdf) { exportPdf(); return; }
     const el = $('#report');
-    const btn = $('#exportPdf');
-    if (!window.html2pdf) { window.print(); return; }
-    btn.disabled = true; btn.textContent = 'Exporting…';
+    const btn = $('#downloadPdf');
+    btn.disabled = true; btn.textContent = 'Rendering…';
+    refreshFrame();
     el.querySelectorAll('[contenteditable]').forEach(n => n.blur());
-    const name = ($('#reportTitle').textContent || 'Tackle AI report').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-');
     const prev = el.style.cssText;
-    el.style.cssText += ';border:0;box-shadow:none;border-radius:0;';
+    el.style.cssText += ';box-shadow:none;margin:0;width:210mm;max-width:none;';
     try {
       await html2pdf().set({
-        margin: [14, 12, 16, 12],
-        filename: `${name}.pdf`,
+        margin: 0,
+        filename: `${fileName()}.pdf`,
         image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'], avoid: ['.ins', '.report-figure', '.report-kpis', 'h2', 'h3', 'blockquote', 'li'] },
+        pagebreak: { mode: ['css', 'legacy'], before: '.report-section:not(:first-of-type)', avoid: ['.insight', '.report-figure', '.stat-grid', '.pull-quote', 'h2', 'h3', 'li', 'tr'] },
       }).from(el).save();
       toast('PDF downloaded.');
     } catch (e) {
-      toast('PDF export failed - opening print dialog instead.');
-      window.print();
+      toast('Quick download failed - use Export PDF instead.');
     } finally {
       el.style.cssText = prev;
-      btn.disabled = false; btn.textContent = 'Export PDF';
+      btn.disabled = false; btn.textContent = 'Quick download';
     }
   }
 
   function save() {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: $('#reportTitle').textContent, body: $('#reportBody').innerHTML })); } catch {}
+    Store.set('story', { title: $('#reportTitle').textContent, body: $('#reportBody').innerHTML });
   }
   function restore() {
-    try {
-      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
-      if (d?.body) { $('#reportTitle').textContent = d.title; $('#reportBody').innerHTML = DOMPurify.sanitize(d.body); }
-    } catch {}
+    const d = Store.get('story');
+    if (d?.body) { $('#reportTitle').textContent = d.title; $('#reportBody').innerHTML = DOMPurify.sanitize(d.body); numberSections(); }
   }
 
   $('#generateStory').addEventListener('click', generate);
   $('#exportPdf').addEventListener('click', exportPdf);
+  $('#downloadPdf').addEventListener('click', quickDownload);
   $('#copyStory').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(`${$('#reportTitle').textContent}\n\n${$('#reportBody').innerText}`); toast('Story copied.'); }
     catch { toast('Copy failed - select the text manually.'); }
@@ -180,6 +246,8 @@ ${uploads ? '\nUPLOADED FILES:\n' + uploads : ''}`;
   ['#storyFormat', '#storyYear'].forEach(s => $(s).addEventListener('change', refreshFrame));
   $$('input[name="pillar"]').forEach(i => i.addEventListener('change', renderAppendix));
   document.addEventListener('tab', e => { if (e.detail === 'story') refreshFrame(); });
-  restore();
-  if ($('#tab-story').classList.contains('active')) refreshFrame();
+  document.addEventListener('app-ready', () => {
+    restore();
+    if ($('#tab-story').classList.contains('active')) refreshFrame();
+  });
 })();
