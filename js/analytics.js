@@ -183,6 +183,7 @@ window.Analytics = (() => {
       `CONTEXT: Facility audit - ${D.context.facilityAudit.femaleChangerooms}% female-friendly changerooms, ${D.context.facilityAudit.adequateLighting}% adequate lighting, ${D.context.facilityAudit.adequateDrainage}% adequate drainage. Ratios: player:coach ${D.context.ratios.playerToCoach}, player:MO ${D.context.ratios.playerToMO}. ${D.context.workforceRepresentation} ${D.context.westernSydney} ${D.context.volunteers} ${D.context.equipment} ${D.context.round2} ${D.context.socialValue} Wages ${m(D.context.salariesOnDashboard)} of dashboard budget end in 2028; NSWRU 2025 loss ${m(D.context.nswruLoss2025)}. Holroyd: $1 of grant unlocked $${D.context.holroydLeverage} of project spend.`,
       `IMPACT (lenses overlap): social ${m(imp.lenses.social)}, economic ${m(imp.lenses.economic)}, cultural ${m(imp.lenses.cultural)}.`,
       ...Object.entries(fw).map(([k, v]) => `- ${v.label} indicators: ` + v.indicators.map(i => `${i.name} [${i.status === 'none' ? 'NO DATA' : i.status}${i.status === 'none' ? '' : ': ' + i.value}]`).join('; ')),
+      ...(window.Econ ? window.Econ.contextLines() : []),
       `FIELD EVIDENCE (${evidenceStore.all().length} records): ` + (ev.length ? ev.map(e => `[${e.lens}, ${e.region}, ${e.source}] "${e.text}"${e.metric ? ' (' + e.metric + ')' : ''}`).join(' | ') : 'none recorded yet'),
     ];
     // Staff ratings are added separately by Feedback.lessons() (see Ollama.sharedContext).

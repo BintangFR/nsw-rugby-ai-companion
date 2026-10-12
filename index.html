@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tackle AI</title>
   <meta name="description" content="AI companion for the NSW Rugby World Cup Legacy Program - facilities, workforce and inclusion insights.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><ellipse cx='32' cy='32' rx='26' ry='16' transform='rotate(-35 32 32)' fill='%23157a4c'/><path d='M22 42 42 22M27 33l4 4M31 29l4 4M35 25l4 4' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23070b08'/><circle cx='32' cy='32' r='24' fill='none' stroke='%235fd47a' stroke-width='6' stroke-dasharray='6.3 6.3'/><circle cx='32' cy='32' r='20' fill='none' stroke='%235fd47a' stroke-width='2.5'/><ellipse cx='32' cy='32' rx='12' ry='7.5' transform='rotate(-35 32 32)' fill='%235fd47a'/><path d='M27 37l10-10M29 31l4 4M32 28l4 4' stroke='%23070b08' stroke-width='1.8' stroke-linecap='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/reportstyle.css">
@@ -13,9 +16,15 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="32" cy="32" rx="26" ry="16" transform="rotate(-35 32 32)" fill="currentColor"/><path d="M22 42 42 22M27 33l4 4M31 29l4 4M35 25l4 4" stroke="var(--surface)" stroke-width="3" stroke-linecap="round"/></svg>
+      <!-- Cog-ringed rugby ball -->
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="6" stroke-dasharray="7.07 7.07"/>
+        <circle cx="32" cy="32" r="22.5" fill="none" stroke="currentColor" stroke-width="2.5"/>
+        <ellipse cx="32" cy="32" rx="14" ry="8.5" transform="rotate(-35 32 32)" fill="currentColor"/>
+        <path d="M26 38l12-12M28.5 31.5l4 4M32 28l4 4" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
       <div>
-        <strong>Tackle AI</strong>
+        <strong>Tackle <b>AI</b></strong>
         <span>NSW RWC Legacy companion</span>
       </div>
     </div>
@@ -116,6 +125,19 @@
         </div>
       </div>
       <div class="lens-grid" id="lensGrid"></div>
+
+      <article class="card" id="econCard">
+        <div class="card-head">
+          <div>
+            <h2>Economic KPIs</h2>
+            <p class="muted">The nine formula-based KPIs from the NSW Rugby Economic KPI Formula Summary. Enter baseline and follow-up totals for each KPI and it is calculated using the documented formula, with the official source behind it. Missing data is never counted as zero.</p>
+            <p class="muted small" id="econSummary"></p>
+          </div>
+          <div class="controls"><button class="btn" id="econExport">Export CSV</button></div>
+        </div>
+        <div id="econKpis"></div>
+        <p class="footnote">These are descriptive monitoring indicators. On their own they do not show net economic benefit or prove the program caused a change. Each pillar is reported separately and the results are never added together.</p>
+      </article>
 
       <div class="bubbles" id="impactBubbles"></div>
 
@@ -325,6 +347,8 @@
     </section>
   </main>
 
+  <footer class="site-foot">Tackle AI · NSW Rugby World Cup Legacy Program</footer>
+
   <dialog id="settings">
     <form method="dialog" class="settings">
       <h2>Ollama settings</h2>
@@ -379,6 +403,7 @@
   <script src="js/feedback.js"></script>
   <script src="js/upload.js"></script>
   <script src="js/impact.js"></script>
+  <script src="js/econ.js"></script>
   <script src="js/story.js"></script>
 </body>
 </html>
