@@ -29,7 +29,7 @@ window.App = (() => {
     $$('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id));
     $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
     try { localStorage.setItem('tackle.tab', id); } catch {}
-    if (id === 'overview' && map) setTimeout(() => map.invalidateSize(), 50);
+    if (id === 'overview' && map) setTimeout(() => { map.invalidateSize(); renderMap(A.regionMetrics()); }, 50);
     document.dispatchEvent(new CustomEvent('tab', { detail: id }));
   }
 
@@ -43,11 +43,9 @@ window.App = (() => {
       try { localStorage.setItem('tackle.theme', document.documentElement.dataset.theme); } catch {}
       renderOverview();
     });
-    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderOverview);
   }
-  const isDark = () => document.documentElement.dataset.theme
-    ? document.documentElement.dataset.theme === 'dark'
-    : matchMedia('(prefers-color-scheme: dark)').matches;
+  // Grimdark is the default; light (parchment) is opt-in via the toggle.
+  const isDark = () => document.documentElement.dataset.theme !== 'light';
 
   // ---------- Ollama status & settings ----------
   async function checkOllama() {
@@ -245,7 +243,9 @@ window.App = (() => {
     }
 
     if (heat) { heat.remove(); heat = null; }
-    if ($('#heatToggle').checked && L.heatLayer && !def.diverging) {
+    // leaflet.heat throws on a zero-size canvas, so skip it while the map is hidden (another tab is open);
+    // showTab('overview') re-renders the map once it is visible.
+    if ($('#heatToggle').checked && L.heatLayer && !def.diverging && $('#map').offsetWidth > 0) {
       const pts = rows.filter(r => (r[def.id] ?? 0) > 0).map(r => [r.lat, r.lng, Math.max(0.15, (r[def.id] ?? 0) / max)]);
       heat = L.heatLayer(pts, { radius: 55, blur: 40, maxZoom: 9, max: 1, minOpacity: 0.25,
         gradient: { 0.2: css('--seq-200'), 0.5: css('--seq-400'), 0.8: css('--seq-600'), 1: css('--seq-700') } }).addTo(map);

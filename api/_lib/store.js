@@ -4,7 +4,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-export const COLLECTIONS = ['evidence', 'feedback', 'datasets', 'insights', 'story', 'quality'];
+export const COLLECTIONS = ['evidence', 'feedback', 'datasets', 'insights', 'story', 'quality', 'econ'];
 const PREFIX = 'tackle:';
 
 function kv() {
