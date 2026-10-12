@@ -1,7 +1,7 @@
 // Persistence. Uses the backend (/api/store) when it is running, otherwise the browser's localStorage.
 // Reads are synchronous from an in-memory cache; writes are saved in the background.
 window.Store = (() => {
-  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, econ: {} };
+  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, econ: {}, targets: {} };
   const cache = {};
   const timers = {};
   let mode = 'local';
@@ -47,8 +47,16 @@ window.Store = (() => {
 
   function set(c, value) {
     cache[c] = value;
+    if (sandbox) return;
     clearTimeout(timers[c]);
     timers[c] = setTimeout(() => persist(c), 300);
+  }
+
+  // Demo mode: changes stay in memory only and are thrown away on reload.
+  let sandbox = false;
+  function startSandbox() {
+    for (const c of Object.keys(timers)) { clearTimeout(timers[c]); persist(c); } // flush real pending writes first
+    sandbox = true;
   }
 
   async function persist(c) {
@@ -60,5 +68,5 @@ window.Store = (() => {
     }
   }
 
-  return { init, get, set, api, headers, get mode() { return mode; }, get health() { return health; } };
+  return { init, get, set, api, headers, startSandbox, get sandbox() { return sandbox; }, get mode() { return mode; }, get health() { return health; } };
 })();

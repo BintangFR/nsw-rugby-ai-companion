@@ -21,7 +21,7 @@ window.Analytics = (() => {
     if (item.pillar === 'ACT') { set.add('economic'); set.add('cultural'); } // event hubs: visitors + gatherings
     if (item.pillar === 'PW' || item.pillar === 'INC') set.add('social');
     if (item.tags.some(t => t === 'women' || t === 'access')) set.add('social');
-    if (item.tags.some(t => t === 'pasifika' || t === 'firstNations') || /pasifika|first nations|all nations|pride/i.test(name)) set.add('cultural');
+    if (item.tags.some(t => t === 'pasifika' || t === 'firstNations') || /pasifika|first nations|aboriginal|torres strait|indigenous|koori|naidoc|reconciliation|ella 7s|all nations|pride/i.test(name)) set.add('cultural');
     if (/rugby for good|r4g|integrity|safeguard/i.test(name)) set.add('social');
     if (/competition|comps|academy|development centre/i.test(name) && item.region === 'Western Sydney') set.add('cultural'); // high-CALD region
     return [...set];
@@ -179,7 +179,7 @@ window.Analytics = (() => {
       ...rows.map(r => [r.name, r.metro ? 'yes' : 'no', (r.pop * 1000).toLocaleString('en-AU'), r.fnShare + '%', m(r.fe), m(r.pw), m(r.inc), m(r.total), '$' + r.perResident.toFixed(2), r.spendIndex.toFixed(2) + 'x', r.status, r.facilityCount, [...r.gaps].join('+') || '-', m(r.social), m(r.economic), m(r.cultural), ...layers.map(l => l.values[r.name] ?? '-')].join(' | ')),
       'FACILITY GRANTS: ' + allGrants().filter(g => g.pillar === 'FE').map(g => `${g.town || g.region} (${g.region}) ${g.type} ${m(g.amount)}`).join('; '),
       'STATEWIDE BUDGET LINES (3 yrs): ' + D.dashboard.filter(d => d.region === 'Statewide').map(d => `${d.initiative} ${m(d.total)}`).join('; '),
-      'KPIs (baseline -> target; growth needed p.a.; 2025 actual; status): ' + D.kpis.map(k => `${k.name} ${k.baseline.toLocaleString('en-AU')}${k.target != null ? ' -> +' + Math.round(k.target * 100) + '%' : ''}; ${pct(k.requiredPa)}%; ${k.actual == null ? 'no data' : pct(k.actual) + '%'}; ${k.status}`).join(' | '),
+      'TARGETS (Ahead/Close/Behind vs the pace needed to hit each target by its target year): ' + kpiTargets().map(kpiLine).join(' | '),
       `CONTEXT: Facility audit - ${D.context.facilityAudit.femaleChangerooms}% female-friendly changerooms, ${D.context.facilityAudit.adequateLighting}% adequate lighting, ${D.context.facilityAudit.adequateDrainage}% adequate drainage. Ratios: player:coach ${D.context.ratios.playerToCoach}, player:MO ${D.context.ratios.playerToMO}. ${D.context.workforceRepresentation} ${D.context.westernSydney} ${D.context.volunteers} ${D.context.equipment} ${D.context.round2} ${D.context.socialValue} Wages ${m(D.context.salariesOnDashboard)} of dashboard budget end in 2028; NSWRU 2025 loss ${m(D.context.nswruLoss2025)}. Holroyd: $1 of grant unlocked $${D.context.holroydLeverage} of project spend.`,
       `IMPACT (lenses overlap): social ${m(imp.lenses.social)}, economic ${m(imp.lenses.economic)}, cultural ${m(imp.lenses.cultural)}.`,
       ...Object.entries(fw).map(([k, v]) => `- ${v.label} indicators: ` + v.indicators.map(i => `${i.name} [${i.status === 'none' ? 'NO DATA' : i.status}${i.status === 'none' ? '' : ': ' + i.value}]`).join('; ')),
@@ -234,7 +234,7 @@ window.Analytics = (() => {
       dataSourceQuality: Object.entries(Store.get('quality') || {}).map(([file, q]) => ({
         file, rating: q.ai?.rating || q.rule?.rating, score: q.ai?.score ?? q.rule?.score, verdict: q.ai?.verdict || undefined,
       })),
-      kpis: D.kpis,
+      kpis: kpiTargets().map(kpiLine),
       context: D.context,
       notes: 'Population and First Nations % are indicative approximations. spendVsPopIndex = region share of spend / share of population (>=1.75 overspend risk, <=0.5 underserved).',
     };
@@ -370,5 +370,48 @@ window.Analytics = (() => {
   const sum = (arr, f) => arr.reduce((s, x) => s + (f(x) || 0), 0);
   const pct = x => Math.round(x * 1000) / 10;
 
-  return { regionMetrics, centralisation, pillarTotals, contextFor, briefing, ruleInsights, matchRegion, classifySpend, saveDataset, removeDataset, customLayers, uploadedSpend, INCLUSION_TAGS, impactsOf, impactTotals, evidenceStore };
+  // ---------- targets (adjustable) ----------
+  // Plan targets from data.js with staff adjustments (Store 'targets': { id: { target, targetYear } }) applied.
+  // Status rule from the Data Compilation: Ahead if actual >= needed, Close if >= 80% of needed, else Behind.
+  const rate = (actual, needed) => actual >= needed ? 'Ahead' : actual >= 0.8 * needed ? 'Close' : 'Behind';
+  function kpiTargets() {
+    const adj = Store.get('targets') || {};
+    const year = new Date().getFullYear();
+    return D.kpis.map(base => {
+      const a = adj[base.id] || {};
+      const k = { ...base, target: a.target !== undefined ? a.target : base.target, targetYear: a.targetYear ?? base.targetYear, adjusted: !!(a.target !== undefined || a.targetYear) };
+      if (k.actual === 'grantsFE') k.actual = allGrants().filter(g => g.pillar === 'FE').length;
+      k.planTarget = base.target; k.planYear = base.targetYear;
+      if (k.kind === 'growth') {
+        const years = k.targetYear - k.baseYear;
+        k.requiredPa = k.target != null && years > 0 ? (1 + k.target) ** (1 / years) - 1 : null;
+        k.targetValue = k.target != null && k.baseline != null ? Math.round(k.baseline * (1 + k.target)) : null;
+        k.status = k.target == null ? 'No target' : years <= 0 ? 'Check year' : k.actual == null ? 'No data' : rate(k.actual, k.requiredPa);
+      } else if (k.kind === 'annual') {
+        k.expected = k.target;
+        k.status = k.target == null ? 'No target' : k.actual == null ? 'No data' : rate(k.actual, k.target);
+      } else {
+        const start = k.kind === 'share' ? k.baseYear : k.startYear;
+        const from = k.kind === 'share' ? k.baseline : 0;
+        const span = k.targetYear - start;
+        k.asAt = Math.min(Math.max(year, start), k.targetYear);
+        k.expected = k.target != null && span > 0 ? from + (k.target - from) * (k.asAt - start) / span : null;
+        k.status = k.target == null ? 'No target' : span <= 0 ? 'Check year' : k.actual == null ? 'No data'
+          : k.actual >= k.target ? 'Achieved' : rate(k.actual - from, k.expected - from);
+      }
+      return k;
+    });
+  }
+  function setTarget(id, patch) {
+    const all = { ...(Store.get('targets') || {}) };
+    if (patch === null) delete all[id]; else all[id] = { ...(all[id] || {}), ...patch };
+    Store.set('targets', all);
+  }
+  const kpiLine = k => (k.group ? `[${k.group}] ` : '') + (k.kind === 'growth'
+    ? `${k.name}: baseline ${k.baseline != null ? k.baseline.toLocaleString('en-AU') + ' (' + k.baseYear + ')' : 'not recorded'} -> ${k.target != null ? '+' + pct(k.target) + '% by ' + k.targetYear + (k.targetValue != null ? ' (' + k.targetValue.toLocaleString('en-AU') + ')' : '') : 'no target set'}; needs ${k.requiredPa != null ? pct(k.requiredPa) + '% p.a.' : '-'}; ${k.actualYear} actual ${k.actual == null ? 'no data' : '+' + pct(k.actual) + '%'}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`
+    : k.kind === 'annual'
+    ? `${k.name}: target ${k.target != null ? k.target + ' ' + k.unit + ' to ' + k.targetYear : 'not set'}; latest year ${k.actual == null ? 'no data' : k.actual}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`
+    : `${k.name}:`) + (k.kind === 'growth' || k.kind === 'annual' ? '' : ` ${k.kind === 'share' ? `baseline ${k.baseline}% ${k.unit || 'of facilities'} -> ` : ''}target ${k.target != null ? k.target + (k.kind === 'share' ? '%' : ' ' + k.unit) + ' by ' + k.targetYear : 'not set'}; actual ${k.actual == null ? 'no data' : k.actual + (k.kind === 'share' ? '%' : '')}${k.expected != null ? `; expected by ${k.asAt} ~${Math.round(k.expected)}${k.kind === 'share' ? '%' : ''}` : ''}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`);
+
+  return { kpiTargets, setTarget, regionMetrics, centralisation, pillarTotals, contextFor, briefing, ruleInsights, matchRegion, classifySpend, saveDataset, removeDataset, customLayers, uploadedSpend, INCLUSION_TAGS, impactsOf, impactTotals, evidenceStore };
 })();

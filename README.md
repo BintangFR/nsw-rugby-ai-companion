@@ -12,11 +12,34 @@ It measures impact through three lenses: **social**, **economic** and **cultural
 
 | Tab | What it does |
 |---|---|
-| **Overview** | NSW-only map with a heatmap of spend by region. You can switch the metric: total, facilities, workforce, inclusion, $ per resident, over/under-spend, inclusion index, or social/economic/cultural impact. Also includes a region heatmap table, a centralisation check, over/under-served flags with 👍/👎 rating, KPI progress and spend by pillar. |
+| **Overview** | NSW-only map with a heatmap of spend by region. You can switch the metric: total, facilities, workforce, inclusion, $ per resident, over/under-spend, inclusion index, or social/economic/cultural impact. Also includes a region heatmap table, a centralisation check, over/under-served flags (one scrollable row per region, split into To review / Rated, with 👍/👎 rating), **targets** for facilities, workforce and inclusion (inclusion split by community: women & girls, First Nations, Pasifika, people with disability, Pride, integrity & safeguarding) (each judged against the pace needed to hit it by its target year; **Adjust targets** lets staff change any target or target year and the status recalculates), and spend by pillar. |
 | **Impact** | Social / Economic / Cultural lenses: spend expected to drive each one, which indicators are measured today, and an **evidence log** for field notes (e.g. "women feel safe with the new changerooms", "takeaway shop busy on game days", "Pasifika families gather at the ground"). Also has an Impact agent, plus the **Economic KPIs** calculator: the nine formulas from `Dataset/NSW_Rugby_Economic_KPI_Formula_Summary.xlsx` (facility utilisation, realised co-investment, cost recovery, workforce retention, training cost per qualification, volunteer hours, inclusion cost per participant, out-of-pocket cost change, participation support). Enter baseline and follow-up totals and each KPI is calculated with its documented formula, edge-case rules and official source links, then fed to the AI agents and Story. Missing data shows as "Data collection required", never as zero. |
-| **Insights** | Five local AI agents (Facilities, Workforce, Inclusion, Centralisation, Impact) post insight bubbles. Rate each one 👍/👎, delete it (a reason is required first) and ask follow-up questions. A rule engine fills in when the AI is offline. **Live progress** shows each agent's phase (loading model → reading data → writing, with token count and insight number), overall %, elapsed time and an ETA learned from your machine's speed, the model's live output, a "may be stuck" warning, and a Cancel button. |
+| **Insights** | Five local AI agents (Facilities, Workforce, Inclusion, Centralisation, Impact) post insight bubbles into a review queue: **To review / Verified / Disputed / Archived**. Rating an insight moves it out of To review, and disputed ones are kept out of the Story report. Re-running the agents archives the previous run's unrated insights (rated ones are kept, and archived ones can be restored), and new insights that repeat a kept one are hidden. Rate each one 👍/👎, delete it (a reason is required first) and ask follow-up questions. A rule engine fills in when the AI is offline. **Live progress** shows each agent's phase (loading model → reading data → writing, with token count and insight number), overall %, elapsed time and an ETA learned from your machine's speed, the model's live output, a "may be stuck" warning, and a Cancel button. |
 | **Data Studio** | Upload any file (Excel, CSV, JSON, PDF, Word, text). Tables are profiled, formatted and charted. **Uploads update the dashboard**: region + amount columns become spend, other numeric region columns become map layers, and a `lens`/`impact` column becomes impact evidence. Every file gets a **data quality rating** (green / amber / red). Red means "too high level", and the AI explains what better data would look like. A data-quality panel tracks disputes and deletions and gives advice for collecting accurate data next time. |
 | **Story** | Writes the yearly-report narrative from the insights and evidence in five formats (annual report chapter, board summary, funding acquittal, community story, media release). It is laid out with [css/reportstyle.css](css/reportstyle.css): cover page, numbered sections, stat grid and insight register. The text is editable. **Export PDF** prints to PDF with page numbers and running headers; **Quick download** saves a PDF in one click. |
+
+### Simple / Detailed view
+
+The **Simple | Detailed** switch in the top bar controls how much detail is shown (Simple is the default, and the choice is remembered).
+
+- **Simple** scales the region heatmap: every column becomes a **0–100 score**, where 100 is the region with the highest value, so a region on 50 has half as much. Different units ($, per resident, audit gaps, inclusion index) can then be compared at a glance. Fairness is shown in words ("3.4× over", "Balanced"), flags read as plain sentences, and secondary detail is hidden.
+- **Detailed** shows every raw figure and column, as before. Hovering a cell in Simple view also shows its exact value.
+- The AI agents, Story generator and exports always use the full raw data, whichever view is on.
+
+### Screen effects (FX)
+
+The **FX** button in the top bar turns the cogitator / CRT look on or off. It is on by default and the choice is remembered. The effects are faint scanlines, a slow VHS tracking band, film grain, a slight colour fringe on headings, a short "signal jump" when you switch tabs, and a boot sequence once per browser session (click or press any key to skip).
+
+They are purely decorative: they never block clicks, are turned off automatically for anyone with "reduce motion" set, are toned down in light mode, and never appear in print or PDF exports.
+
+### Demo mode (guided tour and pitching)
+
+Press **▶ Demo** in the top bar, or open http://localhost:5173/?demo to start straight into the tour. It walks through every feature in 18 steps. Each step opens the right tab, highlights the feature and shows a short talking point, so it can be presented as a pitch.
+
+- **Controls:** `→` / `Enter` next, `←` back, `Esc` exit. Click the progress dots to jump to a step.
+- **Live features:** some steps run the feature for real (economic KPIs calculated from sample inputs, a sample evidence record, rule-based insights). Everything is labelled `DEMO SAMPLE`.
+- **Safe to run anytime:** demo mode turns saving off, and exiting reloads the page, so no sample data reaches your real records.
+- **For a pitch:** use full-screen (`F11` on Windows, `Ctrl + Cmd + F` on Mac). The AI steps work without Ollama because the rule engine fills in.
 
 ### Prototype data
 
@@ -120,6 +143,7 @@ js/impact.js          Impact tab and evidence log
 js/econ.js            economic KPI formulas (9-KPI framework) and calculator
 js/upload.js          Data Studio, dashboard integration, quality rating
 js/story.js           story generator and PDF export
+js/demo.js            demo mode: guided tour / pitch walkthrough
 api/                  backend (Vercel functions; also used by server.js)
 server.js             local server
 serve.ps1             fallback static server (no Node)

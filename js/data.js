@@ -117,14 +117,36 @@ window.TACKLE_DATA = (() => {
   // First Nations talent ID workshops (Dashboard H11): North Coast, Central West, Sydney Metro, South Coast, 2 x Southern Inland.
   const firstNationsReach = ['Mid North Coast', 'Central West', 'Sydney - Inner & Bayside', 'Illawarra', 'Riverina'];
 
+  // Targets (Data Compilation "Targets & Baselines" / "Impact Analysis"). Staff can adjust target and
+  // target year in the app; status and growth needed are computed in Analytics.kpiTargets().
+  // kind 'growth': target = total growth by targetYear from baseYear; actual = latest annual growth (actualYear).
+  // kind 'count':  target = number delivered by targetYear, paced evenly from startYear; actual = delivered so far.
+  // kind 'share':  baseline/target/actual = % of audited facilities; paced evenly from baseYear.
   const kpis = [
-    { area: 'PW',  name: 'Accredited coaches',        baseline: 3514, target: 0.50, requiredPa: 0.145, actual: 0.18,  status: 'Ahead' },
-    { area: 'PW',  name: 'Accredited match officials', baseline: 1281, target: 0.75, requiredPa: 0.205, actual: 0.18,  status: 'Close' },
-    { area: 'INC', name: 'Female participation',      baseline: 7917, target: 0.50, requiredPa: 0.145, actual: 0.06,  status: 'Behind' },
-    { area: 'INC', name: 'Female match officials',    baseline: 106,  target: 2.00, requiredPa: 0.442, actual: null,  status: 'No data' },
-    { area: 'INC', name: 'Female coaches',            baseline: 192,  target: 1.50, requiredPa: 0.357, actual: null,  status: 'No data' },
-    { area: 'PW',  name: 'Western Sydney participation', baseline: 6127, target: null, requiredPa: 0.075, actual: 0.09, status: 'Ahead' },
-    { area: 'PW',  name: 'XV club players',           baseline: 38244, target: 0.25, requiredPa: 0.118, actual: 0.011, status: 'Behind' },
+    { id: 'facilities',     area: 'FE', kind: 'count', name: 'Facilities funded', unit: 'facilities', target: 20, startYear: 2025, targetYear: 2028, actual: 'grantsFE', source: 'Project Plan; actual = Round 1 facility grants' },
+    { id: 'majorUpgrades',  area: 'FE', kind: 'count', name: 'Major priority facility upgrades', unit: 'upgrades', target: 2, startYear: 2025, targetYear: 2028, actual: null, source: 'Project Plan: Connolly Park (Wagga) + 1 Sydney site; no progress published' },
+    { id: 'equipmentClubs', area: 'FE', kind: 'count', name: 'Clubs receiving major equipment', unit: 'clubs', target: 20, startYear: 2025, targetYear: 2028, actual: null, source: 'Project Plan (>20 clubs, scrum machines ~$11k); no recipients published' },
+    { id: 'femaleChange',   area: 'FE', kind: 'share', name: 'Facilities with female-friendly changerooms', baseline: 31, baseYear: 2024, target: null, targetYear: 2028, actual: null, source: 'RA Infrastructure audit baseline 31%; no target set yet' },
+    { id: 'coaches',        area: 'PW',  kind: 'growth', name: 'Accredited coaches',        baseline: 3514, baseYear: 2024, target: 0.50, targetYear: 2027, actual: 0.18, actualYear: 2025, source: 'Annual Report 2025: +18% YoY' },
+    { id: 'mos',            area: 'PW',  kind: 'growth', name: 'Accredited match officials', baseline: 1281, baseYear: 2024, target: 0.75, targetYear: 2027, actual: 0.18, actualYear: 2025, source: 'Annual Report 2025: +18% YoY' },
+    { id: 'wsParticipation',area: 'PW',  kind: 'growth', name: 'Western Sydney participation', baseline: 6127, baseYear: 2024, target: +(1.075 ** 3 - 1).toFixed(4), targetYear: 2027, actual: 0.09, actualYear: 2025, source: 'Dashboard: +7.5% a year; Annual Report +9% in 2025' },
+    { id: 'xvPlayers',      area: 'PW',  kind: 'growth', name: 'XV club players',           baseline: 38244, baseYear: 2025, target: 0.25, targetYear: 2027, actual: 0.011, actualYear: 2025, source: 'NSWRU KPI: +25% participants by 2027 from the 2025 count; Annual Report +1.1% in 2025' },
+    // Inclusion, grouped by community. target: null = the plan sets no number yet (staff can set one with "Adjust targets").
+    // kind 'annual': target = number per year until targetYear; actual = latest year's count.
+    { id: 'femaleParticipation', area: 'INC', group: 'Women & girls', kind: 'growth', name: 'Female participation', baseline: 7917, baseYear: 2024, target: 0.50, targetYear: 2027, actual: 0.06, actualYear: 2025, source: "Annual Report 2025: women's game +6%" },
+    { id: 'femaleMOs',      area: 'INC', group: 'Women & girls', kind: 'growth', name: 'Female match officials',    baseline: 106,  baseYear: 2024, target: 2.00, targetYear: 2027, actual: null, actualYear: 2025, source: 'Project Plan +200% (~318); 100 new female MOs. No 2025 figure published' },
+    { id: 'femaleCoaches',  area: 'INC', group: 'Women & girls', kind: 'growth', name: 'Female coaches',            baseline: 192,  baseYear: 2024, target: 1.50, targetYear: 2027, actual: null, actualYear: 2025, source: 'Project Plan +150% (~480). No 2025 figure published' },
+    { id: 'fnTalentId',     area: 'INC', group: 'First Nations', kind: 'annual', name: 'First Nations talent ID workshops', unit: 'workshops a year', target: 6, targetYear: 2028, actual: null, source: 'Project Plan; Dashboard H11 (North Coast, Central West, Sydney Metro, South Coast, 2 x Southern Inland). No delivery count published' },
+    { id: 'fnMOs',          area: 'INC', group: 'First Nations', kind: 'growth', name: 'First Nations match officials', baseline: 13, baseYear: 2024, target: null, targetYear: 2027, actual: null, actualYear: 2025, source: 'Dashboard: baseline 13; plan says "increase", no number set' },
+    { id: 'fnRoles',        area: 'INC', group: 'First Nations', kind: 'share', name: 'First Nations share of non-playing roles', baseline: 3.8, baseYear: 2025, target: null, targetYear: 2028, actual: null, unit: 'of non-playing roles', source: 'Program Logic: 3.8% of non-playing roles vs 7.5% of players (parity would be 7.5%). No target set' },
+    { id: 'fnBursaries',    area: 'INC', group: 'First Nations', kind: 'count', name: 'Coach bursary places for First Nations coaches', unit: 'bursaries', target: null, startYear: 2025, targetYear: 2028, actual: null, source: 'Dashboard H12/H13: bursary places for First Nations (and Pasifika) coaches, $25k a year shared. No number set' },
+    { id: 'pasifikaLeaders',area: 'INC', group: 'Pasifika', kind: 'annual', name: 'Pasifika Leadership program attendees', unit: 'attendees a year', target: 20, targetYear: 2028, actual: null, source: 'Dashboard H13: 20+ attendees each year. Inaugural seminar held (Merrylands); attendance not published' },
+    { id: 'pasifikaYouthCup', area: 'INC', group: 'Pasifika', kind: 'growth', name: 'Pasifika Youth Cup attendance', baseline: null, baseYear: 2025, target: 0.50, targetYear: 2028, actual: null, actualYear: 2026, source: 'Dashboard H13: grow attendance by 50%. Baseline attendance not recorded' },
+    { id: 'pasifikaMOs',    area: 'INC', group: 'Pasifika', kind: 'growth', name: 'Pasifika match officials', baseline: 80, baseYear: 2024, target: null, targetYear: 2027, actual: null, actualYear: 2025, source: 'Dashboard: baseline 80; plan says "increase", no number set' },
+    { id: 'pasifikaRoles',  area: 'INC', group: 'Pasifika', kind: 'share', name: 'Pasifika share of non-playing roles', baseline: 4.2, baseYear: 2025, target: null, targetYear: 2028, actual: null, unit: 'of non-playing roles', source: 'Program Logic: 4.2% of non-playing roles vs >11% of players. No target set' },
+    { id: 'allAbilities',   area: 'INC', group: 'People with disability', kind: 'count', name: 'All Abilities programs supported', unit: 'programs', target: null, startYear: 2025, targetYear: 2028, actual: null, source: 'Dashboard: support existing programs (Vivability Bathurst, Menai, Rockdale); casual All Abilities coordinator. No number set' },
+    { id: 'pride',          area: 'INC', group: 'Pride', kind: 'count', name: 'Pride partnerships and programs', unit: 'programs', target: null, startYear: 2025, targetYear: 2028, actual: null, source: 'Dashboard: approach still being determined ($5k a year). No number set' },
+    { id: 'safeguarding',   area: 'INC', group: 'Integrity & safeguarding', kind: 'annual', name: 'Safeguarding & integrity workshops', unit: 'workshops a year', target: 6, targetYear: 2028, actual: null, source: 'Dashboard H15: 6 workshops a year; all clubs compliant with RA standards' },
   ];
 
   const context = {
@@ -135,7 +157,7 @@ window.TACKLE_DATA = (() => {
     nswruLoss2025: 1094634,
     holroydLeverage: 3.74,
     ratios: { playerToCoach: '13:1 (target 10:1)', playerToMO: '56:1 (target 30:1)' },
-    workforceRepresentation: 'First Nations are 7.5% of players but 3.8% of non-playing roles; Pasifika >11% of players but 4.2% of non-playing roles. Females: 15.3% of players, 7.8% of coaches, 11.5% of match officials, 39.3% of volunteers.',
+    workforceRepresentation: 'First Nations people are 7.5% of players but 3.8% of non-playing roles; Pasifika >11% of players but 4.2% of non-playing roles. Females: 15.3% of players, 7.8% of coaches, 11.5% of match officials, 39.3% of volunteers.',
     westernSydney: '11 Western Sydney LGAs hold ~30% of NSW rugby demand but 11% of players; conversion Fairfield 2.2% vs NSW 32%; <25% of residents within 10 minutes of a club.',
     volunteers: '45% of volunteers give 6+ hours/week; workforce churn baseline 39.5%.',
     equipment: 'Major equipment grants (scrum machines) planned but no recipients published; Round 1 folded equipment into Category 2. MO cards & whistles: $5,087.50 for 250 new referees.',
@@ -151,6 +173,7 @@ window.TACKLE_DATA = (() => {
       indicators: [
         { name: 'Facilities with female-friendly changerooms', status: 'partial', value: '31% baseline (RA audit); 4 Round 1 projects target women/girls', source: 'Program Logic; R1 grants' },
         { name: 'Women & girls who feel safe at the ground', status: 'none', value: 'No survey yet', source: 'Add a "feel safe" question to the end-of-season survey' },
+        { name: 'First Nations players who feel culturally safe and welcome', status: 'none', value: 'No survey yet', source: 'Add a cultural-safety question to the end-of-season survey; co-design with the local First Nations community' },
         { name: 'Female participation growth', status: 'measured', value: '+6% in 2025 (needs ~14.5% p.a.)', source: 'Annual Report 2025' },
         { name: 'Social value per new participant', status: 'partial', value: 'US$3,132 female / US$1,900 male per year', source: 'World Rugby & Portas SROI' },
         { name: 'Rugby for Good mental health reach', status: 'measured', value: '177 Tackle Life students; 35 Get Talkin workshops', source: 'Annual Report 2025' },
@@ -166,6 +189,7 @@ window.TACKLE_DATA = (() => {
         { name: 'Local business turnover on game / event days', status: 'none', value: 'Not measured', source: 'Short survey of businesses near funded grounds and RWC hubs' },
         { name: 'Visitor and tourism spend (carnivals, RWC hubs)', status: 'none', value: '20 RWC hubs planned ($400k, mostly 2027)', source: 'Dashboard H24' },
         { name: 'Jobs supported (construction + funded roles)', status: 'partial', value: '8 funded roles ($1.30M wages); construction jobs not yet estimated', source: 'Dashboard; NSW Treasury employment calculator' },
+        { name: 'First Nations businesses and jobs in funded works', status: 'none', value: 'Not tracked', source: 'Ask councils/contractors for NSW Aboriginal Procurement Policy reporting on funded projects' },
         { name: 'Value of volunteer time', status: 'partial', value: '~$19/hr ASC benchmark; rugby volunteer hours not counted', source: 'ASC Clearinghouse' },
       ],
     },
@@ -173,10 +197,11 @@ window.TACKLE_DATA = (() => {
       label: 'Cultural', question: 'Does rugby bring communities together and celebrate culture?',
       example: 'Pasifika families now gather at the ground every Saturday - it has become a community meeting place.',
       indicators: [
-        { name: 'Pasifika & First Nations share of non-playing roles', status: 'measured', value: 'Pasifika 4.2% vs >11% of players; First Nations 3.8% vs 7.5%', source: 'Program Logic' },
+        { name: 'Pasifika and First Nations share of non-playing roles', status: 'measured', value: 'Pasifika 4.2% vs >11% of players; First Nations 3.8% vs 7.5%', source: 'Program Logic' },
         { name: 'Community and cultural events hosted at funded grounds', status: 'none', value: 'Not tracked', source: 'Venue booking logs' },
         { name: 'Pasifika events and leadership', status: 'partial', value: 'Inaugural Pasifika seminar (Merrylands); target 20+ leaders a year, Youth Cup +50%', source: 'Annual Report; Dashboard H13' },
-        { name: 'First Nations talent ID and Reconciliation Action Plan', status: 'partial', value: 'RAP launched; 6 talent ID days a year planned', source: 'Annual Report; Dashboard H11' },
+        { name: 'First Nations talent ID, Development Academy and Reconciliation Action Plan', status: 'partial', value: 'RAP launched; 6 talent ID days a year planned; First Nations Development Academy with Lloyd McDermott Rugby', source: 'Annual Report; Dashboard H11-H12' },
+        { name: 'First Nations community carnivals and NAIDOC events (e.g. Ella 7s)', status: 'partial', value: 'Ella 7s on the First Nations activity plan; attendance not tracked', source: 'Dashboard H12' },
         { name: 'Multicultural competitions', status: 'measured', value: 'Juniors All Nations 7s Cup, Cumberland ($20k)', source: 'R1 grants' },
       ],
     },

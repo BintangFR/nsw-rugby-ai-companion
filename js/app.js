@@ -44,8 +44,30 @@ window.App = (() => {
       renderOverview();
     });
   }
-  // Grimdark is the default; light (parchment) is opt-in via the toggle.
+  // Dark is the default; light is opt-in via the toggle.
   const isDark = () => document.documentElement.dataset.theme !== 'light';
+
+  // ---------- view mode ----------
+  // Simple: scaled 0-100 scores, fewer columns, plain-language flags. Detailed: every raw figure.
+  let viewMode = 'simple';
+  function initViewMode() {
+    try { viewMode = localStorage.getItem('tackle.view') === 'detailed' ? 'detailed' : 'simple'; } catch {}
+    const apply = () => {
+      document.body.classList.toggle('view-simple', viewMode === 'simple');
+      document.body.classList.toggle('view-detailed', viewMode === 'detailed');
+      $$('#viewMode button').forEach(b => b.classList.toggle('on', b.dataset.v === viewMode));
+    };
+    $$('#viewMode button').forEach(b => b.addEventListener('click', () => {
+      if (viewMode === b.dataset.v) return;
+      viewMode = b.dataset.v;
+      try { localStorage.setItem('tackle.view', viewMode); } catch {}
+      apply();
+      renderOverview();
+      document.dispatchEvent(new CustomEvent('view-changed', { detail: viewMode }));
+    }));
+    apply();
+  }
+  const simple = () => viewMode === 'simple';
 
   // ---------- Ollama status & settings ----------
   async function checkOllama() {
@@ -127,7 +149,7 @@ window.App = (() => {
       ['Known spend', money(c.knownTotal), `of $10M Legacy Program`],
       ['Facilities & Equipment', money(p.fe), `${D.grants.filter(g => g.pillar === 'FE').length} facility projects`],
       ['Programs & Workforce', money(p.pw), 'coaches, MOs, competitions'],
-      ['Inclusion', money(p.inc), 'women, First Nations, Pasifika, access'],
+      ['Inclusion', money(p.inc), 'women, First Nations, Pasifika, disability'],
       ['Held centrally', pct(c.centralShare), money(c.central) + ' in statewide budgets'],
       ['Regions flagged', `${flagged} / ${rows.length}`, 'over- or under-served'],
     ];
@@ -309,20 +331,46 @@ window.App = (() => {
   function renderFlags(rows) {
     const flagged = rows.filter(r => r.status !== 'balanced' || r.fnGap).sort((a, b) => b.spendIndex - a.spendIndex);
     const F = window.Feedback;
-    const items = [];
-    for (const r of flagged) {
+    // One row per region; a region with several issues (e.g. overspend + First Nations gap) gets one row with
+    // a label for each. The rating key names the issues, so a new issue puts the region back in the review queue.
+    const items = flagged.map(r => {
+      const issues = [];
       if (r.status !== 'balanced') {
         const label = r.status === 'over' ? 'Overspend risk' : 'Under-served';
-        items.push({ key: `flag:${r.name}:${r.status}`, text: `${r.name} - ${label}`, status: r.status, label,
-          body: `<b>${esc(r.name)}</b> ${r.spendIndex.toFixed(2)}x · ${money(r.total)} · $${r.perResident.toFixed(2)}/resident` });
+        issues.push({ code: r.status, status: r.status, label,
+          line: simple() ? `gets ${fairShare(r.spendIndex)}` : `${r.spendIndex.toFixed(2)}x · ${money(r.total)} · $${r.perResident.toFixed(2)}/resident` });
       }
-      if (r.fnGap) items.push({ key: `flag:${r.name}:fn-gap`, text: `${r.name} - First Nations gap`, status: 'risk', label: 'First Nations gap',
-        body: `<b>${esc(r.name)}</b> <span class="muted small">~${r.fnShare}% First Nations residents, no program reach</span>` });
-    }
-    $('#flagList').innerHTML = items.map(it => {
+      if (r.fnGap) issues.push({ code: 'fn-gap', status: 'risk', label: 'First Nations gap',
+        line: simple() ? `has a large First Nations community (~${Math.round(r.fnShare)}%) and no program yet` : `~${r.fnShare}% First Nations residents, no program reach` });
+      return {
+        key: `flag:${r.name}:${issues.map(i => i.code).join('+')}`,
+        text: `${r.name} - ${issues.map(i => i.label).join(' + ')}`,
+        chips: issues.map(i => `<span class="status ${i.status}">${i.label}</span>`).join(''),
+        body: `<b>${esc(r.name)}</b>${issues.length === 1 ? ' ' + issues[0].line : `<ul class="flag-issues">${issues.map(i => `<li>${i.line}</li>`).join('')}</ul>`}`,
+      };
+    });
+    // Split into "To review" (unrated) and "Rated": a flag leaves the review queue once someone rates it.
+    const rated = items.filter(it => F?.ratingFor(it.key));
+    const todo = items.filter(it => !F?.ratingFor(it.key));
+    $('#flagTodoCount').textContent = todo.length;
+    $('#flagRatedCount').textContent = rated.length;
+    $$('#flagTabs button').forEach(b => b.classList.toggle('on', b.dataset.f === flagView));
+    const list = flagView === 'rated' ? rated : todo;
+    $('#flagList').innerHTML = list.map(it => {
       const disputed = F?.ratingFor(it.key)?.vote === 'down';
-      return `<li class="${disputed ? 'disputed' : ''}"><span class="status ${it.status}">${it.label}</span><div>${it.body} ${F ? F.badgeHtml(it.key) : ''}</div>${F ? F.ratingHtml(it.key, it.text, 'Flag') : ''}</li>`;
-    }).join('') || '<li class="muted">No regions flagged.</li>';
+      return `<li class="${disputed ? 'disputed' : ''}"><span class="flag-chips">${it.chips}</span><div>${it.body} ${F ? F.badgeHtml(it.key) : ''}</div>${F ? F.ratingHtml(it.key, it.text, 'Flag') : ''}</li>`;
+    }).join('') || `<li class="muted">${!items.length ? 'No regions flagged.' : flagView === 'rated' ? 'Nothing rated yet.' : 'All flags reviewed. See the Rated tab.'}</li>`;
+  }
+  let flagView = 'todo';
+  function initFlagTabs() {
+    $$('#flagTabs button').forEach(b => b.addEventListener('click', () => { flagView = b.dataset.f; renderFlags(A.regionMetrics()); }));
+  }
+
+  // Plain words for the spend-vs-population index: 3.39 -> "3.4 times its fair share of spend".
+  function fairShare(x) {
+    if (x >= 1.15) return `${x.toFixed(1)} times its fair share of spend`;
+    if (x <= 0.85) return x < 0.05 ? 'almost none of its fair share of spend' : `only about ${Math.round(x * 100)}% of its fair share of spend`;
+    return 'roughly its fair share of spend';
   }
 
   let matrixSort = { key: 'total', dir: -1 }, matrixFilter = 'all';
@@ -334,13 +382,13 @@ window.App = (() => {
       { key: 'total', label: 'Total $', group: 'Spend', f: ['all', 'FE', 'PW'], fmt: money },
       { key: 'perResident', label: '$ / resident', group: 'Fairness', f: ['all', 'FE', 'PW', 'INC'], fmt: v => '$' + v.toFixed(2) },
       { key: 'spendIndex', label: 'Spend vs pop.', group: 'Fairness', f: ['all', 'FE', 'PW', 'INC'], fmt: v => v.toFixed(2) + 'x', diverging: true },
-      { key: 'facilityCount', label: 'Projects', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–' },
+      { key: 'facilityCount', label: 'Projects', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–', detail: true },
       { key: 'gapCoverage', label: 'Audit gaps (of 4)', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–', max: 4 },
       { key: 'inclusionIndex', label: 'Inclusion index', group: 'Inclusion', f: ['all', 'INC'], fmt: v => Math.round(v * 100) },
-      { key: 'women', label: 'Women & girls $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.women },
+      { key: 'women', label: 'Women & girls $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.women, detail: true },
       { key: 'fn', label: 'First Nations', group: 'Inclusion', f: ['all', 'INC'], get: r => r.fnShare, fn: true },
-      { key: 'pasifika', label: 'Pasifika/CALD $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.pasifika },
-      { key: 'access', label: 'Access $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.access },
+      { key: 'pasifika', label: 'Pasifika/CALD $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.pasifika, detail: true },
+      { key: 'access', label: 'Access $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.access, detail: true },
     ];
     cols.push(
       { key: 'social', label: 'Social $', group: 'Impact', f: ['all', 'IMP'], fmt: money },
@@ -349,8 +397,11 @@ window.App = (() => {
       { key: 'evidenceCount', label: 'Evidence records', group: 'Impact', f: ['IMP'], fmt: v => v || '–' },
     );
     for (const l of A.customLayers()) cols.push({ key: 'custom:' + l.id, label: l.label, group: 'Uploaded', f: ['all', 'FE', 'PW', 'INC', 'IMP'], fmt: v => v == null ? '–' : Number(v).toLocaleString() });
-    return cols.filter(c => c.f.includes(matrixFilter));
+    // Simple view drops the $-by-tag breakdowns; the specific-filter views keep them so nothing is unreachable.
+    return cols.filter(c => c.f.includes(matrixFilter) && !(simple() && c.detail && matrixFilter === 'all'));
   }
+  // Simple-view label for a column: "Facilities $" -> "Facilities", "$ / resident" -> "Per resident".
+  const simpleLabel = c => ({ perResident: 'Per resident', spendIndex: 'Fair share', gapCoverage: 'Audit gaps fixed' }[c.key] || c.label.replace(/\s*\$$/, ''));
 
   function renderMatrix(rows) {
     const cols = matrixColumns();
@@ -363,17 +414,19 @@ window.App = (() => {
     for (const c of cols) { const g = groups[groups.length - 1]; if (g && g.name === c.group) g.n++; else groups.push({ name: c.group, n: 1 }); }
 
     let html = `<thead><tr><th class="group"></th>${groups.map(g => `<th class="group" colspan="${g.n}">${g.name}</th>`).join('')}</tr>
-      <tr><th data-k="name">Region</th>${cols.map(c => `<th data-k="${c.key}" class="${c.key === matrixSort.key ? 'sorted' : ''}">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>`;
+      <tr><th data-k="name">Region</th>${cols.map(c => `<th data-k="${c.key}" class="${c.key === matrixSort.key ? 'sorted' : ''}">${esc(simple() ? simpleLabel(c) : c.label)}</th>`).join('')}</tr></thead><tbody>`;
     const maxes = Object.fromEntries(cols.map(c => [c.key, c.max || Math.max(...rows.map(r => Math.abs(val(r, c) ?? 0)), 1e-9)]));
     for (const r of sorted) {
-      html += `<tr><td class="name">${esc(r.name)}<small>${r.metro ? 'Greater Sydney' : 'Regional'} · ~${r.pop.toLocaleString()}k residents</small></td>`;
+      html += `<tr><td class="name">${esc(r.name)}<small>${r.metro ? 'Greater Sydney' : 'Regional'}${simple() ? '' : ` · ~${r.pop.toLocaleString()}k residents`}</small></td>`;
       for (const c of cols) {
         const v = val(r, c);
         let bg = 'transparent', ink = 'var(--ink)', text, tip = `${r.name} · ${c.label}`;
         if (c.fn) {
-          text = `~${v}% ${r.fnReach ? '✓' : r.fnGap ? '⚠' : ''}`;
-          tip += `: ~${v}% of residents; ${r.fnReach ? 'First Nations program reach' : 'no First Nations program reach'}`;
-          if (r.fnGap) { bg = redRamp[1]; ink = '#0b0b0b'; text += ' gap'; }
+          text = simple()
+            ? (r.fnGap ? '⚠ Gap' : r.fnReach ? '✓ Reached' : '–')
+            : `~${v}% ${r.fnReach ? '✓' : r.fnGap ? '⚠' : ''}`;
+          tip += `: ~${v}% of residents; ${r.fnReach ? 'program reach' : 'no program reach yet'}`;
+          if (r.fnGap) { bg = redRamp[1]; ink = '#0b0b0b'; if (!simple()) text += ' gap'; }
           else { const t = v / 16; bg = seqColor(t); ink = seqInk(t); }
         } else if (c.diverging) {
           const l = Math.max(-2, Math.min(2, Math.log2(v || 0.01)));
@@ -381,19 +434,25 @@ window.App = (() => {
           if (Math.abs(l) < 0.4) { bg = css('--div-mid'); }
           else if (l > 0) { bg = redRamp[step]; ink = step >= 3 ? '#fff' : '#0b0b0b'; }
           else { bg = seqColor(step / 5); ink = seqInk(step / 5); }
-          text = c.fmt(v);
-          tip += `: ${text} (${r.status === 'over' ? 'overspend risk' : r.status === 'under' ? 'under-served' : 'balanced'})`;
+          text = simple() ? ({ over: `${v.toFixed(1)}× over`, under: `${v.toFixed(1)}× under` }[r.status] || 'Balanced') : c.fmt(v);
+          tip += `: ${c.fmt(v)} (${r.status === 'over' ? 'overspend risk' : r.status === 'under' ? 'under-served' : 'balanced'})`;
         } else if (v == null || v === 0) {
           text = '–';
         } else {
+          // Simple view: scale every column 0-100, where 100 = the highest region (exact figure in the tooltip).
           const t = Math.abs(v) / maxes[c.key];
-          bg = seqColor(t); ink = seqInk(t); text = c.fmt(v); tip += `: ${text}`;
+          bg = seqColor(t); ink = seqInk(t);
+          text = simple() ? String(Math.max(1, Math.round(t * 100))) : c.fmt(v);
+          tip += `: ${c.fmt(v)}${simple() ? ` · score ${Math.max(1, Math.round(t * 100))}/100 (100 = highest region${c.max ? `, ${c.max} = all audit gaps` : ''})` : ''}`;
         }
         html += `<td class="cell" style="background:${bg};color:${ink}" title="${esc(tip)}">${text}</td>`;
       }
       html += '</tr>';
     }
     $('#matrix').innerHTML = html + '</tbody>';
+    $('#matrixNote').textContent = simple()
+      ? 'Scores run 0–100 for each column: 100 is the region with the highest value, so a region on 50 has half as much. Hover any cell for the exact figure, or switch to Detailed in the top bar for all raw numbers.'
+      : 'Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Click a column to sort.';
     $$('#matrix th[data-k]').forEach(th => th.addEventListener('click', () => {
       const k = th.dataset.k;
       if (k === 'name') return;
@@ -402,19 +461,87 @@ window.App = (() => {
     }));
   }
 
+  let editingTargets = false;
+  const PILLAR_NAMES = { FE: 'Facilities & Equipment', PW: 'Programs & Workforce', INC: 'Inclusion' };
   function renderProgress() {
-    const statusClass = { Ahead: 'positive', Close: 'watch', Behind: 'risk', 'No data': '' };
-    $('#kpiProgress').innerHTML = D.kpis.map(k => {
-      const scale = Math.max(k.requiredPa, k.actual || 0) * 1.25;
+    const statusClass = { Ahead: 'positive', Achieved: 'positive', Close: 'watch', Behind: 'risk', 'No data': '', 'No target': '', 'Check year': 'risk' };
+    const n = v => Number.isInteger(v) ? v : +v.toFixed(1);
+    const item = k => {
+      let bar, sub, tip;
+      if (k.kind === 'growth') {
+        const need = k.requiredPa ?? 0, scale = Math.max(need, k.actual || 0, 0.01) * 1.25;
+        bar = `${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}${k.requiredPa != null ? `<div class="target" style="left:${(need / scale) * 100}%"></div>` : ''}`;
+        tip = `${k.actualYear} growth ${k.actual == null ? 'not published' : pct(k.actual)}; needed ${k.requiredPa != null ? pct(k.requiredPa) : '-'} a year`;
+        const from = k.baseline != null ? k.baseline.toLocaleString() : 'baseline not recorded';
+        const to = k.target == null ? 'no target set' : k.targetValue != null ? `${k.targetValue.toLocaleString()} (+${pct(k.target)}) by ${k.targetYear}` : `+${pct(k.target)} by ${k.targetYear}`;
+        sub = `${k.actualYear}: ${k.actual == null ? 'no figure published' : '+' + pct(k.actual)} · needs ${k.requiredPa != null ? pct(k.requiredPa) + ' p.a.' : '-'} · ${from} → ${to}`;
+      } else if (k.kind === 'annual') {
+        const scale = Math.max(k.target ?? 0, k.actual ?? 0, 1) * 1.15;
+        bar = `${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}${k.target != null ? `<div class="target" style="left:${(k.target / scale) * 100}%"></div>` : ''}`;
+        tip = `${k.actual == null ? 'No figure published' : `${n(k.actual)} in the latest year`}${k.target != null ? `; target ${n(k.target)} ${k.unit}` : ''}`;
+        sub = `${k.actual == null ? 'no figure published' : `${n(k.actual)} last year`} · target ${k.target != null ? `${n(k.target)} ${k.unit} to ${k.targetYear}` : 'not set'}`;
+      } else {
+        const share = k.kind === 'share', unit = share ? '%' : ' ' + k.unit, shareOf = share ? ` ${k.unit || 'of facilities'}` : '';
+        const scale = share ? 100 : Math.max(k.target ?? 0, k.actual ?? 0, 1);
+        bar = `${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}${k.expected != null ? `<div class="target" style="left:${(k.expected / scale) * 100}%"></div>` : ''}`;
+        tip = `${k.actual == null ? 'No figure published' : `${n(k.actual)}${unit} so far`}${k.expected != null ? `; ~${n(k.expected)}${unit} expected by ${k.asAt} to stay on pace` : ''}`;
+        sub = `${k.actual == null ? 'no figure published' : `${n(k.actual)}${share ? '%' : ''} so far`}${share ? ` · baseline ${k.baseline}%${shareOf} (${k.baseYear})` : ''} · target ${k.target != null ? `${n(k.target)}${unit}${shareOf} by ${k.targetYear}` : 'not set'}${k.expected != null && k.status !== 'Achieved' ? ` · on pace = ~${n(k.expected)}${share ? '%' : ''} by ${k.asAt}` : ''}`;
+      }
+      const editor = !editingTargets ? '' : `<div class="target-edit" data-id="${k.id}">
+          <label>${k.kind === 'growth' ? 'Target growth' : k.kind === 'share' ? 'Target share' : k.kind === 'annual' ? 'Target per year' : 'Target'}
+            <span class="unit-in"><input type="number" step="any" min="0" data-f="target" value="${k.target == null ? '' : k.kind === 'growth' ? +(k.target * 100).toFixed(2) : k.target}" placeholder="not set"><i>${k.kind === 'count' ? esc(k.unit) : k.kind === 'annual' ? esc(k.unit.replace(/ a year$/, '')) : '%'}</i></span></label>
+          <label>Target year <input type="number" step="1" min="2025" max="2040" data-f="targetYear" value="${k.targetYear}"></label>
+          ${k.adjusted ? `<button type="button" class="link" data-reset title="Plan: ${k.planTarget == null ? 'no target' : k.kind === 'growth' ? '+' + pct(k.planTarget) : k.planTarget}, ${k.planYear}">Reset to plan</button>` : ''}
+        </div>`;
       return `<div class="progress-item">
-        <div class="top"><b>${esc(k.name)}</b><span class="status ${statusClass[k.status]}">${k.status}</span></div>
-        <div class="track" title="2025 growth ${k.actual == null ? 'not published' : pct(k.actual)}; needed ${pct(k.requiredPa)} a year">
-          ${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}
-          <div class="target" style="left:${(k.requiredPa / scale) * 100}%"></div>
-        </div>
-        <div class="sub">2025: ${k.actual == null ? 'no figure published' : '+' + pct(k.actual)} · needed ${pct(k.requiredPa)} p.a. · baseline ${k.baseline.toLocaleString()}</div>
+        <div class="top"><b>${esc(k.name)}${k.adjusted ? ' <span class="adj-chip" title="Target adjusted from the plan">adjusted</span>' : ''}</b><span class="status ${statusClass[k.status] ?? ''}">${k.status}</span></div>
+        <div class="track" title="${esc(tip)}">${bar}</div>
+        <div class="sub">${esc(sub)}</div>
+        ${editor}
       </div>`;
-    }).join('') + '<p class="footnote">Bar = 2025 growth. Black tick = growth needed each year.</p>';
+    };
+    const list = A.kpiTargets();
+    $('#kpiProgress').innerHTML = Object.entries(PILLAR_NAMES).map(([p, label]) => {
+      const ks = list.filter(k => k.area === p);
+      if (!ks.length) return '';
+      // Inclusion is split by community (women & girls, First Nations, Pasifika, disability, Pride, safeguarding).
+      let html = `<h3 class="target-group">${label}</h3>`, group = null;
+      for (const k of ks) {
+        if (k.group && k.group !== group) { group = k.group; html += `<h4 class="target-subgroup">${esc(group)}</h4>`; }
+        html += item(k);
+      }
+      return html;
+    }).join('') + `<p class="footnote">${editingTargets
+      ? 'Changes save automatically and update the status, the growth needed, the AI agents and the Story. Growth targets are total growth from the baseline year.'
+      : 'Bar = progress so far (workforce and inclusion: latest annual growth). Tick = the pace needed to hit the target by its target year. Ahead if at or above pace, Close if within 80% of it.'}</p>`;
+    if (!editingTargets) return;
+    $$('#kpiProgress .target-edit').forEach(box => {
+      const id = box.dataset.id, k = list.find(x => x.id === id);
+      $$('input', box).forEach(inp => inp.addEventListener('change', () => {
+        const raw = inp.value.trim();
+        if (inp.dataset.f === 'targetYear') {
+          const y = Number(raw);
+          if (!Number.isInteger(y) || y < 2025 || y > 2040) { toast('Target year must be between 2025 and 2040.'); inp.value = k.targetYear; return; }
+          A.setTarget(id, { targetYear: y });
+        } else {
+          const v = raw === '' ? null : Number(raw);
+          if (v != null && (!Number.isFinite(v) || v < 0)) { toast('Target must be a positive number.'); return; }
+          A.setTarget(id, { target: v == null ? null : k.kind === 'growth' ? v / 100 : v });
+        }
+        renderProgress();
+        document.dispatchEvent(new CustomEvent('targets-changed'));
+      }));
+      $('[data-reset]', box)?.addEventListener('click', () => { A.setTarget(id, null); renderProgress(); document.dispatchEvent(new CustomEvent('targets-changed')); });
+    });
+  }
+  function initTargets() {
+    $('#editTargets').addEventListener('click', e => {
+      editingTargets = !editingTargets;
+      e.currentTarget.textContent = editingTargets ? 'Done' : 'Adjust targets';
+      e.currentTarget.setAttribute('aria-pressed', editingTargets);
+      e.currentTarget.classList.toggle('primary', editingTargets);
+      renderProgress();
+    });
   }
 
   let pillarChart;
@@ -490,13 +617,39 @@ window.App = (() => {
   }
 
   // ---------- insights ----------
-  let insightFilter = 'all';
+  let insightFilter = 'all', insightQueue = 'todo';
+  const MAX_ARCHIVED = 60;
+  const voteOf = i => window.Feedback?.ratingFor('insight:' + i.id)?.vote;
+  // Review state: archived (from an older run) > verified (👍) > disputed (👎) > to review.
+  const insightState = i => i.archived ? 'archived' : voteOf(i) === 'up' ? 'verified' : voteOf(i) === 'down' ? 'disputed' : 'todo';
+  // Title similarity (shared meaningful words) to spot the same insight re-worded by a new run.
+  const words = s => new Set(String(s).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3));
+  function similar(a, b) {
+    const x = words(a), y = words(b);
+    if (!x.size || !y.size) return 0;
+    let both = 0; for (const w of x) if (y.has(w)) both++;
+    return both / Math.min(x.size, y.size);
+  }
+  const sameInsight = (a, b) => a.pillar === b.pillar && (a.region || '') === (b.region || '') && similar(a.title, b.title) >= 0.6;
+
+  // replacePillar: a pillar name or a predicate. Instead of deleting the previous run, its UNRATED insights
+  // are archived (rated ones are kept), and new insights that repeat a kept one are skipped.
   function addInsights(list, { replacePillar } = {}) {
-    if (replacePillar) insights = insights.filter(i => i.pillar !== replacePillar);
-    for (const i of list) insights.push({ id: crypto.randomUUID?.() || String(Math.random()), created: Date.now(), ...i });
+    const replaces = typeof replacePillar === 'function' ? replacePillar : p => p === replacePillar;
+    let archived = 0, skipped = 0, added = 0;
+    if (replacePillar) insights = insights.map(i => !i.archived && replaces(i.pillar) && !voteOf(i) ? (archived++, { ...i, archived: Date.now() }) : i);
+    for (const n of list) {
+      if (insights.some(o => !o.archived && sameInsight(o, n))) { skipped++; continue; }
+      insights.push({ id: crypto.randomUUID?.() || String(Math.random()), created: Date.now(), ...n });
+      added++;
+    }
+    const old = insights.filter(i => i.archived).sort((a, b) => b.archived - a.archived).slice(MAX_ARCHIVED).map(i => i.id);
+    if (old.length) insights = insights.filter(i => !old.includes(i.id));
     persist();
     renderBubbles();
+    return { added, archived, skipped };
   }
+  const runSummary = r => `${r.added} new${r.archived ? ` · ${r.archived} previous archived` : ''}${r.skipped ? ` · ${r.skipped} repeat${r.skipped === 1 ? '' : 's'} hidden` : ''}`;
 
   function bubbleHtml(i) {
     const sev = { positive: 'Positive', watch: 'Watch', risk: 'Risk' }[i.severity] || 'Watch';
@@ -505,7 +658,7 @@ window.App = (() => {
     const disputed = F?.ratingFor(key)?.vote === 'down';
     return `<article class="bubble ${i.severity} ${disputed ? 'disputed' : ''}" data-id="${esc(i.id)}">
       <div class="meta"><span class="status ${i.severity}">${sev}</span>${i.impact ? `<span class="impact-chip ${i.impact}">${i.impact[0].toUpperCase() + i.impact.slice(1)}</span>` : ''}<span>${esc(i.pillar)}</span>${i.region ? `<span>· ${esc(i.region)}</span>` : ''}<span>· ${esc(i.agent || '')}</span>
-        ${F ? F.ratingHtml(key, i.title, 'Insight') : ''}<button class="remove" title="Delete insight" aria-label="Delete insight">×</button></div>
+        ${i.archived ? '<button class="link restore" title="Move back to the review queue">Restore</button>' : ''}${F ? F.ratingHtml(key, i.title, 'Insight') : ''}<button class="remove" title="Delete insight" aria-label="Delete insight">×</button></div>
       ${F ? F.badgeHtml(key) : ''}
       ${i.check ? `<div class="fact-check" title="Automatic check against the dashboard data">⚠ Fails data check: ${esc(i.check)}</div>` : ''}
       <h3>${esc(i.title)}</h3>
@@ -516,10 +669,16 @@ window.App = (() => {
   }
 
   function renderBubbles() {
-    const list = insights.filter(i => insightFilter === 'all' || i.pillar === insightFilter);
-    $('#bubbles').innerHTML = list.length ? list.map(bubbleHtml).join('')
-      : `<div class="empty">No insights yet. Press <b>Run agents</b> to have your local Ollama model analyse the data, or <b>Rule-based only</b> for instant insights without AI.</div>`;
-    $('#insightCount').textContent = `${list.length} insight${list.length === 1 ? '' : 's'}`;
+    const inPillar = insights.filter(i => insightFilter === 'all' || i.pillar === insightFilter);
+    const counts = { todo: 0, verified: 0, disputed: 0, archived: 0 };
+    for (const i of inPillar) counts[insightState(i)]++;
+    $$('#insightQueue button').forEach(b => { b.classList.toggle('on', b.dataset.q === insightQueue); $('span', b).textContent = counts[b.dataset.q]; });
+    const list = inPillar.filter(i => insightState(i) === insightQueue);
+    const empty = !insights.some(i => !i.archived)
+      ? 'No insights yet. Press <b>Run agents</b> to have your local Ollama model analyse the data, or <b>Rule-based only</b> for instant insights without AI.'
+      : { todo: 'All caught up: every insight here has been rated. See Verified and Disputed.', verified: 'Nothing verified yet. Rate an insight 👍 to verify it.', disputed: 'Nothing disputed.', archived: 'No archived insights. Unrated insights from a previous run are archived here when the agents run again.' }[insightQueue];
+    $('#bubbles').innerHTML = list.length ? list.map(bubbleHtml).join('') : `<div class="empty">${empty}</div>`;
+    $('#insightCount').textContent = `${list.length} shown · ${counts.todo} to review`;
     document.dispatchEvent(new CustomEvent('insights-changed'));
   }
 
@@ -666,10 +825,8 @@ window.App = (() => {
   }
 
   function runRules() {
-    const rules = A.ruleInsights();
-    insights = insights.filter(i => i.pillar === 'Uploaded data' || i.pillar === 'Data quality');
-    addInsights(rules);
-    toast(`${rules.length} rule-based insights added.`);
+    const r = addInsights(A.ruleInsights(), { replacePillar: p => p !== 'Uploaded data' && p !== 'Data quality' });
+    toast(`Rule-based insights: ${runSummary(r)}.`);
   }
 
   async function ask(question) {
@@ -702,6 +859,16 @@ window.App = (() => {
       insightFilter = b.dataset.f;
       renderBubbles();
     }));
+    $$('#insightQueue button').forEach(b => b.addEventListener('click', () => { insightQueue = b.dataset.q; renderBubbles(); }));
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('.bubble .restore');
+      if (!btn) return;
+      const id = btn.closest('.bubble').dataset.id;
+      insights = insights.map(i => i.id === id ? { ...i, archived: undefined } : i);
+      persist();
+      renderBubbles();
+      toast('Insight moved back to To review.');
+    });
     $('#askForm').addEventListener('submit', e => {
       e.preventDefault();
       const q = $('#askInput').value.trim();
@@ -722,11 +889,14 @@ window.App = (() => {
 
   document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
+    initViewMode();
     await Store.init();
     insights = Store.get('insights') || [];
     initTabs();
     initSettings();
     initMatrixFilter();
+    initTargets();
+    initFlagTabs();
     renderOverview();
     initInsights();
     checkOllama();
@@ -747,6 +917,8 @@ window.App = (() => {
 
   return {
     $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, bubbleHtml, pillarChartImage, showTab,
-    get insights() { return insights; },
+    get insights() { return insights.filter(i => !i.archived); }, // archived (older-run) insights stay out of Impact, Story and the AI
+    insightState,
+    get viewMode() { return viewMode; },
   };
 })();
