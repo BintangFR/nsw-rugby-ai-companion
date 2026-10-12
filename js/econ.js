@@ -150,7 +150,7 @@
         <div><span>Change</span>${ev.change ? `<b>${esc(ev.change)}</b>` : '<small class="muted">needs both periods</small>'}</div>
       </div>
       ${ev.warn ? `<div class="fact-check">${esc(ev.warn)}</div>` : ''}
-      <p class="ek-unit muted small">Unit: ${esc(k.unit)}</p>
+      <p class="ek-unit muted small detail-only">Unit: ${esc(k.unit)}</p>
       ${k.indicative ? `<p class="ek-indicative small"><b>Indicative only, not a KPI result:</b> ${esc(k.indicative)}</p>` : ''}
       <details class="ek-more"><summary>Enter data</summary>
         <form class="ek-form">

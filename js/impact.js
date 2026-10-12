@@ -20,7 +20,7 @@
         <div class="big-sub">known spend expected to drive it · ${Math.round(central[k] / (lenses[k] || 1) * 100)}% held centrally · ${n} evidence record${n === 1 ? '' : 's'}</div>
         <div class="small muted">Measurement coverage: ${measured} of ${fw.indicators.length} indicators measured</div>
         <div class="coverage" title="Green = measured, amber = partial, grey = no data yet">${fw.indicators.map(i => `<span class="${i.status}"></span>`).join('')}</div>
-        <ul class="indicators">${fw.indicators.map(i => `<li><span>${esc(i.name)}</span><span class="status ${i.status}">${STATUS[i.status]}</span><span class="iv">${esc(i.value)} · <i>${esc(i.source)}</i></span></li>`).join('')}</ul>
+        <ul class="indicators detail-only">${fw.indicators.map(i => `<li><span>${esc(i.name)}</span><span class="status ${i.status}">${STATUS[i.status]}</span><span class="iv">${esc(i.value)} · <i>${esc(i.source)}</i></span></li>`).join('')}</ul>
         <div class="example">${esc(fw.example)}</div>
       </article>`;
     }).join('');

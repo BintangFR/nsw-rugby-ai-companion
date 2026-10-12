@@ -141,9 +141,10 @@ Write in plain Australian English for program managers and board members.`;
       brief: 'Assess whether spend is too centralised: share held in statewide NSWRU budgets, Greater Sydney vs regional NSW against population share, concentration across regions, and how much inclusion money is held centrally.' },
     { id: 'IMP', name: 'Impact Agent', pillar: 'Impact',
       brief: `Assess the program's SOCIAL, ECONOMIC and CULTURAL impact. Give one insight per kind of impact at minimum.
-Social: do people feel safe and welcome (e.g. women feeling safe because of women-only / female-friendly facilities), wellbeing, mental health, safeguarding.
-Economic: local business and tourism around games and events (e.g. a local takeaway shop busier on game days), construction spend, co-investment leverage, jobs, volunteer value.
-Cultural: community activation and gathering (e.g. Pasifika and First Nations communities choosing a ground as their gathering place), multicultural participation.
+Social: do people feel safe and welcome (e.g. women feeling safe because of women-only / female-friendly facilities; First Nations players feeling culturally safe), wellbeing, mental health, safeguarding.
+Economic: local business and tourism around games and events (e.g. a local takeaway shop busier on game days), construction spend, co-investment leverage, jobs (including First Nations businesses and jobs in funded works), volunteer value.
+Cultural: community activation and gathering (e.g. Pasifika and First Nations communities choosing a ground as their gathering place; carnivals such as Ella 7s; NAIDOC events), multicultural participation.
+Always cover First Nations peoples explicitly where the data allows. Use the term "First Nations" in your output.
 Use the IMPACT lines (spend per lens, which indicators have data and which say NO DATA) and FIELD EVIDENCE. Where a lens has no evidence yet, say so and recommend how to collect it.`, count: 4 },
   ];
 
@@ -165,7 +166,7 @@ Return JSON exactly in this shape:
 Give ${count} insights.
 Rules:
 - The FLAGS lines are ground truth. Only call a region overspent if it is listed under Overspend risk, under-served only if listed under Under-served. Never call a balanced region overspent.
-- For First Nations use the First Nations program reach and GAP lines exactly.
+- "First Nations" in the data means Aboriginal and Torres Strait Islander peoples. Refer to them as "First Nations" and use the First Nations program reach and GAP lines exactly.
 - Take each dollar figure from that region's own row. Do not move numbers between regions.
 - "impact" is the main kind of impact: social (safety, wellbeing, belonging, women feeling safe), economic (local business, tourism, jobs, construction, co-investment) or cultural (community gatherings, Pasifika, First Nations, multicultural activation).
 - Field evidence records were written by staff; you may quote them, attributed to their source.

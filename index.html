@@ -36,6 +36,12 @@
       <button role="tab" data-tab="story">Story</button>
     </nav>
     <div class="top-actions">
+      <div class="seg view-toggle" id="viewMode" role="group" aria-label="Data view" title="Simple: scaled 0–100 scores and plain language. Detailed: every raw figure.">
+        <button data-v="simple" class="on">Simple</button>
+        <button data-v="detailed">Detailed</button>
+      </div>
+      <button class="icon-btn fx-btn" id="fxToggle" aria-label="Screen effects" aria-pressed="true" title="Screen effects">FX</button>
+      <button class="btn demo-btn" id="demoBtn" title="Guided tour of every feature (also for pitching). Uses sample data that is discarded on exit.">▶ Demo</button>
       <button class="pill" id="ollamaStatus" title="Ollama settings"><span class="dot"></span><span class="label">Ollama: checking…</span></button>
       <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
         <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="currentColor"/></svg>
@@ -75,8 +81,12 @@
           </article>
           <article class="card">
             <h2>Flags</h2>
-            <p class="muted">Region share of spend compared with share of population.</p>
-            <ul class="flag-list" id="flagList"></ul>
+            <p class="muted">One row per region: spend share vs population share, and First Nations program gaps. Rate each row 👍/👎 and it moves to Rated.</p>
+            <div class="flag-tabs seg" role="tablist" id="flagTabs">
+              <button data-f="todo" class="on" role="tab">To review <span id="flagTodoCount"></span></button>
+              <button data-f="rated" role="tab">Rated <span id="flagRatedCount"></span></button>
+            </div>
+            <ul class="flag-list scroll-list" id="flagList"></ul>
           </article>
         </div>
       </div>
@@ -85,7 +95,7 @@
         <div class="card-head">
           <div>
             <h2>Region heatmap</h2>
-            <p class="muted">Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Click a column to sort.</p>
+            <p class="muted" id="matrixNote">Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Click a column to sort.</p>
           </div>
           <div class="seg" role="group" aria-label="Pillar filter" id="matrixFilter">
             <button data-f="all" class="on">All</button>
@@ -101,8 +111,13 @@
 
       <div class="grid-2 even">
         <article class="card">
-          <h2>Workforce &amp; inclusion targets</h2>
-          <p class="muted">2025 growth compared with the growth a year needed to hit the 3-year target.</p>
+          <div class="card-head">
+            <div>
+              <h2>Targets</h2>
+              <p class="muted">Facilities, workforce and inclusion progress against the pace needed to hit each target by its target year.</p>
+            </div>
+            <div class="controls"><button class="btn" id="editTargets" aria-pressed="false">Adjust targets</button></div>
+          </div>
           <div id="kpiProgress" class="progress-list"></div>
         </article>
         <article class="card">
@@ -224,6 +239,12 @@
       </div>
 
       <div class="toolbar">
+        <div class="seg queue-tabs" role="tablist" aria-label="Review status" id="insightQueue">
+          <button data-q="todo" class="on" role="tab" title="New insights nobody has rated yet">To review <span></span></button>
+          <button data-q="verified" role="tab" title="Rated 👍">Verified <span></span></button>
+          <button data-q="disputed" role="tab" title="Rated 👎 (kept out of the Story report)">Disputed <span></span></button>
+          <button data-q="archived" role="tab" title="Unrated insights from earlier runs">Archived <span></span></button>
+        </div>
         <div class="seg" role="group" aria-label="Insight filter" id="insightFilter">
           <button data-f="all" class="on">All</button>
           <button data-f="Facilities & Equipment">Facilities</button>
@@ -405,5 +426,7 @@
   <script src="js/impact.js"></script>
   <script src="js/econ.js"></script>
   <script src="js/story.js"></script>
+  <script src="js/demo.js"></script>
+  <script src="js/fx.js"></script>
 </body>
 </html>
