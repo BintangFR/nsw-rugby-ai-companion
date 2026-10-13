@@ -29,7 +29,11 @@ window.App = (() => {
     $$('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id));
     $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
     try { localStorage.setItem('tackle.tab', id); } catch {}
-    if (id === 'overview' && map) setTimeout(() => { map.invalidateSize(); renderMap(A.regionMetrics()); }, 50);
+    if (id === 'overview' && map) setTimeout(() => {
+      map.invalidateSize();
+      if (mapNeedsFit && $('#map').offsetWidth) { map.fitBounds(VIEWS.nsw.bounds, { padding: [10, 10] }); mapNeedsFit = false; }
+      renderMap(A.regionMetrics());
+    }, 50);
     document.dispatchEvent(new CustomEvent('tab', { detail: id }));
   }
 
@@ -37,12 +41,15 @@ window.App = (() => {
     let theme = null;
     try { theme = localStorage.getItem('tackle.theme'); } catch {}
     if (theme) document.documentElement.dataset.theme = theme;
-    $('#themeToggle').addEventListener('click', () => {
-      const dark = isDark();
-      document.documentElement.dataset.theme = dark ? 'light' : 'dark';
-      try { localStorage.setItem('tackle.theme', document.documentElement.dataset.theme); } catch {}
+    const mark = () => $$('#themeToggle button').forEach(b => b.classList.toggle('on', b.dataset.themeSet === (isDark() ? 'dark' : 'light')));
+    $$('#themeToggle button').forEach(b => b.addEventListener('click', () => {
+      if ((isDark() ? 'dark' : 'light') === b.dataset.themeSet) return;
+      document.documentElement.dataset.theme = b.dataset.themeSet;
+      try { localStorage.setItem('tackle.theme', b.dataset.themeSet); } catch {}
+      mark();
       renderOverview();
-    });
+    }));
+    mark();
   }
   // Dark is the default; light is opt-in via the toggle.
   const isDark = () => document.documentElement.dataset.theme !== 'light';
@@ -156,7 +163,7 @@ window.App = (() => {
     $('#kpiRow').innerHTML = tiles.map(([l, v, s]) => `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
   }
 
-  let map, tiles, labels, circles, heat, nswMask, actMask, nswFill, nswGlow, nswOutline, legendCtl;
+  let map, tiles, labels, circles, heat, nswMask, actMask, nswFill, nswGlow, nswOutline, legendCtl, mapNeedsFit = false;
   // Esri grey canvas basemap + its place-name overlay: no API key needed.
   const ESRI = (dark, kind) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${dark ? 'Dark' : 'Light'}_Gray_${kind}/MapServer/tile/{z}/{y}/{x}`;
   const ll = ring => ring.map(([lng, lat]) => [lat, lng]);
@@ -172,6 +179,8 @@ window.App = (() => {
       scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 5, maxZoom: 11, zoomControl: false,
       maxBounds: L.latLngBounds(VIEWS.nsw.bounds).pad(0.15), maxBoundsViscosity: 0.9,
     }).fitBounds(VIEWS.nsw.bounds, { padding: [10, 10] });
+    // Fitting a hidden (zero-size) map picks a nonsense zoom; re-fit when the Overview tab is first shown.
+    mapNeedsFit = !$('#map').offsetWidth;
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
     map.createPane('mask').style.zIndex = 350;
@@ -461,7 +470,7 @@ window.App = (() => {
     }));
   }
 
-  let editingTargets = false;
+  let editingTargets = false, targetFilter = 'all';
   const PILLAR_NAMES = { FE: 'Facilities & Equipment', PW: 'Programs & Workforce', INC: 'Inclusion' };
   function renderProgress() {
     const statusClass = { Ahead: 'positive', Achieved: 'positive', Close: 'watch', Behind: 'risk', 'No data': '', 'No target': '', 'Check year': 'risk' };
@@ -500,18 +509,25 @@ window.App = (() => {
         ${editor}
       </div>`;
     };
-    const list = A.kpiTargets();
-    $('#kpiProgress').innerHTML = Object.entries(PILLAR_NAMES).map(([p, label]) => {
+    const all = A.kpiTargets();
+    const list = all.filter(k => targetFilter === 'all' || k.area === targetFilter);
+    // Status summary: how many targets are in each state for the current filter.
+    const order = ['Achieved', 'Ahead', 'Close', 'Behind', 'No data', 'No target', 'Check year'];
+    const counts = Object.fromEntries(order.map(s => [s, list.filter(k => k.status === s).length]));
+    $('#targetSummary').innerHTML = `<span class="ts-total"><b>${list.length}</b> targets</span>` +
+      order.filter(s => counts[s]).map(s => `<span class="status ${statusClass[s] ?? ''}" title="${s}">${s} <b>${counts[s]}</b></span>`).join('');
+    $$('#targetFilter button').forEach(b => b.classList.toggle('on', b.dataset.f === targetFilter));
+    // One column per pillar; Inclusion is split by community (women & girls, First Nations, Pasifika, disability, Pride, safeguarding).
+    $('#kpiProgress').innerHTML = `<div class="target-cols">${Object.entries(PILLAR_NAMES).map(([p, label]) => {
       const ks = list.filter(k => k.area === p);
       if (!ks.length) return '';
-      // Inclusion is split by community (women & girls, First Nations, Pasifika, disability, Pride, safeguarding).
-      let html = `<h3 class="target-group">${label}</h3>`, group = null;
+      let html = `<section class="target-col"><h3 class="target-group">${label}</h3>`, group = null;
       for (const k of ks) {
         if (k.group && k.group !== group) { group = k.group; html += `<h4 class="target-subgroup">${esc(group)}</h4>`; }
         html += item(k);
       }
-      return html;
-    }).join('') + `<p class="footnote">${editingTargets
+      return html + '</section>';
+    }).join('')}</div>` + `<p class="footnote">${editingTargets
       ? 'Changes save automatically and update the status, the growth needed, the AI agents and the Story. Growth targets are total growth from the baseline year.'
       : 'Bar = progress so far (workforce and inclusion: latest annual growth). Tick = the pace needed to hit the target by its target year. Ahead if at or above pace, Close if within 80% of it.'}</p>`;
     if (!editingTargets) return;
@@ -535,6 +551,7 @@ window.App = (() => {
     });
   }
   function initTargets() {
+    $$('#targetFilter button').forEach(b => b.addEventListener('click', () => { targetFilter = b.dataset.f; renderProgress(); }));
     $('#editTargets').addEventListener('click', e => {
       editingTargets = !editingTargets;
       e.currentTarget.textContent = editingTargets ? 'Done' : 'Adjust targets';

@@ -16,52 +16,70 @@
   };
 
   const STEPS = [
-    { title: 'Meet Tackle AI',
-      body: `NSW Rugby is investing <b>$10M</b> in a Rugby World Cup legacy, across facilities, workforce and inclusion. Today that story lives in a dozen spreadsheets, PDFs and board packs.<br><br><b>Tackle AI turns it into one living picture</b>: where the money goes, whether it is fair, what it is achieving, and the report that proves it.`,
-      note: 'Demo mode uses sample data that disappears when you exit. Use → / ← or the buttons.' },
-    { tab: 'overview', target: '#kpiRow', title: 'The program at a glance',
-      body: 'Every known dollar in one row: total known spend, the three pillars, how much is <b>held centrally</b>, and how many regions are flagged as over- or under-served.' },
-    { tab: 'overview', target: card('#map'), title: 'Where does the money land?',
-      body: 'A NSW-only spend heatmap. Bubble size and colour show the metric you pick: total, per resident, inclusion, or social, economic and cultural impact. <b>Pulsing</b> regions are flagged. Click any region for its funded projects.' },
-    { tab: 'overview', target: card('#centralBar'), title: 'Is it too centralised?',
-      body: 'The question every board asks, answered with numbers: the share held in statewide budgets, Greater Sydney vs population share, and the effective number of regions funded.' },
-    { tab: 'overview', target: card('#flagList'), title: 'Fairness flags, with a human in the loop',
-      body: 'Regions are flagged when their share of spend is far from their share of population, or when a large First Nations community has no program. Staff rate each flag 👍/👎, and <b>the AI learns from those ratings</b>.' },
-    { tab: 'overview', target: card('#matrix'), title: 'Region heatmap',
-      body: 'Every region against every measure: spend, fairness, facility audit gaps and inclusion. In <b>Simple</b> view each measure is scaled 0–100 (100 = the leading region), so very different numbers can be compared at a glance. Switch to <b>Detailed</b> in the top bar for every raw figure.' },
-    { tab: 'overview', target: card('#kpiProgress'), title: 'Are we on track?',
-      body: 'Facilities, workforce and inclusion targets, each measured against the pace needed to hit it by its target year (the tick). 18 of 20 facilities are already funded; coaches are ahead; female participation is behind. <b>Adjust targets</b> lets staff change any target or target year, and the status updates instantly.' },
-    { tab: 'impact', target: '#lensGrid', title: 'Impact through three lenses',
-      body: 'Social, economic and cultural. For each lens: the spend expected to drive it, which indicators are measured today, and an honest coverage bar showing <b>what is still unmeasured</b>.' },
-    { tab: 'impact', target: '#econCard', title: 'Economic KPIs, backed by formulas',
-      body: 'Nine economic KPIs, each with a documented formula and an official source (NSW Treasury, Office of Sport, Sport England, ASC). We just entered <b>sample</b> data: utilisation, training cost per new coach and inclusion cost per participant are calculated instantly, and missing data never counts as zero.',
+    // Written for a non-technical audience: plain words, one idea per step, and a "why it matters" line.
+    { title: 'Meet Tackle AI', mascot: 'wave', say: "G'day! I'm Tackle. Let me show you around.",
+      body: `NSW Rugby is spending <b>$10 million</b> to leave a lasting legacy from the Rugby World Cup: better grounds, more coaches and referees, and more people from every community playing.<br><br>Right now that information is scattered across spreadsheets and reports. <b>Tackle AI puts it all in one place</b> and answers the questions people actually ask.`,
+      why: 'Less time digging through files, more time making good decisions.',
+      note: 'This tour uses practice data that is wiped when you finish. Use the buttons, or the arrow keys.' },
+    { tab: 'overview', target: '#kpiRow', title: 'The whole program on one line',
+      body: 'How much money is committed, where it is going (grounds, people, inclusion), and how much is still managed from head office.',
+      why: 'Anyone can see the big picture in five seconds.' },
+    { tab: 'overview', target: card('#map'), title: 'Where is the money going?',
+      body: 'Each circle is a region of NSW. <b>Bigger and darker means more money.</b> Circles that pulse need attention. Click any circle to see the actual projects there.',
+      why: 'You can see straight away if any part of the state is being missed.' },
+    { tab: 'overview', target: card('#centralBar'), title: 'Is too much held in Sydney?',
+      body: 'This compares money held centrally, in Greater Sydney, and in regional NSW, against where people actually live.',
+      why: 'It answers the fairness question boards and government always ask.' },
+    { tab: 'overview', target: card('#flagList'), title: 'Regions that need a closer look',
+      body: 'The app points out regions getting much more, or much less, than their fair share, and communities with a large First Nations population but no program yet. Staff give each one a 👍 or 👎.',
+      why: 'People stay in control, and the AI learns from their judgement.' },
+    { tab: 'overview', target: card('#matrix'), title: 'Every region, side by side',
+      body: 'Each column is scored out of 100, where 100 is the best-funded region. So 50 simply means "half as much as the top region". Hover over any number to see the real figure.',
+      why: 'Very different numbers become easy to compare.' },
+    { tab: 'targets', target: card('#kpiProgress'), title: 'Are we on track?',
+      body: 'Every goal in the plan: for grounds, for coaches and referees, and for women and girls, First Nations, Pasifika and people with disability. The blue bar is progress; the small tick is where we should be by now. <b>Ahead</b>, <b>Close</b> or <b>Behind</b> tells you at a glance.',
+      why: 'Problems show up early, while there is still time to fix them. Goals can be updated as plans change.' },
+    { tab: 'impact', target: '#lensGrid', title: 'What difference is it making?',
+      body: 'Impact is shown three ways: <b>social</b> (do people feel safe and welcome?), <b>economic</b> (does it help local business and jobs?) and <b>cultural</b> (does it bring communities together?). The coloured bar shows how much we can already prove, and what we still need to measure.',
+      why: 'It is honest about what we know and what we do not know yet.' },
+    { tab: 'impact', target: '#econCard', title: 'The money results, worked out properly',
+      body: 'Nine money measures, each calculated the way NSW Treasury and the Office of Sport recommend. We have typed in <b>practice numbers</b> so you can see them work: for example, how well a ground is used, or the cost to train each new coach.',
+      why: 'The numbers in our reports can be checked and defended.',
       before: () => { Store.set('econ', { ...(Store.get('econ') || {}), ...SAMPLE_KPIS }); window.Econ?.render(); } },
-    { tab: 'impact', target: card('#evidenceForm'), title: 'Capture the stories numbers miss',
-      body: 'Staff log what they see and hear: a survey result, a local business, a community moment. We just added one. The AI agents and the report use these records as evidence.',
+    { tab: 'impact', target: card('#evidenceForm'), title: 'Capture the stories behind the numbers',
+      body: 'Staff can write down what they see and hear, like a comment from a player or a local shop owner. We have added a practice example. These stories are used in the reports alongside the figures.',
+      why: 'Funders want both the numbers and the human stories.',
       before: () => {
         if (A.evidenceStore.all().some(e => e.text.startsWith(SAMPLE))) return;
         A.evidenceStore.add({ lens: 'social', region: 'Western Sydney', source: 'Participant survey', date: new Date().toISOString().slice(0, 10),
           text: `${SAMPLE}: girls at Holroyd say the new female-friendly changerooms make them feel safe to train at night.`, metric: '82% feel safe (n=45)' });
         window.Impact?.refresh();
       } },
-    { tab: 'insights', target: card('#agentChips'), title: 'Five AI analysts',
-      body: 'Facilities, Workforce, Inclusion, Centralisation and Impact agents each read the same data with their own brief. They run on a <b>local model</b>, so program data never leaves NSW Rugby. Live progress shows exactly what each one is doing.' },
-    { tab: 'insights', target: '#bubbles', title: 'Insights you can act on',
-      body: 'Each insight comes with evidence and a recommended action. It works like an inbox: rate one and it moves from <b>To review</b> to Verified or Disputed, and disputed insights never reach the report. Re-running the agents archives the old unrated ones and hides repeats, so the list stays short. (These were made by the rule engine, which works even when the AI is offline.)',
+    { tab: 'insights', target: card('#agentChips'), title: 'Five AI helpers',
+      body: 'Each helper looks at one area: grounds, workforce, inclusion, fairness, or impact. They read the program information and write short findings. They run <b>on NSW Rugby\'s own computer</b>, so the information stays private.',
+      why: 'It is like having five analysts check the data in minutes.' },
+    { tab: 'insights', target: '#bubbles', title: 'Findings, with a suggested next step',
+      body: 'Each finding explains what was found, shows the numbers behind it, and suggests what to do next. It works like an email inbox: once someone gives it a 👍 or 👎, it moves out of <b>To review</b>. Anything marked 👎 is kept out of reports.',
+      why: 'Nothing goes into a report until a person has checked it.',
       before: () => { if (!window.App.insights.length) $('#runRules')?.click(); } },
-    { tab: 'insights', target: '#askForm', title: 'Ask anything',
-      body: 'Follow-up questions in plain English, e.g. <i>"Which regions should Round 2 prioritise for female-friendly changerooms?"</i>, answered from the program data.' },
-    { tab: 'data', target: '#dropzone', title: 'Bring your own data',
-      body: 'Drop in Excel, CSV, PDF or Word. Tables are profiled and charted, and <b>uploads update the dashboard</b>: region + amount columns become spend, and impact columns become evidence.' },
-    { tab: 'data', target: '#dataQuality', title: 'Data quality, rated',
-      body: 'Every source gets a green, amber or red rating. Red means "too high level", and the AI explains what better data would look like, so collection improves every season.' },
-    { tab: 'story', target: '.story-controls', title: 'From data to the annual report',
-      body: 'Pick a format (annual report chapter, board summary, Office of Sport acquittal, community story or media release), set the tone and length, and generate.' },
-    { tab: 'story', target: '#report', title: 'A finished, branded report',
-      body: 'Cover page, numbered sections, stat grid and insight register. The text is editable, and <b>Export PDF</b> gives a print-ready document with page numbers and running headers.' },
-    { title: 'Tackle AI',
-      body: 'One place to see <b>where the legacy money goes</b>, <b>whether it is fair</b>, <b>what it is achieving</b>, and <b>the report that proves it</b>.<br><br>Built for NSW Rugby, running on its own data and its own machines.',
-      note: 'Press Finish to leave demo mode. All sample data is discarded.' },
+    { tab: 'insights', target: '#askForm', title: 'Just ask a question',
+      body: 'Type a question in everyday words, for example <i>"Which regions should get new female-friendly changerooms next?"</i>, and get an answer based on the program information.',
+      why: 'No need to know spreadsheets to get answers.' },
+    { tab: 'data', target: '#dropzone', title: 'Add new information',
+      body: 'Drag in a spreadsheet, PDF or Word document. The app reads it, makes charts, and adds anything about regions and spending to the dashboard automatically.',
+      why: 'The picture stays up to date as new information comes in.' },
+    { tab: 'data', target: '#dataQuality', title: 'Is the information good enough?',
+      body: 'Each file gets a traffic light: <b>green</b> (good), <b>amber</b> (usable) or <b>red</b> (too general to rely on). For red files, the app explains what better information would look like.',
+      why: 'Every season, the information collected gets better.' },
+    { tab: 'story', target: '.story-controls', title: 'Write the report for you',
+      body: 'Choose the kind of document you need: an annual report chapter, a board summary, a funding report for the Office of Sport, a community story or a media release. Pick the tone and length, then press Generate.',
+      why: 'A first draft in minutes instead of days.' },
+    { tab: 'story', target: '#report', title: 'Ready to share',
+      body: 'The draft comes out as a finished, branded document. You can change any wording directly on the page, then press <b>Export PDF</b> to save or print it.',
+      why: 'From information to a polished report in one place.' },
+    { title: 'Tackle AI', mascot: 'cheer', say: "That's full time! Thanks for watching.",
+      body: 'One place to see <b>where the legacy money goes</b>, <b>whether it is fair</b>, <b>what difference it is making</b>, and <b>the report that proves it</b>.<br><br>Built for NSW Rugby, using its own information, on its own computers.',
+      note: 'Press Finish to end the tour. The practice data is wiped.' },
   ];
 
   let i = 0, active = false, els = null;
@@ -112,8 +130,10 @@
     const step = STEPS[i];
     els.box.innerHTML = `
       <div class="demo-top"><span class="demo-badge">Demo</span><span class="demo-count">${i + 1} / ${STEPS.length}</span><button class="demo-x" aria-label="Exit demo" title="Exit demo (Esc)">×</button></div>
+      ${step.mascot ? `<div class="demo-hero"><span class="mascot lg ${step.mascot}" aria-hidden="true"></span><div class="demo-say">${esc(step.say)}</div></div>` : ''}
       <h3>${esc(step.title)}</h3>
       <p>${step.body}</p>
+      ${step.why ? `<p class="demo-why"><b>Why it matters:</b> ${esc(step.why)}</p>` : ''}
       ${step.note ? `<p class="demo-note">${esc(step.note)}</p>` : ''}
       <div class="demo-dots">${STEPS.map((_, n) => `<button class="${n === i ? 'on' : n < i ? 'seen' : ''}" data-n="${n}" aria-label="Step ${n + 1}"></button>`).join('')}</div>
       <div class="demo-nav">
@@ -149,9 +169,13 @@
     else if (e.key === 'Escape') { e.preventDefault(); stop(); }
   }
 
+  let prevView = null;
   function start() {
     if (active) return;
     Store.startSandbox();
+    // The tour always uses the Simple view; the viewer's own choice is put back on exit.
+    prevView = window.App.viewMode;
+    if (prevView !== 'simple') $('#viewMode [data-v="simple"]')?.click();
     active = true;
     document.body.classList.add('demo-on');
     els = els || build();
@@ -164,6 +188,7 @@
 
   function stop() {
     active = false;
+    if (prevView && prevView !== 'simple') { try { localStorage.setItem('tackle.view', prevView); } catch {} }
     // Sample data only ever lived in memory: reload to return to the real data.
     const url = new URL(location.href);
     url.searchParams.delete('demo');

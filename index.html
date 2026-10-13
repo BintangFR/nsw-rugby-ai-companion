@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tackle AI</title>
   <meta name="description" content="AI companion for the NSW Rugby World Cup Legacy Program - facilities, workforce and inclusion insights.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23070b08'/><circle cx='32' cy='32' r='24' fill='none' stroke='%235fd47a' stroke-width='6' stroke-dasharray='6.3 6.3'/><circle cx='32' cy='32' r='20' fill='none' stroke='%235fd47a' stroke-width='2.5'/><ellipse cx='32' cy='32' rx='12' ry='7.5' transform='rotate(-35 32 32)' fill='%235fd47a'/><path d='M27 37l10-10M29 31l4 4M32 28l4 4' stroke='%23070b08' stroke-width='1.8' stroke-linecap='round'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23020a0c'/><circle cx='32' cy='32' r='24' fill='none' stroke='%233fe8f5' stroke-width='6' stroke-dasharray='6.3 6.3'/><circle cx='32' cy='32' r='20' fill='none' stroke='%233fe8f5' stroke-width='2.5'/><ellipse cx='32' cy='32' rx='12' ry='7.5' transform='rotate(-35 32 32)' fill='%233fe8f5'/><path d='M27 37l10-10M29 31l4 4M32 28l4 4' stroke='%23020a0c' stroke-width='1.8' stroke-linecap='round'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -30,6 +30,7 @@
     </div>
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-tab="targets">Targets</button>
       <button role="tab" data-tab="impact">Impact</button>
       <button role="tab" data-tab="insights">Insights</button>
       <button role="tab" data-tab="data">Data Studio</button>
@@ -43,9 +44,10 @@
       <button class="icon-btn fx-btn" id="fxToggle" aria-label="Screen effects" aria-pressed="true" title="Screen effects">FX</button>
       <button class="btn demo-btn" id="demoBtn" title="Guided tour of every feature (also for pitching). Uses sample data that is discarded on exit.">▶ Demo</button>
       <button class="pill" id="ollamaStatus" title="Ollama settings"><span class="dot"></span><span class="label">Ollama: checking…</span></button>
-      <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
-        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" fill="currentColor"/></svg>
-      </button>
+      <div class="seg theme-toggle" id="themeToggle" role="group" aria-label="Colour theme">
+        <button data-theme-set="dark" title="Dark mode" aria-label="Dark mode">☾</button>
+        <button data-theme-set="light" title="Light mode (good for projectors and printing)" aria-label="Light mode">☀</button>
+      </div>
     </div>
   </header>
 
@@ -109,23 +111,36 @@
         <p class="footnote">Population and First Nations share are indicative ABS 2021 approximations used only to normalise spend. Upload a dataset with a region column in Data Studio to add your own layers.</p>
       </article>
 
-      <div class="grid-2 even">
-        <article class="card">
-          <div class="card-head">
-            <div>
-              <h2>Targets</h2>
-              <p class="muted">Facilities, workforce and inclusion progress against the pace needed to hit each target by its target year.</p>
-            </div>
-            <div class="controls"><button class="btn" id="editTargets" aria-pressed="false">Adjust targets</button></div>
-          </div>
-          <div id="kpiProgress" class="progress-list"></div>
-        </article>
+      <div>
         <article class="card">
           <h2>Spend by pillar</h2>
           <p class="muted">Known allocations: dashboard 3-year budgets plus Round 1 grants.</p>
           <div class="chart-box"><canvas id="pillarChart"></canvas></div>
         </article>
       </div>
+    </section>
+
+    <!-- TARGETS -->
+    <section id="tab-targets" class="tab-panel">
+      <article class="card">
+        <div class="card-head">
+          <div>
+            <h2>Targets</h2>
+            <p class="muted">Facilities, workforce and inclusion progress against the pace needed to hit each target by its target year.</p>
+          </div>
+          <div class="controls">
+            <div class="seg" role="group" aria-label="Pillar filter" id="targetFilter">
+              <button data-f="all" class="on">All</button>
+              <button data-f="FE">Facilities</button>
+              <button data-f="PW">Workforce</button>
+              <button data-f="INC">Inclusion</button>
+            </div>
+            <button class="btn" id="editTargets" aria-pressed="false">Adjust targets</button>
+          </div>
+        </div>
+        <div class="target-summary" id="targetSummary"></div>
+        <div id="kpiProgress" class="progress-list"></div>
+      </article>
     </section>
 
     <!-- IMPACT -->
@@ -368,7 +383,7 @@
     </section>
   </main>
 
-  <footer class="site-foot">Tackle AI · NSW Rugby World Cup Legacy Program</footer>
+  <footer class="site-foot"><span class="mascot" aria-hidden="true"></span>Tackle AI · NSW Rugby World Cup Legacy Program</footer>
 
   <dialog id="settings">
     <form method="dialog" class="settings">
