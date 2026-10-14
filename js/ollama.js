@@ -46,7 +46,7 @@ window.Ollama = (() => {
   function emit(detail) { document.dispatchEvent(new CustomEvent('ai-activity', { detail: { ...detail, active: activeCalls } })); }
 
   // Core call: always streams so progress is visible, even when the caller only wants the final text.
-  async function call(messages, { json = false, temperature = 0.3, signal, label = 'AI', onProgress } = {}) {
+  async function call(messages, { json = false, temperature = 0.3, numPredict, signal, label = 'AI', onProgress } = {}) {
     if (!config.model && !viaServer()) throw new Error('No Ollama model selected'); // the backend falls back to its configured model
     const promptChars = messages.reduce((n, m) => n + m.content.length, 0);
     const p = { label, phase: 'reading', start: Date.now(), firstTokenAt: null, lastTokenAt: null, tokens: 0, text: '', promptChars, estReadMs: estimateReadMs(promptChars) };
@@ -59,7 +59,7 @@ window.Ollama = (() => {
         headers: headers(),
         signal,
         // think:false stops reasoning models (qwen3, deepseek-r1) spending minutes on hidden thinking
-        body: JSON.stringify({ model: config.model, messages, stream: true, think: false, ...(json ? { format: 'json' } : {}), options: { temperature, num_ctx: 8192 } }),
+        body: JSON.stringify({ model: config.model, messages, stream: true, think: false, keep_alive: '30m', ...(json ? { format: 'json' } : {}), options: { temperature, num_ctx: 8192, ...(numPredict ? { num_predict: numPredict } : {}) } }),
       });
       if (!res.ok || !res.body) throw new Error(`AI server returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
       const reader = res.body.getReader();
@@ -84,6 +84,11 @@ window.Ollama = (() => {
         }
       }
       const end = Date.now();
+      // The model now holds this prompt in its cache; note it so warm() doesn't re-send the same data.
+      if (messages[0]?.content === SYSTEM && messages[1]?.content) {
+        const ctx = sharedContext();
+        if (messages[1].content.startsWith(ctx)) { warmCtx = ctx; warmedAt = end; }
+      }
       if (p.firstTokenAt) learnStats(promptChars, p.firstTokenAt - p.start, p.tokens, end - p.firstTokenAt, p.firstTokenAt - p.start < p.estReadMs * 0.25);
       p.phase = 'done';
       return p.text;
@@ -96,6 +101,37 @@ window.Ollama = (() => {
       report();
     }
   }
+
+  // ---------- pre-reading (prompt cache) ----------
+  // On a CPU-only machine the model reads ~30 tokens/s, so the ~4k-token shared data takes minutes.
+  // Ollama keeps the last prompt in its cache and skips any identical prefix next time, so we send the
+  // shared data ahead of time (1 output token) while the user is still typing. Every agent, question
+  // and story prompt starts with exactly the same SYSTEM + sharedContext(), so they all benefit.
+  let warmCtx = '', warmedAt = 0, warming = null;
+  const WARM_TTL = 25 * 60 * 1000; // a little under the 30-minute keep_alive
+  function warmState() {
+    const ctx = sharedContext();
+    return { ctx, fresh: ctx === warmCtx && Date.now() - warmedAt < WARM_TTL };
+  }
+  function warm() {
+    if (warming) return warming;
+    const { ctx, fresh } = warmState();
+    if (fresh || activeCalls > 0) return Promise.resolve(fresh);
+    warmCtx = ctx;
+    // Stop as soon as the first token appears: by then the data is read and cached, and nothing else is needed
+    // (this also protects against a backend that ignores num_predict).
+    const ctl = new AbortController();
+    let read = false;
+    warming = call([{ role: 'system', content: SYSTEM }, { role: 'user', content: ctx }], {
+      numPredict: 1, temperature: 0, label: 'Pre-reading data', signal: ctl.signal,
+      onProgress: pr => { if (pr.phase === 'writing' && !read) { read = true; ctl.abort(); } },
+    })
+      .then(() => true, () => read)
+      .then(ok => { if (ok) warmedAt = Date.now(); return ok; })
+      .finally(() => { warming = null; });
+    return warming;
+  }
+  const isWarm = () => warmState().fresh;
 
   // Final text only. Pass json:true to force a JSON response.
   const chat = (messages, opts = {}) => call(messages, opts);
@@ -210,5 +246,5 @@ Rules:
     return ['social', 'economic', 'cultural'].find(k => s.includes(k)) || '';
   }
 
-  return { get config() { return config; }, get viaServer() { return viaServer(); }, save, listModels, chat, stream, status, parseJson, runAgent, sharedContext, expectedTokens, estimateReadMs, estimateWriteMs, normaliseImpact, AGENTS, SYSTEM };
+  return { get config() { return config; }, get viaServer() { return viaServer(); }, get busy() { return activeCalls > 0; }, save, listModels, chat, stream, status, parseJson, runAgent, sharedContext, warm, isWarm, expectedTokens, estimateReadMs, estimateWriteMs, normaliseImpact, AGENTS, SYSTEM };
 })();

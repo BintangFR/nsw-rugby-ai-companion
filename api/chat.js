@@ -1,7 +1,7 @@
 import { send, readBody, authorised, methodNotAllowed } from './_lib/http.js';
 import { chat, stream } from './_lib/llm.js';
 
-// POST { model?, messages, stream?, format?: 'json', options?: { temperature, num_ctx } }
+// POST { model?, messages, stream?, format?: 'json', options?: { temperature, num_ctx, num_predict } }
 // Non-streaming -> { message: { content } }. Streaming -> NDJSON lines { message: { content } } then { done: true }.
 export default async function handler(req, res) {
   if (!authorised(req, res)) return;
@@ -12,7 +12,11 @@ export default async function handler(req, res) {
   const messages = body.messages
     .filter(m => ['system', 'user', 'assistant'].includes(m.role))
     .map(m => ({ role: m.role, content: String(m.content ?? '').slice(0, 60000) }));
-  const opts = { model: body.model, messages, format: body.format, options: { temperature: Number(body.options?.temperature ?? 0.3), num_ctx: Number(body.options?.num_ctx ?? 8192) } };
+  const options = { temperature: Number(body.options?.temperature ?? 0.3), num_ctx: Number(body.options?.num_ctx ?? 8192) };
+  // Optional answer-length cap (also used with 1 to pre-read the shared data into the model's prompt cache).
+  const np = Number(body.options?.num_predict);
+  if (Number.isFinite(np) && np >= 1) options.num_predict = Math.min(Math.round(np), 4096);
+  const opts = { model: body.model, messages, format: body.format, options };
 
   if (!body.stream) {
     try { return send(res, 200, { message: { role: 'assistant', content: await chat(opts) } }); }
