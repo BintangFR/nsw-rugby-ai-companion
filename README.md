@@ -119,6 +119,8 @@ The `api/` folder holds Vercel serverless functions; the static site deploys fro
 
 Switch models from the AI pill in the top bar.
 
+**Speed on a laptop without a graphics card:** the AI reads about 30 tokens a second, and every question starts with about 4,000 tokens of program data, so reading that from scratch takes 2–3 minutes. To hide this, the app **pre-reads** the data in the background when you open the Insights tab or click into the question box. Ollama keeps it in memory for 30 minutes, so questions then answer in about 10–30 seconds. The agents and the Story generator start with the same data, so they speed up too. For faster answers overall, use `llama3.2:3b`, or run Ollama on a computer with a graphics card.
+
 ## Data notes
 
 - Seed data in [js/data.js](js/data.js) was compiled from `Dataset/RWC_Legacy_Data_Compilation.xlsx` and `Dataset/RWC Dashboard 010926 (2).xlsx`.

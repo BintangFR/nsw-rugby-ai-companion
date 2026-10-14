@@ -852,17 +852,40 @@ window.App = (() => {
     el.className = 'bubble answer watch thinking';
     el.innerHTML = `<div class="meta"><span>You asked</span></div><h3>${esc(question)}</h3><div class="md"><p></p></div>`;
     $('#bubbles').prepend(el);
-    const known = insights.slice(0, 12).map(i => `- [${i.pillar}] ${i.title}: ${i.insight}`).join('\n');
+    // Keep everything after the shared data short: on a CPU-only machine every extra token adds reading time.
+    const known = insights.filter(i => !i.archived && insightState(i) !== 'disputed').slice(0, 6).map(i => `- [${i.pillar}] ${i.title}`).join('\n');
+    const tail = `\n\nEXISTING INSIGHT TITLES:\n${known || 'none'}\n\nQUESTION: ${question}\nAnswer in under 120 words using markdown. Cite figures from the data.`;
+    // The shared data is skipped if the model has already read it (see Ollama.warm); estimate accordingly.
+    const warm = O.isWarm();
+    const estRead = O.estimateReadMs(warm ? tail.length + 300 : O.sharedContext().length + tail.length);
+    const status = $('.md p', el);
+    let started = false;
     try {
       await O.stream([
         { role: 'system', content: O.SYSTEM },
-        { role: 'user', content: `${O.sharedContext()}\n\nEXISTING INSIGHTS:\n${known || 'none'}\n\nQUESTION: ${question}\nAnswer in under 200 words using markdown. Cite figures from the data.` },
-      ], (_, full) => { $('.md', el).innerHTML = md(full); }, { label: 'Question' });
+        { role: 'user', content: `${O.sharedContext()}${tail}` },
+      ], (_, full) => { started = true; $('.md', el).innerHTML = md(full); }, {
+        label: 'Question', numPredict: 320,
+        onProgress: pr => {
+          if (started || pr.phase !== 'reading') return;
+          const t = Date.now() - pr.start;
+          status.textContent = warm
+            ? `Thinking… ${fmtDur(t)}`
+            : `Reading the program data… ${fmtDur(t)} of about ${fmtDur(estRead)} (later questions are much faster)`;
+        },
+      });
       el.classList.remove('thinking');
     } catch (e) {
       el.classList.remove('thinking');
-      $('.md', el).innerHTML = `<p>Could not reach Ollama: ${esc(e.message)}</p>`;
+      $('.md', el).innerHTML = `<p>Could not reach the AI: ${esc(e.message)}</p>`;
     }
+  }
+
+  // Pre-read the program data into the model's memory while the user is about to ask something,
+  // so the question itself only needs a few seconds of reading. Skipped if the AI is busy or offline.
+  function prewarm() {
+    if (!$('#ollamaStatus').classList.contains('ok') || O.busy) return;
+    O.warm();
   }
 
   function initInsights() {
@@ -886,6 +909,8 @@ window.App = (() => {
       renderBubbles();
       toast('Insight moved back to To review.');
     });
+    $('#askInput').addEventListener('focus', prewarm);
+    document.addEventListener('tab', e => { if (e.detail === 'insights') setTimeout(prewarm, 800); });
     $('#askForm').addEventListener('submit', e => {
       e.preventDefault();
       const q = $('#askInput').value.trim();
@@ -916,7 +941,7 @@ window.App = (() => {
     initFlagTabs();
     renderOverview();
     initInsights();
-    checkOllama();
+    checkOllama().then(models => { if (models && $('#tab-insights').classList.contains('active')) prewarm(); });
     document.addEventListener('feedback-changed', () => { renderFlags(A.regionMetrics()); renderBubbles(); });
     // Top-bar pill mirrors whatever the AI is doing anywhere in the app.
     document.addEventListener('ai-activity', e => {
