@@ -1,7 +1,7 @@
 // Persistence. Uses the backend (/api/store) when it is running, otherwise the browser's localStorage.
 // Reads are synchronous from an in-memory cache; writes are saved in the background.
 window.Store = (() => {
-  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, econ: {}, targets: {} };
+  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, econ: {}, targets: {}, programs: {}, methods: {} };
   const cache = {};
   const timers = {};
   let mode = 'local';

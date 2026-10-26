@@ -181,7 +181,7 @@ Social: do people feel safe and welcome (e.g. women feeling safe because of wome
 Economic: local business and tourism around games and events (e.g. a local takeaway shop busier on game days), construction spend, co-investment leverage, jobs (including First Nations businesses and jobs in funded works), volunteer value.
 Cultural: community activation and gathering (e.g. Pasifika and First Nations communities choosing a ground as their gathering place; carnivals such as Ella 7s; NAIDOC events), multicultural participation.
 Always cover First Nations peoples explicitly where the data allows. Use the term "First Nations" in your output.
-Use the IMPACT lines (spend per lens, which indicators have data and which say NO DATA) and FIELD EVIDENCE. Where a lens has no evidence yet, say so and recommend how to collect it.`, count: 4 },
+Use the IMPACT MEASURES lines (each measure names the published framework it comes from, and which have data or NO DATA), IMPACT VALUATIONS, UPLOADED YEARLY SERIES and FIELD EVIDENCE. Where a measure has NO DATA, say so and recommend collecting it with that framework's own method (e.g. the ABS General Social Survey questions, the CDN outcomes, an eventIMPACTS visitor survey). Never invent a formula, multiplier or dollar value, and never estimate impact from spend.`, count: 4 },
   ];
 
   // Shared data + learned lessons first (identical for every agent, so Ollama reuses its prompt cache
@@ -206,6 +206,7 @@ Rules:
 - Take each dollar figure from that region's own row. Do not move numbers between regions.
 - "impact" is the main kind of impact: social (safety, wellbeing, belonging, women feeling safe), economic (local business, tourism, jobs, construction, co-investment) or cultural (community gatherings, Pasifika, First Nations, multicultural activation).
 - Field evidence records were written by staff; you may quote them, attributed to their source.
+- Only use figures that appear in DATA. Do not calculate new totals, rates or dollar values yourself, and do not invent formulas.
 - Follow the LEARNED FROM STAFF FEEDBACK section if present.`;
     const text = await chat([
       { role: 'system', content: SYSTEM },

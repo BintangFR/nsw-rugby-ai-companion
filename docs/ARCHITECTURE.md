@@ -1,0 +1,103 @@
+# Architecture
+
+How Tackle AI fits together. Read this before changing code; read [MAINTAINING.md](MAINTAINING.md) for step-by-step recipes.
+
+## The big picture
+
+```
+ Browser (index.html + js/*.js, no build step)
+   │   reads/writes app state ──► /api/store ──► data-store/*.json (local)  or  Upstash Redis (Vercel)
+   │   asks the AI ─────────────► /api/chat  ──► Ollama (local / Ollama Cloud)  or  any OpenAI-compatible API
+   │
+   └─ if no backend is running (serve.ps1 / static hosting): state goes to localStorage,
+      and the browser calls Ollama on http://localhost:11434 directly.
+```
+
+- **Frontend:** plain HTML, CSS and JavaScript. No framework, no bundler, no `npm install`. Third-party libraries (Leaflet, Chart.js, SheetJS, marked, DOMPurify, html2pdf) load from CDNs with pinned versions in [index.html](../index.html).
+- **Backend:** the files in [api/](../api) are small Node handlers. On Vercel each one is a serverless function; locally [server.js](../server.js) serves the site and routes `/api/<name>` to `api/<name>.js`, so the same code runs in both places.
+- **AI:** all model calls go through [api/_lib/llm.js](../api/_lib/llm.js), which normalises Ollama and OpenAI-compatible APIs to one response shape. Changing provider is configuration only (see [.env.example](../.env.example)).
+
+## Frontend modules
+
+Scripts are plain `<script>` tags loaded **in order** (the order in `index.html` matters). Each file is an IIFE that publishes one global.
+
+| File | Global | Responsibility |
+|---|---|---|
+| `js/store.js` | `Store` | Persistence. Picks server or localStorage at start-up; synchronous reads from a cache, debounced background writes. Demo sandbox mode. |
+| `js/data.js` | `TACKLE_DATA` | **Seed data**: regions, region aliases, Round 1 grants, 3-year dashboard budgets, targets, impact framework. Pure data, no logic. |
+| `js/analytics.js` | `Analytics` | All calculations: region metrics, centralisation, pillar totals, impact lens totals, target status, rule-based insights, the data briefing sent to the AI. |
+| `js/ollama.js` | `Ollama` | AI client (via `/api/chat` or direct to Ollama), the five agents, prompt text, fact-checking of AI output. |
+| `js/app.js` | `App` | App shell: tabs, theme, Overview tab (map, heatmap, KPIs, flags), Targets, Insights queue, hover tooltips (`data-tip`). Shared helpers (`$`, `esc`, `money`, `toast`…). |
+| `js/feedback.js` | `Feedback` | 👍/👎 ratings, deletion reasons, "lessons" fed back into AI prompts, data-quality advice. |
+| `js/upload.js` | — | Data Studio: file parsing, structure detection, quality rating, turning uploads into spend / map layers / evidence. Preloads `Dataset/`. |
+| `js/impact.js` | `Impact` | Impact tab: lens cards, evidence log, Impact agent. |
+| `js/econ.js` | `Econ` | The nine economic KPI formulas, their sources and the calculator UI. |
+| `js/methods.js` | `Methods` | Impact valuation calculators (published formulas only) and the Methodology tab, which is generated from the live app. |
+| `js/programs.js` | — | Programs tab: per-program cost, return and root-cause drill-down. |
+| `js/story.js` | — | Story generator and PDF export (uses `css/reportstyle.css`). |
+| `js/demo.js` | `Demo` | Guided demo tour and the timed 15-minute Presentation mode (both run in a sandbox, never save). |
+| `js/fx.js` | — | Optional visual effects toggle. |
+| `js/nsw-boundary.js` | — | NSW outline polygon for the map. |
+
+### How modules talk to each other
+
+Modules communicate through **DOM events on `document`**, not direct calls, so a new module can listen without editing existing ones:
+
+| Event | Fired by | Meaning |
+|---|---|---|
+| `app-ready` | app.js | Store loaded, shell ready. Modules do their first render here. |
+| `data-changed` | upload.js, econ.js | Spend, uploads or KPI inputs changed: re-render anything derived from data. |
+| `insights-changed` | app.js | The insight list changed. |
+| `feedback-changed` | feedback.js | A rating or deletion was recorded. |
+| `targets-changed` | app.js | A target was edited. |
+| `tab` | app.js | A tab was opened (`e.detail` = tab id). |
+| `ai-activity` | ollama.js | AI progress updates for the top-bar pill. |
+
+## Data flow
+
+1. **Seed data** (`js/data.js`) + **uploaded datasets** (Store `datasets`) → `Analytics.allGrants()` / `regionMetrics()`.
+2. Every number on screen is computed from those by `Analytics` at render time. Nothing derived is stored, so fixing a formula fixes every screen.
+3. **AI agents** receive `Analytics.briefing()`, a text summary of the same numbers, plus staff feedback lessons. AI output is fact-checked against the computed flags before it is shown.
+4. When the AI is offline, `Analytics.ruleInsights()` produces equivalent rule-based insights.
+
+## Stored state
+
+`Store` collections (same names in localStorage as `tackle.<name>`, in `data-store/<name>.json`, and in Redis as `tackle:<name>`):
+
+| Collection | Owner | Contents |
+|---|---|---|
+| `evidence` | impact.js / upload.js | Field evidence records (lens, region, source, text, metric, date). |
+| `feedback` | feedback.js | Ratings and deletion reasons. |
+| `datasets` | upload.js | Uploaded files: parsed rows, derived spend, layers, evidence. |
+| `insights` | app.js | AI and rule insights, including archived ones. |
+| `story` | story.js | Current story draft. |
+| `quality` | upload.js | Data-quality ratings per dataset. |
+| `econ` | econ.js | Baseline/follow-up inputs for each economic KPI. |
+| `targets` | app.js | Staff edits to plan targets. |
+| `programs` | programs.js | Recorded results and evidence per program. |
+| `methods` | methods.js | Inputs for the impact valuation calculators. |
+
+Yearly measures found in uploads (for Targets) are stored inside each `datasets` entry as `measures`.
+
+A new collection must be added in **both** `js/store.js` (`DEFAULTS`) and `api/_lib/store.js` (`COLLECTIONS`).
+
+## API
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/health` | GET | Provider, model, reachability and storage backend. |
+| `/api/models` | GET | Available models (Ollama `/api/tags` shape). |
+| `/api/status` | GET | Which models are loaded (for "loading model" progress). |
+| `/api/chat` | POST | Chat completion, optionally streamed as NDJSON. |
+| `/api/store` | GET / PUT | Read all collections, or read/replace one (`?c=name`). |
+
+If `APP_ACCESS_KEY` is set, every route requires the `x-app-key` header (the browser prompts once and remembers it).
+
+## Design decisions worth keeping
+
+- **Calculation is separate from interpretation.** Code calculates every figure; the AI only explains figures it is given; people check the AI. The Methodology tab documents this for non-technical readers.
+- **Impact methods are borrowed, never invented.** Every impact measure and valuation cites a published framework (`frameworks` in `js/data.js`).
+- **Missing is never zero.** Absent data shows as "No data yet" / "Data collection required", never as 0.
+- **Every number explains itself.** Key figures carry a `data-tip` tooltip saying how they were calculated. Keep this when adding numbers.
+- **Plain language.** The audience is board members and funders: write in plain words, show the real figures (they asked for the detailed view, so there is no simplified mode), and say "First Nations" in UI and AI text.
+- **Uploads never double count.** Rows already in the seed data are matched by amount and skipped.

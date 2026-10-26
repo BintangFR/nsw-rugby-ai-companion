@@ -31,18 +31,17 @@
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
       <button role="tab" data-tab="targets">Targets</button>
+      <button role="tab" data-tab="programs">Programs</button>
       <button role="tab" data-tab="impact">Impact</button>
       <button role="tab" data-tab="insights">Insights</button>
       <button role="tab" data-tab="data">Data Studio</button>
       <button role="tab" data-tab="story">Story</button>
+      <button role="tab" data-tab="methodology">Methodology</button>
     </nav>
     <div class="top-actions">
-      <div class="seg view-toggle" id="viewMode" role="group" aria-label="Data view" title="Simple: scaled 0–100 scores and plain language. Detailed: every raw figure.">
-        <button data-v="simple" class="on">Simple</button>
-        <button data-v="detailed">Detailed</button>
-      </div>
       <button class="icon-btn fx-btn" id="fxToggle" aria-label="Screen effects" aria-pressed="true" title="Screen effects">FX</button>
-      <button class="btn demo-btn" id="demoBtn" title="Guided tour of every feature (also for pitching). Uses sample data that is discarded on exit.">▶ Demo</button>
+      <button class="btn demo-btn" id="demoBtn" title="Guided tour of every feature, at your own pace. Uses sample data that is discarded on exit.">▶ Demo</button>
+      <button class="btn demo-btn" id="presentBtn" title="15-minute presentation: 17 timed slides with a clock, pace indicator and speaker notes (N). Uses sample data that is discarded on exit.">⏱ Present</button>
       <button class="pill" id="ollamaStatus" title="Ollama settings"><span class="dot"></span><span class="label">Ollama: checking…</span></button>
       <div class="seg theme-toggle" id="themeToggle" role="group" aria-label="Colour theme">
         <button data-theme-set="dark" title="Dark mode" aria-label="Dark mode">☾</button>
@@ -126,14 +125,16 @@
         <div class="card-head">
           <div>
             <h2>Targets</h2>
-            <p class="muted">Facilities, workforce and inclusion progress against the pace needed to hit each target by its target year.</p>
+            <p class="muted">Progress on all five Legacy pillars against the pace needed to hit each target by its target year. Hover a status, bar or pillar heading to see how it is worked out and where the figure comes from.</p>
           </div>
           <div class="controls">
             <div class="seg" role="group" aria-label="Pillar filter" id="targetFilter">
               <button data-f="all" class="on">All</button>
-              <button data-f="FE">Facilities</button>
-              <button data-f="PW">Workforce</button>
-              <button data-f="INC">Inclusion</button>
+              <button data-f="FE" title="Pillar 1: Facilities & Equipment">P1 Facilities</button>
+              <button data-f="PRP" title="Pillar 2: Priority Regions & Pathways">P2 Regions</button>
+              <button data-f="PW" title="Pillar 3: Programs & Workforce">P3 Workforce</button>
+              <button data-f="INC" title="Pillar 4: Inclusion">P4 Inclusion</button>
+              <button data-f="ACT" title="Pillar 5: RWC Activation">P5 Activation</button>
             </div>
             <button class="btn" id="editTargets" aria-pressed="false">Adjust targets</button>
           </div>
@@ -143,18 +144,58 @@
       </article>
     </section>
 
+    <!-- PROGRAMS -->
+    <section id="tab-programs" class="tab-panel">
+      <div class="prog-layout">
+        <article class="card prog-list">
+          <div class="card-head">
+            <div>
+              <h2>Programs &amp; grants</h2>
+              <p class="muted">Zero in on any single grant or budget line: what it costs, what it returns, what it contributes to, and what is driving the result.</p>
+            </div>
+          </div>
+          <div class="prog-filters">
+            <input id="progSearch" type="search" placeholder="Search by program, club, council, town or region" aria-label="Search programs">
+            <div class="seg" id="progPillar" role="group" aria-label="Pillar">
+              <button data-f="all" class="on">All</button><button data-f="FE">Facilities</button><button data-f="PW">Workforce</button><button data-f="INC">Inclusion</button><button data-f="other">Other</button>
+            </div>
+            <select id="progSource" aria-label="Source">
+              <option value="all">All sources</option><option value="grant">Round 1 grants</option><option value="budget">3-year budget lines</option><option value="upload">Uploaded</option>
+            </select>
+            <select id="progRegion" aria-label="Region"></select>
+            <label class="check"><input type="checkbox" id="progOnlyResults"> Only with results</label>
+          </div>
+          <div class="prog-summary" id="progSummary"></div>
+          <div class="table-scroll prog-scroll"><table class="pretty-table prog-table" id="progTable"></table></div>
+          <p class="footnote">Return figures are calculated only from results entered for each program. Flags count the problems found under "What's driving this?".</p>
+        </article>
+        <article class="card prog-detail" id="progDetail"></article>
+      </div>
+    </section>
+
     <!-- IMPACT -->
     <section id="tab-impact" class="tab-panel">
       <div class="card-head">
         <div>
           <h2>Impact measurement</h2>
-          <p class="muted">Three lenses for every dollar: social, economic and cultural. Spend shows what is expected to drive each impact; indicators and field evidence show what has actually been measured.</p>
+          <p class="muted">Social, economic and cultural impact, measured only with methods published by other organisations: NSW Treasury evaluation and cost-benefit guidelines, the OECD social cohesion framework, the Rugby For Good Benefits Realisation Framework, NSW Rugby League's community impact study, the Cultural Development Network and eventIMPACTS. Hover any block or chip to see how it is measured; the <a href="#" data-goto="methodology">Methodology</a> tab has the full detail.</p>
         </div>
         <div class="controls">
           <button class="btn primary" id="runImpactAgent">Run Impact agent</button>
         </div>
       </div>
       <div class="lens-grid" id="lensGrid"></div>
+
+      <article class="card" id="calcCard">
+        <div class="card-head">
+          <div>
+            <h2>Impact valuations</h2>
+            <p class="muted">Published formulas from other organisations, applied to figures your team enters. Each calculator names its source, shows its formula and explains every result on hover. Missing data is never counted as zero.</p>
+          </div>
+        </div>
+        <div class="ek-grid" id="calcGrid"></div>
+        <p class="footnote">Present values follow NSW Treasury TPG23-08 (5% central discount rate, 3% and 7% sensitivity). Values transferred from other studies are indicative until NSW Rugby collects its own data.</p>
+      </article>
 
       <article class="card" id="econCard">
         <div class="card-head">
@@ -381,6 +422,17 @@
         </article>
       </div>
     </section>
+
+    <!-- METHODOLOGY -->
+    <section id="tab-methodology" class="tab-panel">
+      <div class="card-head">
+        <div>
+          <h2>Methodology</h2>
+          <p class="muted">How Tackle AI calculates every figure, how the AI writes its insights and how they are checked, and which published methods are used to measure impact. This page is generated from the live app, so it always matches what the app is doing.</p>
+        </div>
+      </div>
+      <div id="methodology"></div>
+    </section>
   </main>
 
   <footer class="site-foot"><span class="mascot" aria-hidden="true"></span>Tackle AI · NSW Rugby World Cup Legacy Program</footer>
@@ -440,6 +492,8 @@
   <script src="js/upload.js"></script>
   <script src="js/impact.js"></script>
   <script src="js/econ.js"></script>
+  <script src="js/methods.js"></script>
+  <script src="js/programs.js"></script>
   <script src="js/story.js"></script>
   <script src="js/demo.js"></script>
   <script src="js/fx.js"></script>

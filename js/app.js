@@ -54,28 +54,6 @@ window.App = (() => {
   // Dark is the default; light is opt-in via the toggle.
   const isDark = () => document.documentElement.dataset.theme !== 'light';
 
-  // ---------- view mode ----------
-  // Simple: scaled 0-100 scores, fewer columns, plain-language flags. Detailed: every raw figure.
-  let viewMode = 'simple';
-  function initViewMode() {
-    try { viewMode = localStorage.getItem('tackle.view') === 'detailed' ? 'detailed' : 'simple'; } catch {}
-    const apply = () => {
-      document.body.classList.toggle('view-simple', viewMode === 'simple');
-      document.body.classList.toggle('view-detailed', viewMode === 'detailed');
-      $$('#viewMode button').forEach(b => b.classList.toggle('on', b.dataset.v === viewMode));
-    };
-    $$('#viewMode button').forEach(b => b.addEventListener('click', () => {
-      if (viewMode === b.dataset.v) return;
-      viewMode = b.dataset.v;
-      try { localStorage.setItem('tackle.view', viewMode); } catch {}
-      apply();
-      renderOverview();
-      document.dispatchEvent(new CustomEvent('view-changed', { detail: viewMode }));
-    }));
-    apply();
-  }
-  const simple = () => viewMode === 'simple';
-
   // ---------- Ollama status & settings ----------
   async function checkOllama() {
     const pill = $('#ollamaStatus');
@@ -142,9 +120,7 @@ window.App = (() => {
       { id: 'perResident', label: '$ per resident', fmt: v => '$' + v.toFixed(2) },
       { id: 'spendIndex', label: 'Spend vs population (over/under)', fmt: v => v.toFixed(2) + 'x', diverging: true },
       { id: 'inclusionIndex', label: 'Inclusion index', fmt: v => Math.round(v * 100) + '/100' },
-      { id: 'social', label: 'Social impact $', fmt: money },
-      { id: 'economic', label: 'Economic impact $', fmt: money },
-      { id: 'cultural', label: 'Cultural impact $', fmt: money },
+      { id: 'evidenceCount', label: 'Impact evidence records', fmt: v => String(v) },
     ];
     for (const l of A.customLayers()) defs.push({ id: 'custom:' + l.id, label: '⬆ ' + l.label, fmt: v => v == null ? '–' : Number(v).toLocaleString() });
     return defs;
@@ -153,14 +129,14 @@ window.App = (() => {
   function renderKpis(rows, c, p) {
     const flagged = rows.filter(r => r.status !== 'balanced').length;
     const tiles = [
-      ['Known spend', money(c.knownTotal), `of $10M Legacy Program`],
-      ['Facilities & Equipment', money(p.fe), `${D.grants.filter(g => g.pillar === 'FE').length} facility projects`],
-      ['Programs & Workforce', money(p.pw), 'coaches, MOs, competitions'],
-      ['Inclusion', money(p.inc), 'women, First Nations, Pasifika, disability'],
-      ['Held centrally', pct(c.centralShare), money(c.central) + ' in statewide budgets'],
-      ['Regions flagged', `${flagged} / ${rows.length}`, 'over- or under-served'],
+      ['Known spend', money(c.knownTotal), `of $10M Legacy Program`, `${moneyFull(c.knownTotal)} = Round 1 Legacy grants + 3-year RWC Dashboard budgets + any uploaded spend.\nSpend not yet in these sources is not counted.`],
+      ['Facilities & Equipment', money(p.fe), `${D.grants.filter(g => g.pillar === 'FE').length} facility projects`, `${moneyFull(p.fe)} = sum of every Legacy grant (Round 1 + uploaded) marked Pillar 1 (Facilities & Equipment).`],
+      ['Programs & Workforce', money(p.pw), 'coaches, MOs, competitions', `${moneyFull(p.pw)} = sum of every grant and budget line marked Pillar 3 (Programs & Workforce).`],
+      ['Inclusion', money(p.inc), 'women, First Nations, Pasifika, disability', `${moneyFull(p.inc)} = sum of every grant and budget line marked Pillar 4 (Inclusion).`],
+      ['Held centrally', pct(c.centralShare), money(c.central) + ' in statewide budgets', `${moneyFull(c.central)} in "Statewide" budget lines (held by NSW Rugby, not assigned to a region) ÷ ${moneyFull(c.knownTotal)} known spend = ${pct(c.centralShare)}`],
+      ['Regions flagged', `${flagged} / ${rows.length}`, 'over- or under-served', `Regions whose spend is well above or below their share of the population. See "What's driving this?" for each region.`],
     ];
-    $('#kpiRow').innerHTML = tiles.map(([l, v, s]) => `<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
+    $('#kpiRow').innerHTML = tiles.map(([l, v, s, t]) => `<div class="kpi"><div class="label">${l}</div><div class="value"><span data-tip="${esc(t)}" tabindex="0">${v}</span></div><div class="sub">${s}</div></div>`).join('');
   }
 
   let map, tiles, labels, circles, heat, nswMask, actMask, nswFill, nswGlow, nswOutline, legendCtl, mapNeedsFit = false;
@@ -268,7 +244,7 @@ window.App = (() => {
           <div class="map-name">${esc(shortName(r.name))}</div>`,
       });
       const m = L.marker([r.lat, r.lng], { icon, riseOnHover: true, zIndexOffset: Math.round((1 - t) * 1000) });
-      m.bindTooltip(`<b>${esc(r.name)}</b><br>${esc(def.label)}: <b>${def.fmt(v)}</b>`, { direction: 'top', offset: [0, -size / 2], className: 'map-tip' });
+      m.bindTooltip(`<b>${esc(r.name)}</b><br>${esc(def.label)}: <b>${def.fmt(v)}</b><br><span class="muted small">${esc((COL_TIPS[def.id] || '').split('\n')[0])}</span>`, { direction: 'top', offset: [0, -size / 2], className: 'map-tip' });
       m.bindPopup(popupHtml(r), { className: 'map-popup', maxWidth: 320 });
       circles.addLayer(m);
     }
@@ -290,8 +266,10 @@ window.App = (() => {
       : `<b>${esc(def.label)}</b>
          <div class="ramp">${seqVars.slice(2).map(v => `<span style="background:var(${v})"></span>`).join('')}</div>
          <div class="ramp-ends"><span>Low</span><span>${def.fmt(max)}</span></div>`;
-    legendCtl.getContainer().innerHTML = legendHtml + `<div class="pulse-key"><span class="pulse-dot"></span>Pulsing = flagged</div>`;
-    $('#mapLegend').innerHTML = `<span class="muted">Bubble size and colour = ${esc(def.label)} · click a region for detail · labels for Sydney regions appear when you zoom in</span>`;
+    const how = COL_TIPS[def.id] || colTip({ key: def.id, label: def.label });
+    legendCtl.getContainer().innerHTML = legendHtml.replace('<b>', `<b data-tip="${esc(`How "${def.label}" is measured:\n${how}`)}" tabindex="0">`)
+      + `<div class="pulse-key" data-tip="Pulsing = the region is flagged: overspend risk (≥1.75x its population share), under-served (≤0.5x), or a First Nations gap."><span class="pulse-dot"></span>Pulsing = flagged</div>`;
+    $('#mapLegend').innerHTML = `<span class="muted">Bubble size and colour = <span data-tip="${esc(how)}" tabindex="0">${esc(def.label)}</span> · click a region for detail · labels for Sydney regions appear when you zoom in</span>`;
   }
 
   function popupHtml(r) {
@@ -347,10 +325,10 @@ window.App = (() => {
       if (r.status !== 'balanced') {
         const label = r.status === 'over' ? 'Overspend risk' : 'Under-served';
         issues.push({ code: r.status, status: r.status, label,
-          line: simple() ? `gets ${fairShare(r.spendIndex)}` : `${r.spendIndex.toFixed(2)}x · ${money(r.total)} · $${r.perResident.toFixed(2)}/resident` });
+          line: `${r.spendIndex.toFixed(2)}x · ${money(r.total)} · $${r.perResident.toFixed(2)}/resident` });
       }
       if (r.fnGap) issues.push({ code: 'fn-gap', status: 'risk', label: 'First Nations gap',
-        line: simple() ? `has a large First Nations community (~${Math.round(r.fnShare)}%) and no program yet` : `~${r.fnShare}% First Nations residents, no program reach` });
+        line: `~${r.fnShare}% First Nations residents, no program reach` });
       return {
         key: `flag:${r.name}:${issues.map(i => i.code).join('+')}`,
         text: `${r.name} - ${issues.map(i => i.label).join(' + ')}`,
@@ -375,13 +353,6 @@ window.App = (() => {
     $$('#flagTabs button').forEach(b => b.addEventListener('click', () => { flagView = b.dataset.f; renderFlags(A.regionMetrics()); }));
   }
 
-  // Plain words for the spend-vs-population index: 3.39 -> "3.4 times its fair share of spend".
-  function fairShare(x) {
-    if (x >= 1.15) return `${x.toFixed(1)} times its fair share of spend`;
-    if (x <= 0.85) return x < 0.05 ? 'almost none of its fair share of spend' : `only about ${Math.round(x * 100)}% of its fair share of spend`;
-    return 'roughly its fair share of spend';
-  }
-
   let matrixSort = { key: 'total', dir: -1 }, matrixFilter = 'all';
   function matrixColumns() {
     const cols = [
@@ -391,26 +362,40 @@ window.App = (() => {
       { key: 'total', label: 'Total $', group: 'Spend', f: ['all', 'FE', 'PW'], fmt: money },
       { key: 'perResident', label: '$ / resident', group: 'Fairness', f: ['all', 'FE', 'PW', 'INC'], fmt: v => '$' + v.toFixed(2) },
       { key: 'spendIndex', label: 'Spend vs pop.', group: 'Fairness', f: ['all', 'FE', 'PW', 'INC'], fmt: v => v.toFixed(2) + 'x', diverging: true },
-      { key: 'facilityCount', label: 'Projects', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–', detail: true },
+      { key: 'facilityCount', label: 'Projects', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–' },
       { key: 'gapCoverage', label: 'Audit gaps (of 4)', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–', max: 4 },
       { key: 'inclusionIndex', label: 'Inclusion index', group: 'Inclusion', f: ['all', 'INC'], fmt: v => Math.round(v * 100) },
-      { key: 'women', label: 'Women & girls $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.women, detail: true },
+      { key: 'women', label: 'Women & girls $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.women },
       { key: 'fn', label: 'First Nations', group: 'Inclusion', f: ['all', 'INC'], get: r => r.fnShare, fn: true },
-      { key: 'pasifika', label: 'Pasifika/CALD $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.pasifika, detail: true },
-      { key: 'access', label: 'Access $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.access, detail: true },
+      { key: 'pasifika', label: 'Pasifika/CALD $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.pasifika },
+      { key: 'access', label: 'Access $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.access },
     ];
-    cols.push(
-      { key: 'social', label: 'Social $', group: 'Impact', f: ['all', 'IMP'], fmt: money },
-      { key: 'economic', label: 'Economic $', group: 'Impact', f: ['all', 'IMP'], fmt: money },
-      { key: 'cultural', label: 'Cultural $', group: 'Impact', f: ['all', 'IMP'], fmt: money },
-      { key: 'evidenceCount', label: 'Evidence records', group: 'Impact', f: ['IMP'], fmt: v => v || '–' },
-    );
+    // Impact is not measured in dollars per region: no established method assigns spend to impact types.
+    // The heatmap shows only what is counted directly: field evidence records logged against each region.
+    cols.push({ key: 'evidenceCount', label: 'Evidence records', group: 'Impact', f: ['all', 'IMP'], fmt: v => v || '–' });
     for (const l of A.customLayers()) cols.push({ key: 'custom:' + l.id, label: l.label, group: 'Uploaded', f: ['all', 'FE', 'PW', 'INC', 'IMP'], fmt: v => v == null ? '–' : Number(v).toLocaleString() });
-    // Simple view drops the $-by-tag breakdowns; the specific-filter views keep them so nothing is unreachable.
-    return cols.filter(c => c.f.includes(matrixFilter) && !(simple() && c.detail && matrixFilter === 'all'));
+    return cols.filter(c => c.f.includes(matrixFilter));
   }
-  // Simple-view label for a column: "Facilities $" -> "Facilities", "$ / resident" -> "Per resident".
-  const simpleLabel = c => ({ perResident: 'Per resident', spendIndex: 'Fair share', gapCoverage: 'Audit gaps fixed' }[c.key] || c.label.replace(/\s*\$$/, ''));
+
+  // "How is this measured?" for every heatmap column (shown on hover over the column header).
+  const PROTO = '\n\nPrototype screening indicator: not from an external framework. Pending review by the evaluation team.';
+  const COL_TIPS = {
+    fe: 'Sum of Facilities & Equipment (Pillar 1) Legacy grants located in this region: Round 1 grants plus uploaded spend.',
+    pw: 'Sum of Programs & Workforce (Pillar 3) grants and 3-year RWC Dashboard budget lines located in this region (other non-facility, non-inclusion lines such as activation are counted here too).',
+    inc: 'Sum of Inclusion (Pillar 4) grants and 3-year RWC Dashboard budget lines located in this region.',
+    total: 'All known allocations located in this region (grants + dashboard budgets + uploads). "Statewide" lines held centrally are not in any region.',
+    perResident: 'Total $ in the region ÷ region population (indicative ABS 2021 approximation).',
+    spendIndex: 'Region\'s share of regionally allocated spend ÷ its share of NSW population. 1.75x or more = overspend risk; 0.5x or less = under-served.' + PROTO,
+    facilityCount: 'Number of Facilities & Equipment grants located in the region.',
+    gapCoverage: 'How many of the 4 audit gap types (lighting, changerooms, drainage/surface, accessibility) have at least one funded project here. Gap types come from the RA facility audit.',
+    inclusionIndex: '0–100 score = 50 × (spend on lines tagged for an inclusion group ÷ all spend in the region, capped at 1) + 50 × (inclusion groups reached ÷ 4). Groups: women & girls, First Nations, Pasifika/CALD, disability.' + PROTO,
+    women: 'Sum of grants and budget lines tagged women & girls in this region.',
+    fn: 'Indicative First Nations share of residents (ABS 2021, rounded). ✓ = a First Nations-tagged line or talent ID workshop reaches the region; ⚠ gap = First Nations share of 7% or more and no program reach.',
+    pasifika: 'Sum of grants and budget lines tagged Pasifika / CALD in this region.',
+    access: 'Sum of grants and budget lines tagged disability / accessibility in this region.',
+    evidenceCount: 'Count of field evidence records (surveys, interviews, business feedback, stories) logged against this region on the Impact tab or imported from uploads. This is a count of evidence, not a measure of impact: impact is measured with the established methods on the Impact and Methodology tabs.',
+  };
+  const colTip = c => COL_TIPS[c.key] || (c.key.startsWith('custom:') ? 'Values from an uploaded file\'s numeric region column, added up per region.' : c.label);
 
   function renderMatrix(rows) {
     const cols = matrixColumns();
@@ -423,19 +408,17 @@ window.App = (() => {
     for (const c of cols) { const g = groups[groups.length - 1]; if (g && g.name === c.group) g.n++; else groups.push({ name: c.group, n: 1 }); }
 
     let html = `<thead><tr><th class="group"></th>${groups.map(g => `<th class="group" colspan="${g.n}">${g.name}</th>`).join('')}</tr>
-      <tr><th data-k="name">Region</th>${cols.map(c => `<th data-k="${c.key}" class="${c.key === matrixSort.key ? 'sorted' : ''}">${esc(simple() ? simpleLabel(c) : c.label)}</th>`).join('')}</tr></thead><tbody>`;
+      <tr><th data-k="name">Region</th>${cols.map(c => `<th data-k="${c.key}" class="${c.key === matrixSort.key ? 'sorted' : ''}" data-tip="${esc(`${c.label}\n${colTip(c)}\n\nClick to sort.`)}">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>`;
     const maxes = Object.fromEntries(cols.map(c => [c.key, c.max || Math.max(...rows.map(r => Math.abs(val(r, c) ?? 0)), 1e-9)]));
     for (const r of sorted) {
-      html += `<tr><td class="name">${esc(r.name)}<small>${r.metro ? 'Greater Sydney' : 'Regional'}${simple() ? '' : ` · ~${r.pop.toLocaleString()}k residents`}</small></td>`;
+      html += `<tr><td class="name">${esc(r.name)}<small>${r.metro ? 'Greater Sydney' : 'Regional'} · ~${r.pop.toLocaleString()}k residents</small></td>`;
       for (const c of cols) {
         const v = val(r, c);
         let bg = 'transparent', ink = 'var(--ink)', text, tip = `${r.name} · ${c.label}`;
         if (c.fn) {
-          text = simple()
-            ? (r.fnGap ? '⚠ Gap' : r.fnReach ? '✓ Reached' : '–')
-            : `~${v}% ${r.fnReach ? '✓' : r.fnGap ? '⚠' : ''}`;
+          text = `~${v}% ${r.fnReach ? '✓' : r.fnGap ? '⚠' : ''}`;
           tip += `: ~${v}% of residents; ${r.fnReach ? 'program reach' : 'no program reach yet'}`;
-          if (r.fnGap) { bg = redRamp[1]; ink = '#0b0b0b'; if (!simple()) text += ' gap'; }
+          if (r.fnGap) { bg = redRamp[1]; ink = '#0b0b0b'; text += ' gap'; }
           else { const t = v / 16; bg = seqColor(t); ink = seqInk(t); }
         } else if (c.diverging) {
           const l = Math.max(-2, Math.min(2, Math.log2(v || 0.01)));
@@ -443,25 +426,23 @@ window.App = (() => {
           if (Math.abs(l) < 0.4) { bg = css('--div-mid'); }
           else if (l > 0) { bg = redRamp[step]; ink = step >= 3 ? '#fff' : '#0b0b0b'; }
           else { bg = seqColor(step / 5); ink = seqInk(step / 5); }
-          text = simple() ? ({ over: `${v.toFixed(1)}× over`, under: `${v.toFixed(1)}× under` }[r.status] || 'Balanced') : c.fmt(v);
+          text = c.fmt(v);
           tip += `: ${c.fmt(v)} (${r.status === 'over' ? 'overspend risk' : r.status === 'under' ? 'under-served' : 'balanced'})`;
         } else if (v == null || v === 0) {
           text = '–';
         } else {
-          // Simple view: scale every column 0-100, where 100 = the highest region (exact figure in the tooltip).
+          // Colour depth is relative to the highest region in the column.
           const t = Math.abs(v) / maxes[c.key];
           bg = seqColor(t); ink = seqInk(t);
-          text = simple() ? String(Math.max(1, Math.round(t * 100))) : c.fmt(v);
-          tip += `: ${c.fmt(v)}${simple() ? ` · score ${Math.max(1, Math.round(t * 100))}/100 (100 = highest region${c.max ? `, ${c.max} = all audit gaps` : ''})` : ''}`;
+          text = c.fmt(v);
+          tip += `: ${c.fmt(v)}`;
         }
         html += `<td class="cell" style="background:${bg};color:${ink}" title="${esc(tip)}">${text}</td>`;
       }
       html += '</tr>';
     }
     $('#matrix').innerHTML = html + '</tbody>';
-    $('#matrixNote').textContent = simple()
-      ? 'Scores run 0–100 for each column: 100 is the region with the highest value, so a region on 50 has half as much. Hover any cell for the exact figure, or switch to Detailed in the top bar for all raw numbers.'
-      : 'Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Click a column to sort.';
+    $('#matrixNote').textContent = 'Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Hover a column header for how it is measured; click it to sort.';
     $$('#matrix th[data-k]').forEach(th => th.addEventListener('click', () => {
       const k = th.dataset.k;
       if (k === 'name') return;
@@ -471,7 +452,17 @@ window.App = (() => {
   }
 
   let editingTargets = false, targetFilter = 'all';
-  const PILLAR_NAMES = { FE: 'Facilities & Equipment', PW: 'Programs & Workforce', INC: 'Inclusion' };
+  const STATUS_RULE = {
+    Achieved: 'The target number has already been reached.',
+    Ahead: 'Progress is at or above the pace needed to hit the target by its target year.',
+    Close: 'Progress is between 80% and 100% of the pace needed.',
+    Behind: 'Progress is below 80% of the pace needed.',
+    'No data': 'No actual figure has been published or uploaded yet, so progress cannot be judged.',
+    'No target': 'The plan sets no number for this target yet. Staff can set one with "Adjust targets".',
+    'Check year': 'The target year is not after the start year, so no pace can be worked out.',
+  };
+  // The five pillars from the project brief, in order.
+  const PILLAR_NAMES = { FE: 'Pillar 1 · Facilities & Equipment', PRP: 'Pillar 2 · Priority Regions & Pathways', PW: 'Pillar 3 · Programs & Workforce', INC: 'Pillar 4 · Inclusion', ACT: 'Pillar 5 · RWC Activation' };
   function renderProgress() {
     const statusClass = { Ahead: 'positive', Achieved: 'positive', Close: 'watch', Behind: 'risk', 'No data': '', 'No target': '', 'Check year': 'risk' };
     const n = v => Number.isInteger(v) ? v : +v.toFixed(1);
@@ -489,6 +480,13 @@ window.App = (() => {
         bar = `${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}${k.target != null ? `<div class="target" style="left:${(k.target / scale) * 100}%"></div>` : ''}`;
         tip = `${k.actual == null ? 'No figure published' : `${n(k.actual)} in the latest year`}${k.target != null ? `; target ${n(k.target)} ${k.unit}` : ''}`;
         sub = `${k.actual == null ? 'no figure published' : `${n(k.actual)} last year`} · target ${k.target != null ? `${n(k.target)} ${k.unit} to ${k.targetYear}` : 'not set'}`;
+      } else if (k.kind === 'level') {
+        // Bar = share of the way from baseline to target (works for targets that go down, such as ratios or churn).
+        const gap = k.target != null ? k.target - k.baseline : 0;
+        const frac = v => gap ? Math.max(0, Math.min(1, (v - k.baseline) / gap)) * 100 : 0;
+        bar = `${k.actual != null && gap ? `<div class="fill" style="width:${frac(k.actual)}%"></div>` : ''}${k.expected != null && gap ? `<div class="target" style="left:${frac(k.expected)}%"></div>` : ''}`;
+        tip = `${k.actual == null ? 'No figure published' : `${n(k.actual)}${k.unit} in ${k.actualYear || 'the latest year'}`}${k.expected != null ? `; ~${n(k.expected)}${k.unit} expected by ${k.asAt} to stay on pace` : ''}${k.lowerIsBetter ? ' (lower is better)' : ''}`;
+        sub = `${k.actual == null ? 'no figure published' : `${n(k.actual)}${k.unit} (${k.actualYear || 'latest'})`} · baseline ${n(k.baseline)}${k.unit} (${k.baseYear}) → target ${k.target != null ? `${n(k.target)}${k.unit} by ${k.targetYear}` : 'not set'}${k.expected != null && k.status !== 'Achieved' ? ` · on pace = ~${n(k.expected)}${k.unit} by ${k.asAt}` : ''}`;
       } else {
         const share = k.kind === 'share', unit = share ? '%' : ' ' + k.unit, shareOf = share ? ` ${k.unit || 'of facilities'}` : '';
         const scale = share ? 100 : Math.max(k.target ?? 0, k.actual ?? 0, 1);
@@ -498,14 +496,21 @@ window.App = (() => {
       }
       const editor = !editingTargets ? '' : `<div class="target-edit" data-id="${k.id}">
           <label>${k.kind === 'growth' ? 'Target growth' : k.kind === 'share' ? 'Target share' : k.kind === 'annual' ? 'Target per year' : 'Target'}
-            <span class="unit-in"><input type="number" step="any" min="0" data-f="target" value="${k.target == null ? '' : k.kind === 'growth' ? +(k.target * 100).toFixed(2) : k.target}" placeholder="not set"><i>${k.kind === 'count' ? esc(k.unit) : k.kind === 'annual' ? esc(k.unit.replace(/ a year$/, '')) : '%'}</i></span></label>
+            <span class="unit-in"><input type="number" step="any" min="0" data-f="target" value="${k.target == null ? '' : k.kind === 'growth' ? +(k.target * 100).toFixed(2) : k.target}" placeholder="not set"><i>${k.kind === 'count' ? esc(k.unit) : k.kind === 'annual' ? esc(k.unit.replace(/ a (year|season)$/, '')) : k.kind === 'level' ? esc(k.unit.trim()) : '%'}</i></span></label>
           <label>Target year <input type="number" step="1" min="2025" max="2040" data-f="targetYear" value="${k.targetYear}"></label>
           ${k.adjusted ? `<button type="button" class="link" data-reset title="Plan: ${k.planTarget == null ? 'no target' : k.kind === 'growth' ? '+' + pct(k.planTarget) : k.planTarget}, ${k.planYear}">Reset to plan</button>` : ''}
         </div>`;
+      const how = k.kind === 'growth'
+        ? `Needed a year = (1 + target growth)^(1 ÷ years from ${k.baseYear} to ${k.targetYear}) − 1${k.requiredPa != null ? ` = (1 + ${pct(k.target)})^(1/${k.targetYear - k.baseYear}) − 1 = ${pct(k.requiredPa)}` : ''}.\nCompared with the latest year-on-year growth.`
+        : k.kind === 'annual' ? 'Latest year\'s count compared with the yearly target.'
+        : k.kind === 'level' ? `On-pace value = baseline + (target − baseline) × (years elapsed ÷ years from ${k.baseYear} to ${k.targetYear}). Progress = how far the actual has moved from the baseline toward the target, compared with how far it should have moved by ${k.asAt}.${k.lowerIsBetter ? ' Lower is better for this target.' : ''}`
+        : `On-pace value = start + (target − start) × (years elapsed ÷ years to target year), i.e. an even pace from ${k.kind === 'share' ? k.baseYear : k.startYear} to ${k.targetYear}.`;
+      const statusTip = `${k.status}\n${STATUS_RULE[k.status] || ''}\n\nRule from the RWC Legacy Data Compilation: Ahead if at or above the pace needed, Close if within 80% of it, otherwise Behind.`;
+      const trackTip = `${tip}\n\nWhere the actual comes from: ${k.actualFrom}\n\nHow the pace is worked out: ${how}\n\nTarget source: ${k.source}${k.adjusted ? `\nTarget adjusted by staff (plan: ${k.planTarget == null ? 'none' : k.kind === 'growth' ? '+' + pct(k.planTarget) : k.planTarget}, ${k.planYear}).` : ''}`;
       return `<div class="progress-item">
-        <div class="top"><b>${esc(k.name)}${k.adjusted ? ' <span class="adj-chip" title="Target adjusted from the plan">adjusted</span>' : ''}</b><span class="status ${statusClass[k.status] ?? ''}">${k.status}</span></div>
-        <div class="track" title="${esc(tip)}">${bar}</div>
-        <div class="sub">${esc(sub)}</div>
+        <div class="top"><b>${esc(k.name)}${k.adjusted ? ' <span class="adj-chip" title="Target adjusted from the plan">adjusted</span>' : ''}${k.fromUpload ? ` <span class="adj-chip upload-chip" data-tip="${esc(`Actual recalculated from the uploaded file "${k.fromUpload}". Remove the file in Data Studio to go back to the published figure.`)}">from upload</span>` : ''}</b><span class="status ${statusClass[k.status] ?? ''}" data-tip="${esc(statusTip)}">${k.status}</span></div>
+        <div class="track" data-tip="${esc(trackTip)}" tabindex="0">${bar}</div>
+        <div class="sub" data-tip="${esc(trackTip)}">${esc(sub)}</div>
         ${editor}
       </div>`;
     };
@@ -515,19 +520,29 @@ window.App = (() => {
     const order = ['Achieved', 'Ahead', 'Close', 'Behind', 'No data', 'No target', 'Check year'];
     const counts = Object.fromEntries(order.map(s => [s, list.filter(k => k.status === s).length]));
     $('#targetSummary').innerHTML = `<span class="ts-total"><b>${list.length}</b> targets</span>` +
-      order.filter(s => counts[s]).map(s => `<span class="status ${statusClass[s] ?? ''}" title="${s}">${s} <b>${counts[s]}</b></span>`).join('');
+      order.filter(s => counts[s]).map(s => `<span class="status ${statusClass[s] ?? ''}" data-tip="${esc(`${counts[s]} target${counts[s] === 1 ? '' : 's'} ${s}: ${STATUS_RULE[s]}`)}">${s} <b>${counts[s]}</b></span>`).join('');
     $$('#targetFilter button').forEach(b => b.classList.toggle('on', b.dataset.f === targetFilter));
-    // One column per pillar; Inclusion is split by community (women & girls, First Nations, Pasifika, disability, Pride, safeguarding).
-    $('#kpiProgress').innerHTML = `<div class="target-cols">${Object.entries(PILLAR_NAMES).map(([p, label]) => {
-      const ks = list.filter(k => k.area === p);
-      if (!ks.length) return '';
-      let html = `<section class="target-col"><h3 class="target-group">${label}</h3>`, group = null;
-      for (const k of ks) {
-        if (k.group && k.group !== group) { group = k.group; html += `<h4 class="target-subgroup">${esc(group)}</h4>`; }
-        html += item(k);
-      }
-      return html + '</section>';
-    }).join('')}</div>` + `<p class="footnote">${editingTargets
+    // Pillars flow as blocks through balanced columns, so no single pillar makes one long column. Inclusion is split
+    // into one block per community (women & girls, First Nations, Pasifika, disability, Pride, safeguarding).
+    // Plan items with no number set ("increase", "support") go in a collapsed watch list, except while editing,
+    // so staff can still give them a target with "Adjust targets".
+    const watch = editingTargets ? [] : list.filter(k => k.status === 'No target');
+    const shown = list.filter(k => !watch.includes(k));
+    const blocks = [];
+    for (const [p, label] of Object.entries(PILLAR_NAMES)) {
+      const ks = shown.filter(k => k.area === p);
+      const groups = [...new Set(ks.map(k => k.group || ''))];
+      groups.forEach((g, gi) => blocks.push({ p, label, g, first: gi === 0, ks: ks.filter(k => (k.group || '') === g) }));
+    }
+    const pillarCount = p => list.filter(k => k.area === p).length;
+    $('#kpiProgress').innerHTML = `<div class="target-flow">${blocks.map(b => `<section class="target-block">
+        <h3 class="target-group${b.first ? '' : ' cont'}" data-tip="${esc(`${b.label}: ${pillarCount(b.p)} target${pillarCount(b.p) === 1 ? '' : 's'}. Targets come from the Project Plan, RWC Dashboard and Program Logic; each one shows its source on hover.`)}">${esc(b.label)}${b.first ? '' : ' (cont.)'}</h3>
+        ${b.g ? `<h4 class="target-subgroup">${esc(b.g)}</h4>` : ''}
+        ${b.ks.map(item).join('')}
+      </section>`).join('')}</div>` + (watch.length ? `<details class="watch-list">
+        <summary data-tip="These are in the plan as aims (e.g. &quot;increase&quot; or &quot;support&quot;) but have no number or year, so progress cannot be judged. Press &quot;Adjust targets&quot; to set one and it moves into the main list.">Watch list: ${watch.length} plan item${watch.length === 1 ? '' : 's'} with no target set yet</summary>
+        <ul>${watch.map(k => `<li data-tip="${esc(`Source: ${k.source}`)}"><span class="wl-pillar">${esc(PILLAR_NAMES[k.area].split(' · ')[0])}</span> <b>${esc(k.name)}</b>${k.group ? ` <span class="muted">(${esc(k.group)})</span>` : ''}${k.baseline != null ? ` <span class="muted">· baseline ${k.baseline.toLocaleString()}${k.kind === 'share' ? '%' : k.kind === 'level' ? k.unit : ''}${k.baseYear ? ` (${k.baseYear})` : ''}</span>` : ''}</li>`).join('')}</ul>
+      </details>` : '') + `<p class="footnote">${editingTargets
       ? 'Changes save automatically and update the status, the growth needed, the AI agents and the Story. Growth targets are total growth from the baseline year.'
       : 'Bar = progress so far (workforce and inclusion: latest annual growth). Tick = the pace needed to hit the target by its target year. Ahead if at or above pace, Close if within 80% of it.'}</p>`;
     if (!editingTargets) return;
@@ -929,9 +944,37 @@ window.App = (() => {
     });
   }
 
+  // "How we got this number" tooltips: any element with data-tip shows it on hover or keyboard focus.
+  function initTips() {
+    const tip = document.createElement('div');
+    tip.className = 'how-tip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+    let owner = null;
+    const show = el => {
+      owner = el;
+      tip.textContent = el.dataset.tip;
+      tip.classList.add('on');
+      const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+      const left = Math.max(8, Math.min(r.left, innerWidth - w - 8));
+      const top = r.bottom + 8 + h > innerHeight ? r.top - h - 8 : r.bottom + 8;
+      tip.style.left = left + 'px';
+      tip.style.top = Math.max(8, top) + 'px';
+    };
+    const hide = () => { owner = null; tip.classList.remove('on'); };
+    // Plain title="" attributes get the same styled tooltip (and stop the browser's own one appearing too).
+    const adopt = el => { if (el && !el.dataset.tip && el.title) { el.dataset.tip = el.title; el.removeAttribute('title'); el.classList.add('tip-plain'); } };
+    document.addEventListener('mouseover', e => { adopt(e.target.closest('[title]')); const el = e.target.closest('[data-tip]'); if (el && el !== owner) show(el); else if (!el && owner) hide(); });
+    document.addEventListener('focusin', e => { const el = e.target.closest('[data-tip]'); el ? show(el) : hide(); });
+    document.addEventListener('scroll', hide, true);
+    // In-text links to another tab: <a href="#" data-goto="methodology">
+    document.addEventListener('click', e => { const a = e.target.closest('[data-goto]'); if (a) { e.preventDefault(); hide(); showTab(a.dataset.goto); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+  }
+
   document.addEventListener('DOMContentLoaded', async () => {
+    initTips();
     initTheme();
-    initViewMode();
     await Store.init();
     insights = Store.get('insights') || [];
     initTabs();
@@ -961,6 +1004,5 @@ window.App = (() => {
     $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, bubbleHtml, pillarChartImage, showTab,
     get insights() { return insights.filter(i => !i.archived); }, // archived (older-run) insights stay out of Impact, Story and the AI
     insightState,
-    get viewMode() { return viewMode; },
   };
 })();

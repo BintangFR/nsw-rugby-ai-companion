@@ -13,18 +13,33 @@ window.Analytics = (() => {
   // Region layers from uploaded datasets: { id, label, values: { regionName: number } }
   const customLayers = () => (Store.get('datasets') || []).flatMap(d => d.layers || []);
 
-  // Which impacts a line of spend is expected to drive. Lenses overlap: one dollar can count in several.
-  function impactsOf(item) {
-    const set = new Set();
-    const name = (item.initiative || item.project || '') + ' ' + (item.type || '');
-    if (item.pillar === 'FE') set.add('economic');                      // construction, local trades
-    if (item.pillar === 'ACT') { set.add('economic'); set.add('cultural'); } // event hubs: visitors + gatherings
-    if (item.pillar === 'PW' || item.pillar === 'INC') set.add('social');
-    if (item.tags.some(t => t === 'women' || t === 'access')) set.add('social');
-    if (item.tags.some(t => t === 'pasifika' || t === 'firstNations') || /pasifika|first nations|aboriginal|torres strait|indigenous|koori|naidoc|reconciliation|ella 7s|all nations|pride/i.test(name)) set.add('cultural');
-    if (/rugby for good|r4g|integrity|safeguard/i.test(name)) set.add('social');
-    if (/competition|comps|academy|development centre/i.test(name) && item.region === 'Western Sydney') set.add('cultural'); // high-CALD region
-    return [...set];
+  // Yearly measures that uploaded files can supply (e.g. Rugby Analytics seasonal comparisons). Targets with a
+  // matching `measure` recalculate from them. re: matched against a column header (long format, one row per year)
+  // or a row label (wide format, one column per year). sum: add up every matching row (e.g. heritage groups).
+  const MEASURES = {
+    players:            { label: 'Players', unit: 'players', re: /^(all |total |club )?players$/i },
+    coaches:            { label: 'Coaches', unit: 'coaches', re: /^(accredited )?coaches$/i },
+    matchOfficials:     { label: 'Match officials', unit: 'match officials', re: /^(accredited )?(match officials?|referees)$/i },
+    nonPlaying:         { label: 'Non-playing roles', unit: 'people', re: /^other \(non-playing\)$|^non-playing( roles)?$/i },
+    participants:       { label: 'Participants', unit: 'participants', re: /^(total |all )?participants$/i },
+    femaleParticipants: { label: 'Female participants', unit: 'participants', re: /^(female|women( and| &) girls)( participants| players)?$/i },
+    firstNationsParticipants: { label: 'First Nations participants', unit: 'participants', re: /aboriginal|torres strait|first nations/i },
+    pasifikaParticipants: { label: 'Pasifika participants', unit: 'participants', re: /^(samoan|tongan|fijian|pasifika|pacific islander)$/i, sum: true },
+  };
+  // All yearly series from uploads: { id: { ...MEASURES[id], series: { year: value }, dataset, sheet } }.
+  // When several files supply the same measure, the most recently uploaded one wins.
+  function measures() {
+    const out = {};
+    const list = (Store.get('datasets') || []).slice().sort((a, b) => (a.created || 0) - (b.created || 0));
+    for (const d of list) for (const m of d.measures || []) if (MEASURES[m.id]) out[m.id] = { ...MEASURES[m.id], ...m, dataset: d.name };
+    return out;
+  }
+  // Latest year-on-year change of a series, or null with fewer than two consecutive years.
+  function latestGrowth(series) {
+    const years = Object.keys(series || {}).map(Number).sort((a, b) => a - b);
+    const y = years[years.length - 1], prev = years[years.length - 2];
+    if (years.length < 2 || y - prev !== 1 || !series[prev]) return null;
+    return { year: y, prevYear: prev, value: series[y], prevValue: series[prev], growth: series[y] / series[prev] - 1 };
   }
 
   // Field evidence for the impact lenses (survey results, business feedback, community stories).
@@ -40,18 +55,19 @@ window.Analytics = (() => {
   const uploadedSpend = () => (Store.get('datasets') || []).flatMap(d => (d.spend || []).map(s => ({ ...s, source: d.name, datasetId: d.id })));
   const allGrants = () => [...D.grants, ...uploadedSpend()];
 
-  function impactTotals() {
-    const lenses = { social: 0, economic: 0, cultural: 0 };
-    const central = { social: 0, economic: 0, cultural: 0 };
-    for (const item of [...allGrants().map(g => ({ ...g, total: g.amount })), ...D.dashboard]) {
-      for (const l of impactsOf(item)) { lenses[l] += item.total; if (item.region === 'Statewide') central[l] += item.total; }
-    }
-    return { lenses, central };
+  // Coverage of the established impact measures (js/data.js impactMethods), per lens.
+  function impactCoverage() {
+    const econDone = window.Econ ? window.Econ.KPIS.filter(k => window.Econ.evaluate(k).calculated).length : 0;
+    return Object.fromEntries(Object.entries(D.impactMethods).map(([k, lens]) => {
+      const ms = lens.measures.map(m => m.dynamic === 'econ' ? { ...m, status: econDone === 0 ? 'none' : econDone === window.Econ.KPIS.length ? 'measured' : 'partial', value: `${econDone} of ${window.Econ?.KPIS.length ?? 9} KPIs calculated from entered data` } : m);
+      const count = s => ms.filter(m => m.status === s).length;
+      return [k, { measures: ms, measured: count('measured'), partial: count('partial'), none: count('none'), total: ms.length }];
+    }));
   }
 
   function regionMetrics() {
     const rows = D.regions.map(r => ({
-      ...r, fe: 0, pw: 0, inc: 0, total: 0, facilityCount: 0, gaps: new Set(), social: 0, economic: 0, cultural: 0, evidenceCount: 0,
+      ...r, fe: 0, pw: 0, inc: 0, total: 0, facilityCount: 0, gaps: new Set(), evidenceCount: 0,
       tagSpend: { women: 0, firstNations: 0, pasifika: 0, access: 0 }, items: [],
     }));
     const byName = Object.fromEntries(rows.map(r => [r.name, r]));
@@ -60,7 +76,6 @@ window.Analytics = (() => {
       const r = byName[gr.region];
       if (!r) continue;
       addSpend(r, gr.pillar, gr.amount, gr.tags);
-      for (const l of impactsOf(gr)) r[l] += gr.amount;
       r.items.push(`${gr.project} (${gr.recipient}) $${Math.round(gr.amount).toLocaleString()}`);
       if (gr.pillar === 'FE') {
         r.facilityCount++;
@@ -71,7 +86,6 @@ window.Analytics = (() => {
       const r = byName[row.region];
       if (!r) continue;
       addSpend(r, row.pillar, row.total, row.tags);
-      for (const l of impactsOf(row)) r[l] += row.total;
       r.items.push(`${row.initiative} (dashboard, 3 yrs) $${row.total.toLocaleString()}`);
     }
 
@@ -156,8 +170,8 @@ window.Analytics = (() => {
     const p = pillarTotals(rows);
     const m = n => '$' + Math.round(n).toLocaleString('en-AU');
     const names = f => rows.filter(f).map(r => r.name).join(', ') || 'none';
-    const imp = impactTotals();
-    const fw = D.impactFramework;
+    const cov = impactCoverage();
+    const ms = Object.values(measures());
     const ev = evidenceStore.all().slice(0, 15);
     const quality = Object.entries(Store.get('quality') || {});
     const layers = customLayers();
@@ -175,15 +189,18 @@ window.Analytics = (() => {
       `- Pasifika/CALD investment: ${names(r => r.tagSpend.pasifika > 0)}`,
       `- Accessibility investment: ${names(r => r.tagSpend.access > 0)}`,
       `- No facility project: ${names(r => r.facilityCount === 0)}`,
-      'REGIONS (name | Greater Sydney? | population | First Nations % | facilities $ | workforce $ | inclusion $ | total $ | $ per resident | spend vs population | status | facility projects | audit gaps fixed | social $ | economic $ | cultural $' + layers.map(l => ' | ' + l.label).join('') + '):',
-      ...rows.map(r => [r.name, r.metro ? 'yes' : 'no', (r.pop * 1000).toLocaleString('en-AU'), r.fnShare + '%', m(r.fe), m(r.pw), m(r.inc), m(r.total), '$' + r.perResident.toFixed(2), r.spendIndex.toFixed(2) + 'x', r.status, r.facilityCount, [...r.gaps].join('+') || '-', m(r.social), m(r.economic), m(r.cultural), ...layers.map(l => l.values[r.name] ?? '-')].join(' | ')),
+      'REGIONS (name | Greater Sydney? | population | First Nations % | facilities $ | workforce $ | inclusion $ | total $ | $ per resident | spend vs population | status | facility projects | audit gaps fixed' + layers.map(l => ' | ' + l.label).join('') + '):',
+      ...rows.map(r => [r.name, r.metro ? 'yes' : 'no', (r.pop * 1000).toLocaleString('en-AU'), r.fnShare + '%', m(r.fe), m(r.pw), m(r.inc), m(r.total), '$' + r.perResident.toFixed(2), r.spendIndex.toFixed(2) + 'x', r.status, r.facilityCount, [...r.gaps].join('+') || '-', ...layers.map(l => l.values[r.name] ?? '-')].join(' | ')),
       'FACILITY GRANTS: ' + allGrants().filter(g => g.pillar === 'FE').map(g => `${g.town || g.region} (${g.region}) ${g.type} ${m(g.amount)}`).join('; '),
       'STATEWIDE BUDGET LINES (3 yrs): ' + D.dashboard.filter(d => d.region === 'Statewide').map(d => `${d.initiative} ${m(d.total)}`).join('; '),
       'TARGETS (Ahead/Close/Behind vs the pace needed to hit each target by its target year): ' + kpiTargets().map(kpiLine).join(' | '),
       `CONTEXT: Facility audit - ${D.context.facilityAudit.femaleChangerooms}% female-friendly changerooms, ${D.context.facilityAudit.adequateLighting}% adequate lighting, ${D.context.facilityAudit.adequateDrainage}% adequate drainage. Ratios: player:coach ${D.context.ratios.playerToCoach}, player:MO ${D.context.ratios.playerToMO}. ${D.context.workforceRepresentation} ${D.context.westernSydney} ${D.context.volunteers} ${D.context.equipment} ${D.context.round2} ${D.context.socialValue} Wages ${m(D.context.salariesOnDashboard)} of dashboard budget end in 2028; NSWRU 2025 loss ${m(D.context.nswruLoss2025)}. Holroyd: $1 of grant unlocked $${D.context.holroydLeverage} of project spend.`,
-      `IMPACT (lenses overlap): social ${m(imp.lenses.social)}, economic ${m(imp.lenses.economic)}, cultural ${m(imp.lenses.cultural)}.`,
-      ...Object.entries(fw).map(([k, v]) => `- ${v.label} indicators: ` + v.indicators.map(i => `${i.name} [${i.status === 'none' ? 'NO DATA' : i.status}${i.status === 'none' ? '' : ': ' + i.value}]`).join('; ')),
+      'IMPACT MEASURES (only established methods: NSW Treasury TPG22-22/TPG23-08, OECD social cohesion with ABS GSS benchmarks, Rugby For Good Benefits Realisation Framework and CBA, NSWRL 2026 community impact methods, CDN cultural outcomes, eventIMPACTS, Rugby Australia participation definitions. Never invent a new formula, multiplier or dollar value; there is no "spend per lens" figure):',
+      ...Object.entries(cov).map(([k, c]) => `- ${D.impactMethods[k].label} (${c.measured} measured, ${c.partial} partial, ${c.none} no data): ` + c.measures.map(i => `${i.name} [${D.frameworks[i.framework].org}] ${i.status === 'none' ? 'NO DATA' : i.status + ': ' + i.value}`).join('; ')),
+      ...(ms.length ? ['UPLOADED YEARLY SERIES: ' + ms.map(s => `${s.label} (${s.dataset}): ` + Object.entries(s.series).map(([y, v]) => `${y} ${Math.round(v).toLocaleString('en-AU')}`).join(', ')).join(' | ')] : []),
       ...(window.Econ ? window.Econ.contextLines() : []),
+      ...(window.Methods ? window.Methods.contextLines() : []),
+      ...(window.Programs ? window.Programs.contextLines() : []),
       `FIELD EVIDENCE (${evidenceStore.all().length} records): ` + (ev.length ? ev.map(e => `[${e.lens}, ${e.region}, ${e.source}] "${e.text}"${e.metric ? ' (' + e.metric + ')' : ''}`).join(' | ') : 'none recorded yet'),
     ];
     // Staff ratings are added separately by Feedback.lessons() (see Ollama.sharedContext).
@@ -202,7 +219,6 @@ window.Analytics = (() => {
       perResident$: +r.perResident.toFixed(2), spendVsPopIndex: +r.spendIndex.toFixed(2), status: r.status,
       facilityProjects: r.facilityCount, auditGapsAddressed: [...r.gaps],
       inclusionTags: INCLUSION_TAGS.filter(t => r.tagSpend[t] > 0), firstNationsReach: r.fnReach,
-      socialImpact$: r.social, economicImpact$: r.economic, culturalImpact$: r.cultural,
       ...Object.fromEntries(customLayers().map(l => [l.label, l.values[r.name] ?? null])),
     }));
     // Pre-computed verdicts so small local models don't have to derive them (and get them wrong).
@@ -245,14 +261,12 @@ window.Analytics = (() => {
   }
 
   function impactContext(maxEvidence) {
-    const { lenses, central } = impactTotals();
-    const fw = D.impactFramework;
+    const cov = impactCoverage();
     return {
-      note: 'byLens = known $ expected to drive each kind of impact (lenses overlap). Indicators show which measures have data today.',
-      byLens$: lenses, heldCentrally$: central,
-      indicators: Object.fromEntries(Object.entries(fw).map(([k, v]) => [k, v.indicators.map(i => `${i.name}: ${i.value} [${i.status}]`)])),
+      note: 'Measures come only from established frameworks (each names its organisation). Status shows which have data today.',
+      measures: Object.fromEntries(Object.entries(cov).map(([k, c]) => [k, c.measures.map(i => `${i.name} (${D.frameworks[i.framework].org}): ${i.value} [${i.status}]`)])),
       evidence: evidenceStore.all().slice(0, maxEvidence).map(e => ({ lens: e.lens, region: e.region, what: e.text, source: e.source, metric: e.metric || undefined, date: e.date })),
-      evidenceCountByLens: Object.fromEntries(Object.keys(fw).map(k => [k, evidenceStore.all().filter(e => e.lens === k).length])),
+      evidenceCountByLens: Object.fromEntries(Object.keys(cov).map(k => [k, evidenceStore.all().filter(e => e.lens === k).length])),
     };
   }
 
@@ -307,24 +321,25 @@ window.Analytics = (() => {
       insight: `${money(c.central)} sits in statewide NSWRU budgets, including ${pct(c.incCentralShare)}% of inclusion money. Facility grants are more distributed: ${pct(1 - c.feMetroShare)}% went outside Greater Sydney.`,
       evidence: `Greater Sydney: ${pct(c.metroShareOfAllocated)}% of regionally allocated spend vs ${pct(c.metroPopShare)}% of population`,
       action: 'Report statewide program delivery by region so central budgets can be traced to communities.' });
-    const { lenses } = impactTotals();
+    const cov = impactCoverage();
     const evCount = l => evidenceStore.all().filter(e => e.lens === l).length;
+    const covLine = l => `${cov[l].measured} of ${cov[l].total} established measures have data, ${cov[l].partial} partial; ${evCount(l)} field evidence record(s)`;
     const femaleSites = allGrants().filter(g => g.pillar === 'FE' && g.tags.includes('women'));
-    out.push({ pillar: 'Impact', impact: 'social', severity: evCount('social') ? 'positive' : 'watch',
-      title: 'Women-friendly facilities are the social lever',
-      insight: `${femaleSites.length} Round 1 facility projects target women and girls (${femaleSites.map(g => g.town).join(', ')}). Only 31% of facilities had female-friendly changerooms at baseline, and there is no measure yet of whether women feel safe at the ground.`,
-      evidence: `${money(lenses.social)} of known spend drives social impact; ${evCount('social')} field evidence record(s)`,
-      action: 'Add a "Do you feel safe and welcome here?" question to the end-of-season survey at funded sites.' });
+    out.push({ pillar: 'Impact', impact: 'social', severity: 'watch',
+      title: 'Social capital is unmeasured for Legacy participants',
+      insight: `The OECD social cohesion measures that NSW Rugby League benchmarked against the ABS General Social Survey (volunteering, confidants, isolation) have no NSW Rugby survey yet. ${femaleSites.length} Round 1 facility projects target women and girls, but whether women feel included and safe is not yet captured.`,
+      evidence: covLine('social'),
+      action: 'Add the ABS General Social Survey social capital questions to the end-of-season participant survey and compare with the national benchmarks.' });
     out.push({ pillar: 'Impact', impact: 'economic', severity: 'watch',
-      title: 'Local economic benefit is real but unmeasured',
-      insight: `Facility works put ${money(sum(allGrants().filter(g => g.pillar === 'FE'), g => g.amount))} into local trades, ${pct(1 - c.feMetroShare)}% of it outside Greater Sydney, and Holroyd showed $${D.context.holroydLeverage} of total project spend for every $1 of grant. Nothing yet captures game-day spending at local shops or visitor spend.`,
-      evidence: `${money(lenses.economic)} of known spend drives economic impact; ${evCount('economic')} field evidence record(s)`,
-      action: 'Run a 3-question survey of businesses near funded grounds on game days and at RWC hubs in 2027.' });
-    out.push({ pillar: 'Impact', impact: 'cultural', severity: 'watch',
-      title: 'Cultural activation is funded centrally, not locally',
-      insight: `Pasifika and First Nations programs are almost all statewide budgets. The Juniors All Nations 7s Cup in Cumberland is the only multicultural grant, and community gatherings at funded grounds are not tracked.`,
-      evidence: `${money(lenses.cultural)} of known spend drives cultural impact; ${evCount('cultural')} field evidence record(s)`,
-      action: 'Log cultural and community events at funded venues, and report statewide Pasifika and First Nations programs by region.' });
+      title: 'Economic contribution can be measured with the NSWRL method',
+      insight: 'NSW Rugby League\'s 2026 study measured economic contribution from club, competition and participant expenditure using published NSW retention rates and ABS-based multipliers. The same expenditure flow analysis can be applied to rugby union once expenditure by category is collected. Event visitor spending (RWC hubs) is not measured yet.',
+      evidence: covLine('economic'),
+      action: 'Collect club expenditure by category and a participant spend survey; use the eventIMPACTS visitor survey at the 2027 RWC hubs.' });
+    out.push({ pillar: 'Impact', impact: 'cultural', severity: 'positive',
+      title: 'Pasifika and First Nations participation is growing',
+      insight: 'Rugby Analytics shows 3,174 First Nations participants in 2026 (6.6%, up 35% since 2022) and Samoan, Fijian and Tongan participants rising from 911 to 3,486 over the same period. None of the five Cultural Development Network outcomes is surveyed yet.',
+      evidence: covLine('cultural'),
+      action: 'Survey participants and event attendees on the CDN outcomes (e.g. sense of belonging to a shared cultural heritage), collecting First Nations data under Indigenous Data Sovereignty principles.' });
     return out.map(i => ({ ...i, agent: 'Rule engine' }));
   }
 
@@ -377,10 +392,24 @@ window.Analytics = (() => {
   function kpiTargets() {
     const adj = Store.get('targets') || {};
     const year = new Date().getFullYear();
+    const ms = measures();
     return D.kpis.map(base => {
       const a = adj[base.id] || {};
       const k = { ...base, target: a.target !== undefined ? a.target : base.target, targetYear: a.targetYear ?? base.targetYear, adjusted: !!(a.target !== undefined || a.targetYear) };
-      if (k.actual === 'grantsFE') k.actual = allGrants().filter(g => g.pillar === 'FE').length;
+      // actualFrom explains where the actual came from (shown on hover in the Targets tab).
+      k.actualFrom = k.actual == null ? 'No figure published yet' : `Typed in from: ${k.source}`;
+      if (k.actual === 'grantsFE') {
+        const fe = allGrants().filter(g => g.pillar === 'FE');
+        k.actual = fe.length;
+        k.actualFrom = `Counted live: ${fe.length} Facilities & Equipment grants (${D.grants.filter(g => g.pillar === 'FE').length} Round 1 + ${fe.length - D.grants.filter(g => g.pillar === 'FE').length} uploaded)`;
+      }
+      // An uploaded yearly series replaces the typed-in growth figure (same file, same definition for both years).
+      const m = k.measure && ms[k.measure];
+      const g = m && k.kind === 'growth' && latestGrowth(m.series);
+      if (g) {
+        k.actual = g.growth; k.actualYear = g.year; k.fromUpload = m.dataset;
+        k.actualFrom = `From upload "${m.dataset}" (${m.sheet}, "${m.header}"): ${g.year} ${Math.round(g.value).toLocaleString('en-AU')} ÷ ${g.prevYear} ${Math.round(g.prevValue).toLocaleString('en-AU')} − 1 = ${(g.growth * 100).toFixed(1)}%. Note: the plan baseline (${k.baseline?.toLocaleString('en-AU') ?? 'not recorded'}, ${k.baseYear}) comes from ${k.source.split(':')[0]}, which may count ${m.label.toLowerCase()} differently.`;
+      }
       k.planTarget = base.target; k.planYear = base.targetYear;
       if (k.kind === 'growth') {
         const years = k.targetYear - k.baseYear;
@@ -390,6 +419,15 @@ window.Analytics = (() => {
       } else if (k.kind === 'annual') {
         k.expected = k.target;
         k.status = k.target == null ? 'No target' : k.actual == null ? 'No data' : rate(k.actual, k.target);
+      } else if (k.kind === 'level') {
+        // Moves from baseline toward target in either direction (lower is better when target < baseline).
+        const dir = k.target != null && k.target < k.baseline ? -1 : 1;
+        const span = k.targetYear - k.baseYear;
+        k.lowerIsBetter = dir < 0;
+        k.asAt = Math.min(Math.max(year, k.baseYear), k.targetYear);
+        k.expected = k.target != null && span > 0 ? k.baseline + (k.target - k.baseline) * (k.asAt - k.baseYear) / span : null;
+        k.status = k.target == null ? 'No target' : span <= 0 ? 'Check year' : k.actual == null ? 'No data'
+          : (k.actual - k.target) * dir >= 0 ? 'Achieved' : rate((k.actual - k.baseline) * dir, (k.expected - k.baseline) * dir);
       } else {
         const start = k.kind === 'share' ? k.baseYear : k.startYear;
         const from = k.kind === 'share' ? k.baseline : 0;
@@ -411,7 +449,9 @@ window.Analytics = (() => {
     ? `${k.name}: baseline ${k.baseline != null ? k.baseline.toLocaleString('en-AU') + ' (' + k.baseYear + ')' : 'not recorded'} -> ${k.target != null ? '+' + pct(k.target) + '% by ' + k.targetYear + (k.targetValue != null ? ' (' + k.targetValue.toLocaleString('en-AU') + ')' : '') : 'no target set'}; needs ${k.requiredPa != null ? pct(k.requiredPa) + '% p.a.' : '-'}; ${k.actualYear} actual ${k.actual == null ? 'no data' : '+' + pct(k.actual) + '%'}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`
     : k.kind === 'annual'
     ? `${k.name}: target ${k.target != null ? k.target + ' ' + k.unit + ' to ' + k.targetYear : 'not set'}; latest year ${k.actual == null ? 'no data' : k.actual}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`
-    : `${k.name}:`) + (k.kind === 'growth' || k.kind === 'annual' ? '' : ` ${k.kind === 'share' ? `baseline ${k.baseline}% ${k.unit || 'of facilities'} -> ` : ''}target ${k.target != null ? k.target + (k.kind === 'share' ? '%' : ' ' + k.unit) + ' by ' + k.targetYear : 'not set'}; actual ${k.actual == null ? 'no data' : k.actual + (k.kind === 'share' ? '%' : '')}${k.expected != null ? `; expected by ${k.asAt} ~${Math.round(k.expected)}${k.kind === 'share' ? '%' : ''}` : ''}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`);
+    : k.kind === 'level'
+    ? `${k.name}: baseline ${k.baseline}${k.unit} (${k.baseYear}) -> target ${k.target != null ? k.target + k.unit + ' by ' + k.targetYear : 'not set'}${k.lowerIsBetter ? ' (lower is better)' : ''}; actual ${k.actual == null ? 'no data' : k.actual + k.unit + (k.actualYear ? ' (' + k.actualYear + ')' : '')}${k.expected != null ? `; on pace = ~${+k.expected.toFixed(1)}${k.unit} by ${k.asAt}` : ''}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`
+    : `${k.name}:`) + (k.kind === 'growth' || k.kind === 'annual' || k.kind === 'level' ? '' : ` ${k.kind === 'share' ? `baseline ${k.baseline}% ${k.unit || 'of facilities'} -> ` : ''}target ${k.target != null ? k.target + (k.kind === 'share' ? '%' : ' ' + k.unit) + ' by ' + k.targetYear : 'not set'}; actual ${k.actual == null ? 'no data' : k.actual + (k.kind === 'share' ? '%' : '')}${k.expected != null ? `; expected by ${k.asAt} ~${Math.round(k.expected)}${k.kind === 'share' ? '%' : ''}` : ''}; ${k.status}${k.adjusted ? ' (target adjusted by staff)' : ''}`);
 
-  return { kpiTargets, setTarget, regionMetrics, centralisation, pillarTotals, contextFor, briefing, ruleInsights, matchRegion, classifySpend, saveDataset, removeDataset, customLayers, uploadedSpend, INCLUSION_TAGS, impactsOf, impactTotals, evidenceStore };
+  return { allGrants, kpiTargets, setTarget, regionMetrics, centralisation, pillarTotals, contextFor, briefing, ruleInsights, matchRegion, classifySpend, saveDataset, removeDataset, customLayers, uploadedSpend, INCLUSION_TAGS, MEASURES, measures, latestGrowth, impactCoverage, evidenceStore };
 })();
