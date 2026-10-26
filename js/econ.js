@@ -131,6 +131,13 @@
     return { e, res, change, warn, latest, calculated: res.baseline.ok || res.followup.ok };
   }
 
+  // "How we got this number" tooltip for one result cell: the formula, the figures entered, and the outcome.
+  function calcTip(k, r, p, label) {
+    const inputs = k.inputs.map(([key, name, unit]) => `• ${name}: ${has(p, key) ? `${p[key].toLocaleString('en-AU')} ${unit}` : 'not entered'}`).join('\n');
+    const result = r.ok ? `= ${resultText(k, r, p)}` : `${r.label}${r.why ? ` - ${r.why}` : ''}`;
+    return `${label}${p.label ? ` (${p.label})` : ''}\nFormula: ${k.formula}\n\nFigures entered:\n${inputs}\n\n${result}\n\nSource: ${WORKBOOK}, KPI ${k.id}.`;
+  }
+
   const resultText = (k, r, p) => r.ok ? k.fmt(r.value) + (k.note?.(p) ? ` (${k.note(p)})` : '') : r.label + (r.why ? ` - ${r.why}` : '');
 
   // ---------- UI ----------
@@ -146,8 +153,8 @@
       <h3>${esc(k.name)}</h3>
       <code class="ek-formula">${esc(k.formula)}</code>
       <div class="ek-results">
-        ${PERIODS.map(([p], i) => `<div><span>${esc(labels[i])}</span>${cell(ev.res[p], ev.e[p] || {})}</div>`).join('')}
-        <div><span>Change</span>${ev.change ? `<b>${esc(ev.change)}</b>` : '<small class="muted">needs both periods</small>'}</div>
+        ${PERIODS.map(([p], i) => `<div data-tip="${esc(calcTip(k, ev.res[p], ev.e[p] || {}, labels[i]))}" tabindex="0"><span>${esc(labels[i])}</span>${cell(ev.res[p], ev.e[p] || {})}</div>`).join('')}
+        <div data-tip="${esc(ev.change ? `Change = ${labels[1]} − ${labels[0]}\n${resultText(k, ev.res.followup, ev.e.followup)} − ${resultText(k, ev.res.baseline, ev.e.baseline)} = ${ev.change}\n\nRates change in percentage points (pp), dollar totals in dollars; unit costs also show the % change.` : 'Change is shown once both periods have been calculated.')}" tabindex="0"><span>Change</span>${ev.change ? `<b>${esc(ev.change)}</b>` : '<small class="muted">needs both periods</small>'}</div>
       </div>
       ${ev.warn ? `<div class="fact-check">${esc(ev.warn)}</div>` : ''}
       <p class="ek-unit muted small detail-only">Unit: ${esc(k.unit)}</p>

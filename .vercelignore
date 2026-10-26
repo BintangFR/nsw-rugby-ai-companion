@@ -4,4 +4,10 @@
 data-store/
 server.js
 serve.ps1
+boot.cmd
+boot.ps1
+boot.sh
+scripts/
+docs/
+.github/
 _selftest.html

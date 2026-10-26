@@ -1,27 +1,36 @@
 // Impact tab: Social / Economic / Cultural lenses, the field evidence log and the Impact agent.
 (() => {
-  const { $, $$, esc, money, toast } = window.App;
+  const { $, $$, esc, toast } = window.App;
   const A = window.Analytics, O = window.Ollama, D = window.TACKLE_DATA;
   const LENSES = ['social', 'economic', 'cultural'];
   const STATUS = { measured: 'Measured', partial: 'Partial', none: 'No data yet' };
   let filter = 'all';
 
+  const tip = s => `data-tip="${esc(s)}" tabindex="0"`;
+  const F = D.frameworks;
+
+  // Each lens shows how much of its established measurement framework has data. There is deliberately no dollar
+  // figure per lens: no published method assigns program spend to social, economic or cultural impact.
   function renderLenses() {
-    const { lenses, central } = A.impactTotals();
+    const cov = A.impactCoverage();
     const ev = A.evidenceStore.all();
     $('#lensGrid').innerHTML = LENSES.map(k => {
-      const fw = D.impactFramework[k];
-      const n = ev.filter(e => e.lens === k).length;
-      const measured = fw.indicators.filter(i => i.status === 'measured').length;
+      const lens = D.impactMethods[k], c = cov[k];
+      const mine = ev.filter(e => e.lens === k);
+      const n = mine.length, fromData = mine.filter(e => e.dataset).length;
+      const pctMeasured = Math.round((c.measured + 0.5 * c.partial) / c.total * 100);
+      const covTip = `How "${c.measured} of ${c.total}" is worked out:\nEach block is one measure defined by an established framework (listed below the bar).\n${c.measured} measured (green) · ${c.partial} partial (amber, e.g. Rugby For Good programs only) · ${c.none} no data yet (grey).\n\n`
+        + c.measures.map(m => `• ${m.name}: ${STATUS[m.status]}`).join('\n');
+      const evTip = `Records tagged ${lens.label} in the evidence log below: ${n - fromData} entered by staff, ${fromData} imported from uploaded files. Evidence supports the measures; it is not itself a measure.`;
       return `<article class="card lens ${k}">
-        <h2>${fw.label} impact</h2>
-        <div class="q">${esc(fw.question)}</div>
-        <div class="big">${money(lenses[k])}</div>
-        <div class="big-sub">known spend expected to drive it · ${Math.round(central[k] / (lenses[k] || 1) * 100)}% held centrally · ${n} evidence record${n === 1 ? '' : 's'}</div>
-        <div class="small muted">Measurement coverage: ${measured} of ${fw.indicators.length} indicators measured</div>
-        <div class="coverage" title="Green = measured, amber = partial, grey = no data yet">${fw.indicators.map(i => `<span class="${i.status}"></span>`).join('')}</div>
-        <ul class="indicators detail-only">${fw.indicators.map(i => `<li><span>${esc(i.name)}</span><span class="status ${i.status}">${STATUS[i.status]}</span><span class="iv">${esc(i.value)} · <i>${esc(i.source)}</i></span></li>`).join('')}</ul>
-        <div class="example">${esc(fw.example)}</div>
+        <h2>${lens.label} impact</h2>
+        <div class="q">${esc(lens.question)}</div>
+        <div class="big"><span ${tip(covTip)}>${c.measured} of ${c.total}</span></div>
+        <div class="big-sub">established measures with data${c.partial ? ` · <span ${tip('Partial = measured for part of the program only (for example, Rugby For Good participants), or a baseline without a follow-up.')}>${c.partial} partial</span>` : ''} · <span ${tip(evTip)}>${n} evidence record${n === 1 ? '' : 's'}</span></div>
+        <div class="coverage" aria-label="${pctMeasured}% covered">${c.measures.map(m => `<span class="${m.status}" ${tip(`${m.name}\n${STATUS[m.status]}: ${m.value}\n\nHow: ${m.how}\nFramework: ${F[m.framework].org}, ${F[m.framework].title}\nSource: ${m.source}`)}></span>`).join('')}</div>
+        <div class="lens-frameworks small">Frameworks: ${lens.frameworks.map(id => `<span class="impact-chip method" ${tip(`${F[id].org}, ${F[id].title} (${F[id].year}).\n${F[id].use}`)}>${esc(F[id].org.split(' (')[0].split(' for ')[0])}</span>`).join(' ')}</div>
+        <ul class="indicators detail-only">${c.measures.map(m => `<li ${tip(`How: ${m.how}\nFramework: ${F[m.framework].org}\nSource: ${m.source}`)}><span>${esc(m.name)}</span><span class="status ${m.status}">${STATUS[m.status]}</span><span class="iv">${esc(m.value)} · <i>${esc(F[m.framework].org)}</i></span></li>`).join('')}</ul>
+        <div class="example">${esc(lens.example)}</div>
       </article>`;
     }).join('');
   }
@@ -37,7 +46,7 @@
     const list = all.filter(e => filter === 'all' || e.lens === filter);
     $('#evCount').textContent = `${all.length} record${all.length === 1 ? '' : 's'} · ${LENSES.map(k => `${all.filter(e => e.lens === k).length} ${k}`).join(', ')}`;
     $('#evList').innerHTML = list.length ? list.map(e => `<li>
-        <div class="top"><span class="impact-chip ${e.lens}">${D.impactFramework[e.lens].label}</span><span>${esc(e.region || 'Statewide')}</span><span>· ${esc(e.source)}</span>${e.date ? `<span>· ${new Date(e.date).toLocaleDateString('en-AU')}</span>` : ''}${e.dataset ? `<span>· from ${esc(e.dataset)}</span>` : ''}
+        <div class="top"><span class="impact-chip ${e.lens}">${D.impactMethods[e.lens].label}</span><span>${esc(e.region || 'Statewide')}</span><span>· ${esc(e.source)}</span>${e.date ? `<span>· ${new Date(e.date).toLocaleDateString('en-AU')}</span>` : ''}${e.dataset ? `<span>· from ${esc(e.dataset)}</span>` : ''}
           <button class="del" data-id="${esc(e.id)}">Delete</button></div>
         <div>${esc(e.text)}</div>${e.metric ? `<div class="metric">${esc(e.metric)}</div>` : ''}
       </li>`).join('')
@@ -51,7 +60,7 @@
   }
 
   function setPlaceholder() {
-    $('#evText').placeholder = 'e.g. ' + D.impactFramework[$('#evLens').value].example;
+    $('#evText').placeholder = 'e.g. ' + D.impactMethods[$('#evLens').value].example;
   }
 
   function exportCsv() {

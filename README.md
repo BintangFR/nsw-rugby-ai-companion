@@ -8,24 +8,34 @@ AI companion for NSW Rugby Union's Rugby World Cup Legacy Program. It brings the
 
 It measures impact through three lenses: **social**, **economic** and **cultural**.
 
+## Quick start
+
+1. Install [Node.js](https://nodejs.org) 18+ and [Ollama](https://ollama.com), then run `ollama pull qwen2.5:7b` once.
+2. Start the app:
+   - **Windows:** double-click **`boot.cmd`**
+   - **Mac / Linux:** run `./boot.sh` (first time: `chmod +x boot.sh`)
+3. The browser opens at http://localhost:5173. Press **▶ Demo** for a guided tour.
+
+Closing the window (or `Ctrl+C`) stops the app and the Ollama it started. More detail is in [Run it locally](#run-it-locally).
+
+**New to the project?** Read [docs/HANDOVER.md](docs/HANDOVER.md) first, then [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/MAINTAINING.md](docs/MAINTAINING.md). Run `npm run check` before every deploy.
+
 ## Features
 
 | Tab | What it does |
 |---|---|
 | **Overview** | NSW-only map with a heatmap of spend by region. You can switch the metric: total, facilities, workforce, inclusion, $ per resident, over/under-spend, inclusion index, or social/economic/cultural impact. Also includes a region heatmap table, a centralisation check, over/under-served flags (one scrollable row per region, split into To review / Rated, with 👍/👎 rating), and spend by pillar. |
-| **Targets** | Every plan target in three columns: Facilities & Equipment, Programs & Workforce, and Inclusion. Inclusion is split by community: women & girls, First Nations, Pasifika, people with disability, Pride, and integrity & safeguarding. Each target is judged Ahead / Close / Behind against the pace needed to hit it by its target year, with a status summary and a pillar filter at the top. **Adjust targets** lets staff change any target or target year, and the status recalculates. |
-| **Impact** | Social / Economic / Cultural lenses: spend expected to drive each one, which indicators are measured today, and an **evidence log** for field notes (e.g. "women feel safe with the new changerooms", "takeaway shop busy on game days", "Pasifika families gather at the ground"). Also has an Impact agent, plus the **Economic KPIs** calculator: the nine formulas from `Dataset/NSW_Rugby_Economic_KPI_Formula_Summary.xlsx` (facility utilisation, realised co-investment, cost recovery, workforce retention, training cost per qualification, volunteer hours, inclusion cost per participant, out-of-pocket cost change, participation support). Enter baseline and follow-up totals and each KPI is calculated with its documented formula, edge-case rules and official source links, then fed to the AI agents and Story. Missing data shows as "Data collection required", never as zero. |
+| **Programs** | Zero in on any single grant or 3-year budget line (62 in total, plus uploads). Search, filter by pillar, source or region, and sort by cost, return or flags. Each program shows **what it costs** (budget, yearly split, share of its pillar, spent so far), **what it returns** (cost per person reached, per new coach or referee, per session, and co-funding per $1, each compared with the median of similar programs), **what it contributes to** (linked targets and impact lenses), and **what's driving this?**, a root-cause list that covers cost outliers against similar programs, budget overruns, the region's fair-share status, centrally held money that can't be traced, targets that are behind, and missing results or evidence. Staff record results and evidence per program, and **Explain with AI** gives a short value-for-money and root-cause summary. Results are never estimated: no results recorded means "can't judge yet". |
+| **Targets** | 39 plan targets across all five pillars from the project brief (1 Facilities & Equipment, 2 Priority Regions & Pathways, 3 Programs & Workforce, 4 Inclusion, 5 RWC Activation), taken from the Project Plan, RWC Dashboard performance measures, Program Logic and partner slides. Pillars flow through balanced columns; Inclusion is split by community (women & girls, First Nations, Pasifika, people with disability, Pride, integrity & safeguarding). Ratio and churn targets can go down as well as up. Plan aims with no number set yet sit in a collapsed watch list (they reappear under "Adjust targets" so staff can set one). Each target is judged Ahead / Close / Behind against the pace needed to hit it by its target year, with a status summary and a pillar filter at the top. **Adjust targets** lets staff change any target or target year, and the status recalculates. |
+| **Impact** | Social / Economic / Cultural impact measured **only with published methods** (NSW Treasury TPG22-22 and TPG23-08, OECD social cohesion with ABS General Social Survey benchmarks, the Rugby For Good Benefits Realisation Framework and cost-benefit analysis, NSW Rugby League's 2026 community impact study, Cultural Development Network outcomes, eventIMPACTS, Rugby Australia participation definitions). Each lens shows which of its established measures have data; **impact valuation calculators** apply the published formulas (health benefit per participant, DALYs × VSLY, economic contribution, event visitor spending, social capital vs ABS benchmarks, CDN cultural outcomes) with present values under TPG23-08. Also an **evidence log** for field notes (e.g. "women feel safe with the new changerooms", "takeaway shop busy on game days", "Pasifika families gather at the ground"). Also has an Impact agent, plus the **Economic KPIs** calculator: the nine formulas from `Dataset/NSW_Rugby_Economic_KPI_Formula_Summary.xlsx` (facility utilisation, realised co-investment, cost recovery, workforce retention, training cost per qualification, volunteer hours, inclusion cost per participant, out-of-pocket cost change, participation support). Enter baseline and follow-up totals and each KPI is calculated with its documented formula, edge-case rules and official source links, then fed to the AI agents and Story. Missing data shows as "Data collection required", never as zero. |
 | **Insights** | Five local AI agents (Facilities, Workforce, Inclusion, Centralisation, Impact) post insight bubbles into a review queue: **To review / Verified / Disputed / Archived**. Rating an insight moves it out of To review, and disputed ones are kept out of the Story report. Re-running the agents archives the previous run's unrated insights (rated ones are kept, and archived ones can be restored), and new insights that repeat a kept one are hidden. Rate each one 👍/👎, delete it (a reason is required first) and ask follow-up questions. A rule engine fills in when the AI is offline. **Live progress** shows each agent's phase (loading model → reading data → writing, with token count and insight number), overall %, elapsed time and an ETA learned from your machine's speed, the model's live output, a "may be stuck" warning, and a Cancel button. |
 | **Data Studio** | Upload any file (Excel, CSV, JSON, PDF, Word, text). Tables are profiled, formatted and charted. **Uploads update the dashboard**: region + amount columns become spend, other numeric region columns become map layers, and a `lens`/`impact` column becomes impact evidence. Every file gets a **data quality rating** (green / amber / red). Red means "too high level", and the AI explains what better data would look like. A data-quality panel tracks disputes and deletions and gives advice for collecting accurate data next time. |
+| **Methodology** | Plain-language explanation, generated from the live app, of how every figure is calculated, how the AI writes and checks its insights (including the exact briefing it reads), the impact methods and their sources, how Targets are judged, and which screening indicators are prototypes awaiting review. |
 | **Story** | Writes the yearly-report narrative from the insights and evidence in five formats (annual report chapter, board summary, funding acquittal, community story, media release). It is laid out with [css/reportstyle.css](css/reportstyle.css): cover page, numbered sections, stat grid and insight register. The text is editable. **Export PDF** prints to PDF with page numbers and running headers; **Quick download** saves a PDF in one click. |
 
-### Simple / Detailed view
+### One detailed view
 
-The **Simple | Detailed** switch in the top bar controls how much detail is shown (Simple is the default, and the choice is remembered).
-
-- **Simple** scales the region heatmap: every column becomes a **0–100 score**, where 100 is the region with the highest value, so a region on 50 has half as much. Different units ($, per resident, audit gaps, inclusion index) can then be compared at a glance. Fairness is shown in words ("3.4× over", "Balanced"), flags read as plain sentences, and secondary detail is hidden.
-- **Detailed** shows every raw figure and column, as before. Hovering a cell in Simple view also shows its exact value.
-- The AI agents, Story generator and exports always use the full raw data, whichever view is on.
+Every screen shows the real figures and every column. There is no simplified view: at the feedback session NSW Rugby preferred seeing the detailed figures. Hover any underlined number, column heading or status for how it is calculated.
 
 ### Look and feel
 
@@ -36,11 +46,12 @@ The **Simple | Detailed** switch in the top bar controls how much detail is show
 
 ### Demo mode (guided tour and pitching)
 
-Press **▶ Demo** in the top bar, or open http://localhost:5173/?demo to start straight into the tour. It walks through every feature in 18 steps. Each step opens the right tab, highlights the feature and explains it in plain, non-technical language with a "Why it matters" line, so it works as a pitch to board members, funders or community partners. The tour always uses the Simple view and puts back the viewer's own setting afterwards.
+Press **▶ Demo** in the top bar, or open http://localhost:5173/?demo to start straight into the tour. It walks through every feature in 20 steps. Each step opens the right tab, highlights the feature and explains it in plain, non-technical language with a "Why it matters" line, so it works as a pitch to board members, funders or community partners.
 
 - **Controls:** `→` / `Enter` next, `←` back, `Esc` exit. Click the progress dots to jump to a step.
 - **Live features:** some steps run the feature for real (economic KPIs calculated from sample inputs, a sample evidence record, rule-based insights). Everything is labelled `DEMO SAMPLE`.
 - **Safe to run anytime:** demo mode turns saving off, and exiting reloads the page, so no sample data reaches your real records.
+- **Presentation mode (⏱ Present, or `?present`):** a 15-minute talk with 17 timed slides (pain points, walkthrough, how feedback changed the prototype, recommendations, next session: testing and handover). The card shows the total clock against 15:00, time on the current slide, and whether you are on pace, tight or behind. Speaker notes open with `N`; `P` pauses the clock.
 - **For a pitch:** use full-screen (`F11` on Windows, `Ctrl + Cmd + F` on Mac). The AI steps work without Ollama because the rule engine fills in.
 
 ### Prototype data
@@ -56,8 +67,10 @@ You need [Node.js](https://nodejs.org) 18+ (no `npm install` required) and [Olla
 ```powershell
 winget install OpenJS.NodeJS.LTS     # once, if Node isn't installed
 ollama pull qwen2.5:7b               # once
-node server.js                       # then open http://localhost:5173
+.\boot.cmd                           # or double-click it; or: node server.js
 ```
+
+`boot.cmd` starts Ollama if it isn't already running, starts the server and opens the browser. Everything it started is stopped when its window closes, however it closes. An Ollama you started yourself is left running. Without Node it falls back to `serve.ps1`.
 
 ### macOS
 
@@ -72,11 +85,11 @@ node server.js                       # then open http://localhost:5173
    ```bash
    ollama pull qwen2.5:7b
    ```
-4. **Start the site.** In Terminal, go to the project folder and start the server:
+4. **Start the site.** In Terminal, go to the project folder and start it:
 
    ```bash
    cd ~/Downloads/Project/nsw-rugby-ai-companion   # wherever you saved the project
-   node server.js
+   ./boot.sh                                        # or: node server.js
    ```
 5. **Open** http://localhost:5173 in Safari or Chrome. Leave Terminal open while you use the site, and press `Ctrl + C` in Terminal to stop it.
 
@@ -127,7 +140,9 @@ Switch models from the AI pill in the top bar.
 - Spend is **known allocations** (3-year dashboard budgets plus Round 1 grants), not audited expenditure.
 - Region **population** and **First Nations share** are indicative ABS 2021 approximations, used only to normalise spend.
 - "Spend vs population" = a region's share of spend ÷ its share of population. 1.75x or more is flagged as overspend risk; 0.5x or less as under-served.
-- Impact lenses overlap: one dollar can count toward social, economic and cultural impact.
+- Impact is never estimated from spend. Every impact measure and valuation cites the organisation that published the method; new formulas are left to the evaluation team.
+- Uploaded yearly counts (e.g. the Rugby Analytics participation export) update Targets: with two consecutive years from one file, the actual becomes latest year ÷ previous year − 1, and the target is marked "from upload".
+- Hover any underlined number, table header or status for how it is calculated.
 - Economic KPIs follow the workbook's rules: they are descriptive monitoring indicators, not net economic benefit, and the pillars are never added together. Planned budgets and commitments (e.g. Holroyd's $561k project cost) are shown as "indicative only" and never counted as KPI results.
 
 ## Files
@@ -145,10 +160,18 @@ js/app.js             overview, map, heatmap, insights
 js/feedback.js        👍/👎 ratings, deletion reasons, data-quality advice
 js/impact.js          Impact tab and evidence log
 js/econ.js            economic KPI formulas (9-KPI framework) and calculator
+js/methods.js         impact valuation calculators (published formulas) and the Methodology tab
+js/programs.js        Programs tab: per-program cost, return, root-cause drill-down
 js/upload.js          Data Studio, dashboard integration, quality rating
 js/story.js           story generator and PDF export
 js/demo.js            demo mode: guided tour / pitch walkthrough
 api/                  backend (Vercel functions; also used by server.js)
 server.js             local server
 serve.ps1             fallback static server (no Node)
+boot.cmd / boot.ps1   one-click start on Windows (stops everything on close)
+boot.sh               one-click start on macOS / Linux
+scripts/check.mjs     pre-deploy check: syntax, file references, seed data (npm run check)
+docs/                 handover, architecture and maintenance guides
+.github/workflows/    runs npm run check on every push
+Dataset/              source documents and spreadsheets (preloaded as "already uploaded")
 ```

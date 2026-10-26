@@ -16,6 +16,15 @@
     'NSW Rugby Union Strategic Plan.pdf',
     'nsw-treasury-evidence-bank-report-2025.pdf',
     'tpg22-22-evaluation-guidelines.pdf',
+    'NSW_Rugby_Participation_Dashboard_Data.xlsx',
+    'NSW_Rugby_Economic_KPI_Formula_Summary.xlsx',
+    'NSW Rugby Union Project Brief - Term 3 2026.pdf',
+    'NSW Rugby Union Partner Meeting 1 slides.pdf',
+    'Rugby For Good Benefits Realisation Framework Report_Final_04.03.2025[59].pdf',
+    'Rugby For Good Business Case Report_Final_04.03.2025[74].pdf',
+    'NRL community-impact-study_example.pdf', // community-impact-study_260924_202052.pdf is an identical copy, so it is not loaded twice
+    'NSWJRU Impact report (2).pdf',
+    'Super Rugby review_Tahs_2026.pdf',
   ];
 
   // ---------- file intake ----------
@@ -73,7 +82,7 @@
         if (ds.kind === 'table') {
           integrate(ds);
           const c = ds.contribution;
-          if (c.spend.length || c.layers.length || c.evidence) toast(`${file.name} updated the dashboard: ${describe(c)}.`, 5000);
+          if (c.spend.length || c.layers.length || c.evidence || c.measures.length) toast(`${file.name} updated the dashboard: ${describe(c)}.`, 5000);
         }
       } catch (e) {
         console.error(e);
@@ -140,9 +149,10 @@
       }
     }
     contribution.evidence = evidence.length;
+    contribution.measures = ds.sheets.flatMap(extractMeasures);
     ds.contribution = contribution;
     const had = (Store.get('datasets') || []).some(d => d.id === ds.id);
-    if (contribution.spend.length || contribution.layers.length || evidence.length) {
+    if (contribution.spend.length || contribution.layers.length || evidence.length || contribution.measures.length) {
       A.saveDataset(contribution);
       if (evidence.length) {
         // re-loading the same file replaces its evidence rather than duplicating it
@@ -161,6 +171,7 @@
     if (c.spend.length) parts.push(`${money(c.spend.reduce((s, x) => s + x.amount, 0))} spend from ${c.spend.length} rows`);
     if (c.layers.length) parts.push(`${c.layers.length} map layer${c.layers.length > 1 ? 's' : ''}`);
     if (c.evidence) parts.push(`${c.evidence} impact evidence record${c.evidence > 1 ? 's' : ''}`);
+    if (c.measures?.length) parts.push(`yearly ${c.measures.map(m => A.MEASURES[m.id].label.toLowerCase()).join(', ')} (updates Targets)`);
     if (c.skipped) parts.push(`${c.skipped} rows already in the dashboard skipped`);
     return parts.join(', ') || 'no region or spend columns found';
   }
@@ -450,7 +461,65 @@ ${datasetDigest(ds, 3500)}`;
     });
     const objs = rows.slice(h + 1).map(r => Object.fromEntries(headers.map((k, i) => [k, r[i] ?? null])));
     const columns = headers.map(k => profileColumn(k, objs.map(o => o[k]))).filter(c => c.filled > 0);
-    return { name, columns, rows: objs };
+    return { name, columns, rows: objs, aoa: rows };
+  }
+
+  // ---------- yearly measures (feed the Targets tab) ----------
+  // Finds yearly counts such as players, coaches or heritage groups (Analytics.MEASURES) in a sheet's raw cells.
+  // Handles three layouts found in real dashboards: a "Season"/"Year" column with one row per year; a label column
+  // with one column per year; and a small "Gender 2026 | Participants" block holding a single year.
+  const yearOf = v => {
+    const n = typeof v === 'number' ? v : /^\s*\d{4}\s*$/.test(String(v ?? '')) ? Number(v) : NaN;
+    return Number.isInteger(n) && n >= 1990 && n <= 2100 ? n : null;
+  };
+  const cellText = v => String(v ?? '').replace(/\s+/g, ' ').trim();
+  function extractMeasures(s) {
+    const M = A.MEASURES, found = {}, aoa = s.aoa || [];
+    const matchId = (text, { sum } = {}) => Object.keys(M).find(k => M[k].re.test(text) && (sum === undefined || !!M[k].sum === sum));
+    const put = (id, header, series) => { if (Object.keys(series).length && !found[id]) found[id] = { id, header, sheet: s.name, series }; };
+    for (let i = 0; i < aoa.length; i++) {
+      const row = aoa[i] || [];
+      const yc = row.findIndex(v => /^(season|year)$/i.test(cellText(v)));
+      if (yc >= 0) {
+        const block = [];
+        for (let j = i + 1; j < aoa.length && yearOf(aoa[j]?.[yc]) != null; j++) block.push(aoa[j]);
+        row.forEach((v, c) => {
+          const id = c !== yc && matchId(cellText(v), { sum: false });
+          if (!id) return;
+          const series = {};
+          for (const r of block) { const n = parseNum(r[c]); if (!isNaN(n) && n > 1) series[yearOf(r[yc])] = n; } // n > 1 skips growth-rate fractions
+          put(id, cellText(v), series);
+        });
+        continue;
+      }
+      const years = row.map((v, c) => [c, yearOf(v)]).filter(([, y]) => y != null);
+      const ys = years.map(([, y]) => y);
+      const consecutive = ys.length >= 2 && new Set(ys).size === ys.length && Math.max(...ys) - Math.min(...ys) === ys.length - 1;
+      if (consecutive && typeof row[0] === 'string') {
+        const sums = {};
+        for (let j = i + 1; j < aoa.length; j++) {
+          const r = aoa[j] || [], name = cellText(r[0]);
+          const vals = years.map(([c, y]) => [y, parseNum(r[c])]).filter(([, n]) => !isNaN(n));
+          if (!name || !vals.length) break;
+          const id = matchId(name);
+          if (!id || found[id] || vals.some(([, n]) => n <= 1)) continue; // n <= 1: a share table, not counts
+          if (M[id].sum) { const t = sums[id] ||= { names: [], series: {} }; t.names.push(name); for (const [y, n] of vals) t.series[y] = (t.series[y] || 0) + n; }
+          else put(id, name, Object.fromEntries(vals));
+        }
+        for (const [id, t] of Object.entries(sums)) put(id, t.names.join(' + '), t.series);
+        continue;
+      }
+      const titleYear = yearOf((/\b(19|20)\d{2}\b/.exec(cellText(row[0])) || [])[0]);
+      if (titleYear && /participants|players|count|number/i.test(cellText(row[1]))) {
+        for (let j = i + 1; j < aoa.length; j++) {
+          const r = aoa[j] || [], name = cellText(r[0]), n = parseNum(r[1]);
+          if (!name || isNaN(n)) break;
+          const id = matchId(name, { sum: false });
+          if (id) put(id, `${name} (${cellText(row[0])})`, { [titleYear]: n });
+        }
+      }
+    }
+    return Object.values(found);
   }
 
   function jsonTables(data) {
