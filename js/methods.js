@@ -45,6 +45,15 @@
     ['confide0', 'Has no one to confide in', 10, 23, false],
     ['responsibilities', 'Can always or sometimes meet work, family and community responsibilities', 92, 87, true],
   ];
+  // Rugby For Good CBA 2025, Table 6: present value at 5% over 20 years (BGA work product). Quoted as published, not recalculated.
+  const R4G_RESULTS = [
+    { name: 'Tackle Life', participants: '1,686 a year (562 high school, 1,124 primary)', cost: 4792966, benefit: 27702215, bcr: 5.78,
+      parts: [['Improved physical health', 3404596], ['Improved mental health', 14454707], ['Avoided healthcare costs', 3501796], ['Reduced crime rate', 794069], ['Enhanced employability', 1227827], ['Avoided fiscal costs (higher graduation rates)', 4319221]] },
+    { name: 'Holiday Break Camps', participants: '1,880 a year', cost: 5290208, benefit: 16587001, bcr: 3.14,
+      parts: [['Improved physical health', 59785], ['Improved mental health', 16117941], ['Enhanced employability', 409276]] },
+    { name: 'Start Talking & Get Talkin\'', participants: '702 a year', cost: 1869332, benefit: 6784351, bcr: 3.63,
+      parts: [['Improved mental health', 5880082], ['Reduced suicidal tendencies', 904269]] },
+  ];
   const CDN_OUTCOMES = [
     ['belonging', 'Sense of belonging to a shared cultural heritage deepened'], ['diversity', 'Diversity of cultural expression appreciated'],
     ['knowledge', 'New knowledge, ideas and insight gained'], ['creativity', 'Creativity stimulated'], ['aesthetic', 'Aesthetic enrichment experienced'],
@@ -165,15 +174,79 @@
   const stored = () => Store.get('methods') || {};
   const inputsOf = id => stored()[id] || {};
 
+  // Inputs the app can fill from its own data when staff have entered none. Only inputs that map one-to-one onto the
+  // published method are filled; everything else stays empty rather than guessed.
+  function autoInputs(id) {
+    if (id === 'health') {
+      // Physically active participants, as NSWRL 2026 defined them: players and match officials (not coaches,
+      // volunteers or non-playing members). Latest year that has both series.
+      const ms = A.measures(), pl = ms.players?.series || {}, mo = ms.matchOfficials?.series || {};
+      const years = Object.keys(pl).map(Number).filter(y => Number.isFinite(pl[y]) && Number.isFinite(mo[y]));
+      if (!years.length) return null;
+      const y = Math.max(...years), n = pl[y] + mo[y];
+      return { p: { physical: n }, note: `participants in physical activity = ${num(pl[y])} players + ${num(mo[y])} match officials = ${num(n)} in ${y} (${ms.players.dataset}). Coaches and non-playing roles are left out, as in NSWRL 2026. Avoided healthcare costs and mental health are not included: they need participant counts for multi-month and mental health programs.` };
+    }
+    if (id === 'contribution') {
+      const lines = legacySpend();
+      if (!lines.length) return null;
+      const p = {};
+      for (const l of lines) p[l.cat] = (p[l.cat] || 0) + l.amount;
+      return { p, note: `Legacy known allocations for the three pillars (not audited spend), sorted into the NSWRL spending categories: ${Object.entries(p).map(([k, v]) => `${catName(k)} ${aud(v)}`).join('; ')}. Facility grants count as capital expenditure, staff roles as wages and salaries, match official programs as referees and match officials, and everything else as all other expenses.` };
+    }
+    return null;
+  }
+
+  // ---------- Legacy spend by pillar, in the NSWRL 2026 expenditure categories ----------
+  const PILLARS = [['FE', 'Facilities & Equipment'], ['PW', 'Programs & Workforce'], ['INC', 'Inclusion']];
+  const catOf = k => ORG_CATS.find(c => c[0] === k);
+  const catName = k => catOf(k)[1];
+  const isRole = name => /\b(manager|mgr|officer|gm)\b/i.test(name) || /\bDO\b/.test(name);
+  // Category for one spend line. NSWRL publishes the categories and their rates; this only decides which category a
+  // line belongs to, and every line's category is shown in the hover so it can be checked.
+  function nswrlCategory(pillar, name, type) {
+    if (pillar === 'FE') return 'capex';
+    if (isRole(name)) return 'wages';
+    if (/match official|referee/i.test(`${type} ${name}`)) return 'referees';
+    return 'other';
+  }
+  function legacySpend() {
+    const grants = A.allGrants().map(g => ({ pillar: g.pillar, name: g.project, amount: g.amount, cat: nswrlCategory(g.pillar, g.project || '', g.type || '') }));
+    const dash = D.dashboard.map(d => ({ pillar: d.pillar, name: d.initiative, amount: d.total, cat: nswrlCategory(d.pillar, d.initiative, '') }));
+    return [...grants, ...dash].filter(l => PILLARS.some(([k]) => k === l.pillar) && l.amount > 0);
+  }
+  // Economic contribution of one pillar's spend: Σ spend × NSW retention × multiplier (NSWRL 2026).
+  function pillarContribution(pillar) {
+    const by = {};
+    for (const l of legacySpend().filter(l => l.pillar === pillar)) by[l.cat] = (by[l.cat] || 0) + l.amount;
+    let spend = 0, direct = 0, total = 0;
+    const lines = Object.entries(by).map(([k, v]) => {
+      const [, n, r, m] = catOf(k);
+      spend += v; direct += v * r; total += v * r * m;
+      return `${n}: ${aud(v)} × ${r * 100}% kept in NSW × ${m} = ${aud(v * r * m)}`;
+    });
+    return { spend, direct, total, lines };
+  }
+  // What a calculator runs on: the figures staff entered, otherwise what the app can fill from its data.
+  function inputsFor(id) {
+    const own = inputsOf(id);
+    if (Object.keys(own).length) return { p: own, from: 'entered' };
+    const auto = autoInputs(id);
+    return auto ? { ...auto, from: 'data' } : { p: {}, from: 'none' };
+  }
+  const fromLine = inp => inp.from === 'data' ? `Inputs filled from the app's data: ${inp.note}` : inp.from === 'entered' ? 'Inputs entered by staff (Impact > Valuations).' : '';
+
   function calcCard(c) {
-    const p = inputsOf(c.id), res = c.run(p);
+    const inp = inputsFor(c.id), p = inp.p, res = c.run(p);
     return `<article class="econ-kpi calc" data-calc="${c.id}">
       <div class="ek-head"><span class="ek-id">${esc(D.impactMethods[c.lens].label)}</span><span>${c.frameworks.map(fwChip).join(' ')}</span></div>
-      <h3>${esc(c.name)}</h3>
-      <code class="ek-formula" ${tip('Formula as published by the organisation(s) shown above. Tackle AI only applies it.')}>${esc(c.formula)}</code>
+      <h3 ${tip(`Formula: ${c.formula}\n\nCaveat: ${c.caveat}`)}>${esc(c.name)}</h3>
       ${res.missing ? `<p class="muted small"><span class="ek-state missing">Data collection required</span> ${esc(res.missing)}</p>`
         : `<div class="calc-results">${res.rows.map(([l, v, w]) => `<div ${tip(`${l}\n\n${w}`)}><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}</div>`}
-      <p class="ek-indicative small"><b>Caveat:</b> ${esc(c.caveat)}</p>
+      ${inp.from === 'data' ? `<p class="muted small"><b>Pre-filled from the app's data:</b> ${esc(inp.note)} Enter your own figures to replace these.</p>` : ''}
+      <details class="ek-more"><summary>How it's calculated</summary>
+        <code class="ek-formula">${esc(c.formula)}</code>
+        <p class="ek-indicative small"><b>Caveat:</b> ${esc(c.caveat)}</p>
+      </details>
       <details class="ek-more"><summary>Enter data</summary>
         <form class="ek-form calc-form">
           <fieldset>${c.inputs.map(([k, l, u, h]) => `<label ${tip(h)}>${esc(l)}<span class="unit-in"><input type="number" step="any" min="0" data-key="${k}" value="${p[k] ?? ''}"><i>${esc(u)}</i></span></label>`).join('')}</fieldset>
@@ -201,16 +274,82 @@
         toast(`${c.name} recalculated.`);
         document.dispatchEvent(new CustomEvent('data-changed'));
       });
-      $('.calc-clear', el).addEventListener('click', () => { Store.set('methods', { ...stored(), [c.id]: {} }); renderCalcs(); });
+      $('.calc-clear', el).addEventListener('click', () => { Store.set('methods', { ...stored(), [c.id]: {} }); renderCalcs(); document.dispatchEvent(new CustomEvent('data-changed')); });
     });
+  }
+
+  // ---------- Dollar value row (Impact > Overview) ----------
+  const big$ = v => v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? '$' + Math.round(v / 1e3) + 'k' : aud(v);
+  const srcLine = c => 'Source: ' + c.frameworks.map(id => `${F[id].org}, ${F[id].title} (${F[id].year})`).join('; ');
+
+  const HEALTH_PER_PERSON = R4G.physical * R4G.physicalShare; // R4G CBA physical health value per participant a year
+  const healthWorking = `$${R4G.physical} a year (willingness to pay for better physical health, Herons et al. 2015, 2024 AUD, as used in the Rugby For Good CBA) × ${R4G.physicalShare * 100}% not injured (AusPlay 2023) = $${HEALTH_PER_PERSON.toFixed(2)} per participant a year`;
+  const latest = s => { const ys = Object.keys(s || {}).map(Number).filter(y => Number.isFinite(s[y])); return ys.length ? Math.max(...ys) : null; };
+
+  // Dollar values per focus pillar: [label, value, sub, hover working]. Every value is a published formula run on the
+  // inputs shown in its hover, or a figure quoted from a published study. Values that measure different things are
+  // never added together.
+  function pillarValues(pillar) {
+    const c = pillarContribution(pillar), nswrl = CALCS.find(x => x.id === 'contribution');
+    const rows = [];
+    rows.push(c.spend ? ['Economic contribution', big$(c.total), 'spending flowing through the NSW economy',
+      `How this is worked out (NSW Rugby League 2026 expenditure flow analysis):\nEach spend line is sorted into an NSWRL spending category, then spend × share kept in NSW × multiplier.\n${c.lines.map(l => '• ' + l).join('\n')}\n\nDirect contribution (spend kept in NSW): ${aud(c.direct)}\nTotal economic contribution: ${aud(c.total)}\n\nSpend = Legacy known allocations (grants and 3-year dashboard budgets), not audited spend.\nCaveat: ${nswrl.caveat}\n${srcLine(nswrl)}`]
+      : ['Economic contribution', 'Needs data', 'no spend recorded', 'No known allocations for this pillar yet.']);
+
+    if (pillar === 'FE') {
+      rows.push(['Health value of facility users', 'Needs data', 'needs regular user counts per upgraded facility',
+        `How it will be calculated (Rugby For Good CBA, benefit transfer):\nregular users of the upgraded facilities who are physically active × ${healthWorking}.\n\nThe app does not yet hold user counts per facility. Collect them with the facility utilisation KPI (P1-01) or club registrations at each upgraded ground.`]);
+    }
+
+    if (pillar === 'PW') {
+      const h = CALCS.find(x => x.id === 'health'), inp = inputsFor('health'), res = h.run(inp.p);
+      if (res.missing) rows.push(['Health value of taking part', 'Needs data', 'needs player and match official numbers', `How it will be calculated: ${h.formula}\n${srcLine(h)}`]);
+      else {
+        const total = res.rows.find(r => r[0] === 'Total yearly benefit'), pv5 = res.rows.find(r => r[0].startsWith('PV at 5%'));
+        const parts = res.rows.filter(r => !r[0].startsWith('PV') && r !== total && r[2] !== 'Not entered');
+        rows.push(['Health value of taking part', total[1].replace('/yr', ''), 'a year · indicative',
+          `How this is worked out (${h.name}):\n${parts.map(r => `• ${r[0]}: ${r[2]}`).join('\n')}\nTotal: ${total[1]}\n\n${fromLine(inp)}\n\nPresent value over ${R4G.years} years at 5% (NSW Treasury TPG23-08): ${pv5[1]}.\n\nThis is the health value of rugby participation in NSW. It is not all caused by the Legacy Program.\nCaveat: ${h.caveat}\n${srcLine(h)}`]);
+      }
+      const benefit = R4G_RESULTS.reduce((s, r) => s + r.benefit, 0), cost = R4G_RESULTS.reduce((s, r) => s + r.cost, 0);
+      rows.push(['Rugby For Good programs (published)', big$(benefit), `benefits for ${big$(cost)} of funding · BCR ${R4G_RESULTS.map(r => r.bcr).join(' / ')}`,
+        `Quoted from the Rugby For Good Cost Benefit Analysis (Balmoral Group Australia for the NSW Positive Rugby Foundation, 2025), Table 6. Tackle AI does not recalculate these figures.\nPresent value at a 5% discount rate over 20 years, NSW Treasury TPG23-08 method. Costs accrue every year; benefits start after the first year.\n\n`
+          + R4G_RESULTS.map(r => `${r.name}, ${r.participants}: benefits ${aud(r.benefit)} vs grant funding ${aud(r.cost)} = BCR ${r.bcr}\n${r.parts.map(([n, v]) => `   ${n}: ${aud(v)}`).join('\n')}`).join('\n\n')
+          + `\n\nTotal: ${aud(benefit)} of benefits for ${aud(cost)} of funding.\n\nShown under Programs & Workforce because the Legacy Program funds the Hunter Rugby For Good manager and activities. These are Rugby For Good results, not Legacy results.`]);
+    }
+
+    if (pillar === 'INC') {
+      const ms = A.measures();
+      for (const [id, label] of [['femaleParticipants', 'Women and girls'], ['firstNationsParticipants', 'First Nations participants'], ['pasifikaParticipants', 'Pasifika participants']]) {
+        const m = ms[id], y = latest(m?.series);
+        if (y == null) { rows.push([`Health value: ${label}`, 'Needs data', 'needs participant numbers', `How it will be calculated: ${label.toLowerCase()} × ${healthWorking}.\nUpload Rugby Analytics participation data with this group.`]); continue; }
+        const n = m.series[y], v = n * HEALTH_PER_PERSON;
+        rows.push([`Health value: ${label}`, big$(v), `a year · ${num(n)} participants in ${y}`,
+          `How this is worked out (Rugby For Good CBA, benefit transfer):\n${num(n)} ${label.toLowerCase()} (${m.dataset}, ${y}) × ${healthWorking} = ${aud(v)} a year.\n\nThese participants are already counted in the Programs & Workforce health value, and the groups overlap, so these figures are never added to it or to each other. Counts include non-playing participants where the source does not split them out.\n\nSource: ${F['R4G-CBA'].org}, ${F['R4G-CBA'].title} (${F['R4G-CBA'].year}); ${F['RA-ANALYTICS'].org}, ${F['RA-ANALYTICS'].title}`]);
+      }
+    }
+    return rows;
+  }
+
+  function renderDollars() {
+    const host = $('#dollarRow');
+    if (!host) return;
+    const totals = A.pillarTotals(), invest = { FE: totals.fe, PW: totals.pw, INC: totals.inc };
+    host.innerHTML = PILLARS.map(([k, name]) => `<article class="pillar-value">
+        <h3>${esc(name)}</h3>
+        <div class="pv-invest"><b ${tip(`${name}: known Legacy allocations (Round 1 grants plus 3-year RWC Dashboard budgets${A.uploadedSpend().length ? ' plus uploaded spend' : ''}). These are budgets, not audited spend.`)}>${big$(invest[k])}</b> invested</div>
+        <ul class="pv-rows">${pillarValues(k).map(([l, v, s, t]) => `<li><span class="pv-label">${esc(l)}</span><b class="${v === 'Needs data' ? 'pv-missing' : ''}" ${tip(t)}>${esc(v)}</b><span class="pv-sub">${esc(s)}</span></li>`).join('')}</ul>
+      </article>`).join('');
+    const ev = CALCS.find(x => x.id === 'event'), er = ev.run(inputsFor('event').p);
+    $('#dollarNote').innerHTML = `Outside the three pillars: <span ${tip(`${ev.name}\n\n${er.missing ? 'How it will be calculated' : 'How this is worked out'}: ${ev.formula}\n${er.missing ? '\nNo inputs yet. Run the eventIMPACTS visitor survey at the RWC events, then enter the results on Valuations.' : er.rows.map(r => `• ${r[0]}: ${r[2]}`).join('\n')}\n\n${srcLine(ev)}`)}>RWC event visitor spending: <b>${er.missing ? 'needs data' : esc(er.rows.find(r => r[0] === 'Total additional expenditure')[1])}</b></span>.`;
   }
 
   // One line per calculator with a result, for the AI agents and the Story.
   function contextLines() {
-    const done = CALCS.map(c => [c, c.run(inputsOf(c.id))]).filter(([, r]) => !r.missing);
-    if (!done.length) return ['IMPACT VALUATIONS: none calculated yet (all need data collection).'];
-    return ['IMPACT VALUATIONS (published formulas applied to staff-entered inputs):',
-      ...done.map(([c, r]) => `- ${c.name} [${c.frameworks.map(id => F[id].org).join('; ')}]: ` + r.rows.map(([l, v]) => `${l} ${v}`).join('; '))];
+    const done = CALCS.map(c => [c, inputsFor(c.id)]).map(([c, inp]) => [c, inp, c.run(inp.p)]).filter(([, , r]) => !r.missing);
+    const r4g = `- Rugby For Good CBA 2025 (published, PV at 5% over 20 years): ` + R4G_RESULTS.map(r => `${r.name} benefits ${aud(r.benefit)} vs costs ${aud(r.cost)}, BCR ${r.bcr}`).join('; ') + '. These are Rugby For Good programs, not the Legacy Program.';
+    if (!done.length) return ['IMPACT VALUATIONS: none calculated yet (all need data collection).', r4g];
+    return ['IMPACT VALUATIONS (published formulas applied to staff-entered inputs, or to app data where marked):',
+      ...done.map(([c, inp, r]) => `- ${c.name} [${c.frameworks.map(id => F[id].org).join('; ')}]${inp.from === 'data' ? ' (inputs from app data: ' + inp.note + ')' : ''}: ` + r.rows.map(([l, v]) => `${l} ${v}`).join('; ')), r4g];
   }
 
   // ---------- Methodology tab ----------
@@ -250,8 +389,9 @@
       section('m-calc', 'How the figures are calculated', `<p>All figures are deterministic code in <i>js/analytics.js</i>, <i>js/econ.js</i> and <i>js/methods.js</i>. Hover any underlined number in the app to see its workings.</p>` + steps([
         ['Spend totals', 'Sums of known allocations (grants + dashboard budgets + uploads) by pillar and region. Known allocations are budgets, not audited expenditure.'],
         ['Held centrally', 'Spend on lines marked "Statewide" ÷ all known spend.'],
-        ['Economic KPIs', 'The nine formulas from the evaluation team\'s workbook, applied exactly as documented, with the workbook\'s edge-case rules (Not applicable / Not calculable / Data collection required).'],
+        ['NSW Rugby KPI Framework', 'The evaluation team\'s 27 KPIs (9 economic, 8 social, 10 cultural) from the KPI Formula Web Handover, applied exactly as specified. Each submission carries a reporting period, scope, method version, source and verification level; results are labelled Calculated — Verified, Calculated — Estimated or Hypothetical Example, and otherwise Data Collection Required, Not Calculable, Not applicable or Validation Failed. Inactive KPIs never show a value. The full specification is on the <a href="#" data-goto="framework">Framework</a> tab.'],
         ['Impact valuations', 'Calculators that apply formulas published by other organisations (R4G CBA, NSWRL 2026, eventIMPACTS, ABS GSS benchmarks, CDN). See Impact methods below.'],
+        ['Dollar value row (Impact)', `Health value = latest Rugby Analytics players + match officials (NSWRL's definition of active participants) ×$${R4G.physical} × ${R4G.physicalShare * 100}% (R4G CBA physical health value, benefit transfer). Economic contribution = Legacy facility grants × ${ORG_CATS.find(c => c[0] === 'capex')[2] * 100}% kept in NSW × ${ORG_CATS.find(c => c[0] === 'capex')[3]} multiplier (NSWRL 2026 capital expenditure rates). Event spending waits for the eventIMPACTS visitor survey. Rugby For Good results are quoted from the published CBA, not recalculated. Inputs typed in on Valuations replace the pre-filled ones. The figures measure different things and are never added together.`],
         ['Targets', 'Status against the pace needed to reach each plan target. See Targets below.'],
       ])) +
       section('m-ai', 'How the AI generates insights', steps([
@@ -271,10 +411,12 @@
         ['Learning from feedback', 'Verified examples, disputed items with reasons, deletions and failed checks are summarised into a "learned from staff feedback" section added to every later prompt. The model itself is not retrained; rated insights can be exported as training data for fine-tuning later.'],
         ['Data quality rating', 'Every file gets a rule-based score, optionally reviewed by the AI (see Prototype indicators for the weights).'],
       ])) +
-      section('m-story', 'Story generator', steps([
-        ['Inputs', 'The same briefing, plus the insights for the chosen pillars (disputed ones excluded) and field evidence. If there are no AI insights, the rule engine\'s are used and the draft says so.'],
-        ['Formats', 'Annual report chapter, board summary, funding acquittal, community story and media release, each with its own brief and length.'],
-        ['Editing', 'The draft is fully editable before export to PDF. Figures in the story come from the briefing; check them against the dashboard before publishing.'],
+      section('m-story', 'Impact reports (Story tab)', steps([
+        ['Page templates', 'Nine 16:9 page templates (cover, investment drives impact, pillar overview, pillar chapter, outcome data, region or deliverable, estimated value, impact recap, formula appendix) plus a one-page media release, modelled on the Legacy \'23, Scottish FA, Birmingham 2022 and KPMG reference reports.'],
+        ['Report types', 'Board Summary (pages 2, 6, 8), Funding Acquittal (1, 2, 3, 5, 7, 9 with sign-off), Annual Report Chapter (1–6 and 8, one chapter per pillar), Community Story (1, 4, 6) and Media Release (one page). Staff choose a type and a scope (whole program, a pillar, a region or a deliverable); the pages assemble themselves.'],
+        ['Where the figures come from', 'Every number is calculated from the app\'s data: known allocations, program results, uploaded Rugby Analytics series, targets, KPI results and valuations. Missing figures show as "NO DATA", never zero. Pillar objectives are quoted from the Program Logic; quotes come only from evidence typed in by staff.'],
+        ['AI\'s part', 'Each page has a rule-based draft. "Write narrative with AI" rewrites only the narrative sentences (headline, summary, outcome title, region findings, media headline) from the same facts; disputed insights are never used.'],
+        ['Editing and export', 'All text is editable on the page and photos are added by clicking a photo slot. Export prints one 16:9 page per template page. Media releases carry a "needs approval" banner.'],
       ])) +
       section('m-impact', 'Impact methods', `<p>Impact is measured only with methods published by other organisations. The project brief asks for best-practice frameworks from other sporting codes, compliant with NSW Treasury guidelines; new formulas are left to the evaluation team.</p>
         <div class="table-scroll"><table class="pretty-table method-table"><thead><tr><th>Framework</th><th>Organisation</th><th>How Tackle AI uses it</th></tr></thead><tbody>
@@ -300,10 +442,11 @@
       section('m-sources', 'Sources', `<ul class="ek-sources">${Object.keys(F).map(id => `<li><b>${esc(F[id].org)}</b> - ${fwLink(id)} (${F[id].year})</li>`).join('')}</ul>`);
   }
 
-  document.addEventListener('app-ready', () => { renderCalcs(); renderMethodology(); });
-  document.addEventListener('data-changed', renderMethodology);
+  document.addEventListener('app-ready', () => { renderCalcs(); renderDollars(); renderMethodology(); });
+  // Uploads can change the pre-filled inputs (participants, facility grants).
+  document.addEventListener('data-changed', () => { renderDollars(); if (!$('#calcGrid form:focus-within')) renderCalcs(); renderMethodology(); });
   document.addEventListener('insights-changed', renderMethodology);
   document.addEventListener('tab', e => { if (e.detail === 'methodology') renderMethodology(); });
 
-  window.Methods = { CALCS, contextLines, renderCalcs, renderMethodology };
+  window.Methods = { CALCS, R4G_RESULTS, inputsFor, contextLines, renderCalcs, renderDollars, renderMethodology };
 })();

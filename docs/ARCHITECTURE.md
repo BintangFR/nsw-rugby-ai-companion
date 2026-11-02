@@ -31,10 +31,12 @@ Scripts are plain `<script>` tags loaded **in order** (the order in `index.html`
 | `js/feedback.js` | `Feedback` | 👍/👎 ratings, deletion reasons, "lessons" fed back into AI prompts, data-quality advice. |
 | `js/upload.js` | — | Data Studio: file parsing, structure detection, quality rating, turning uploads into spend / map layers / evidence. Preloads `Dataset/`. |
 | `js/impact.js` | `Impact` | Impact tab: lens cards, evidence log, Impact agent. |
-| `js/econ.js` | `Econ` | The nine economic KPI formulas, their sources and the calculator UI. |
-| `js/methods.js` | `Methods` | Impact valuation calculators (published formulas only) and the Methodology tab, which is generated from the live app. |
+| `js/kpi-framework.js` | `KPIF` | **NSW Rugby KPI Framework engine**: the 27 KPIs from `Dataset/NSW_Rugby_KPI_Formula_Web_Handover.xlsx` (definitions, inputs, formulas, missing/zero rules, baselines, sources) and the status rules of the handover's input contract. Pure code with no page access, so `npm run check` tests it. |
+| `js/kpis.js` | `KPIs` | Impact tab screen for the 27 KPIs: data entry per wave, results with workings, CSV export, AI context, and migration of data from the old 9-KPI calculator. |
+| `js/framework.js` | `Framework` | Framework tab: the whole framework as a tool-independent specification (also downloadable as HTML, JSON and CSV), generated from the same definitions. |
+| `js/methods.js` | `Methods` | Impact valuation calculators (published formulas only) and the "How the app works" page (inside the Framework tab), generated from the live app. |
 | `js/programs.js` | — | Programs tab: per-program cost, return and root-cause drill-down. |
-| `js/story.js` | — | Story generator and PDF export (uses `css/reportstyle.css`). |
+| `js/story.js` | `Story` | Impact reports: nine page templates combined per report type (Board Summary, Funding Acquittal, Annual Report Chapter, Community Story, Media Release) and scope, filled from live data, with optional AI narrative, on-page editing, photos and 16:9 PDF export (styles: `css/report-pages.css`). |
 | `js/demo.js` | `Demo` | Guided demo tour and the timed 15-minute Presentation mode (both run in a sandbox, never save). |
 | `js/fx.js` | — | Optional visual effects toggle. |
 | `js/nsw-boundary.js` | — | NSW outline polygon for the map. |
@@ -46,7 +48,7 @@ Modules communicate through **DOM events on `document`**, not direct calls, so a
 | Event | Fired by | Meaning |
 |---|---|---|
 | `app-ready` | app.js | Store loaded, shell ready. Modules do their first render here. |
-| `data-changed` | upload.js, econ.js | Spend, uploads or KPI inputs changed: re-render anything derived from data. |
+| `data-changed` | upload.js, kpis.js, methods.js | Spend, uploads or KPI inputs changed: re-render anything derived from data. |
 | `insights-changed` | app.js | The insight list changed. |
 | `feedback-changed` | feedback.js | A rating or deletion was recorded. |
 | `targets-changed` | app.js | A target was edited. |
@@ -72,7 +74,8 @@ Modules communicate through **DOM events on `document`**, not direct calls, so a
 | `insights` | app.js | AI and rule insights, including archived ones. |
 | `story` | story.js | Current story draft. |
 | `quality` | upload.js | Data-quality ratings per dataset. |
-| `econ` | econ.js | Baseline/follow-up inputs for each economic KPI. |
+| `kpis` | kpis.js | Waves (shared controls + inputs) and `comparison_approved` for each of the 27 KPIs. |
+| `econ` | (legacy) | Inputs from the old 9-KPI calculator; read once and migrated into `kpis`. |
 | `targets` | app.js | Staff edits to plan targets. |
 | `programs` | programs.js | Recorded results and evidence per program. |
 | `methods` | methods.js | Inputs for the impact valuation calculators. |
@@ -95,7 +98,7 @@ If `APP_ACCESS_KEY` is set, every route requires the `x-app-key` header (the bro
 
 ## Design decisions worth keeping
 
-- **Calculation is separate from interpretation.** Code calculates every figure; the AI only explains figures it is given; people check the AI. The Methodology tab documents this for non-technical readers.
+- **Calculation is separate from interpretation.** Code calculates every figure; the AI only explains figures it is given; people check the AI. The "How the app works" page documents this for non-technical readers.
 - **Impact methods are borrowed, never invented.** Every impact measure and valuation cites a published framework (`frameworks` in `js/data.js`).
 - **Missing is never zero.** Absent data shows as "No data yet" / "Data collection required", never as 0.
 - **Every number explains itself.** Key figures carry a `data-tip` tooltip saying how they were calculated. Keep this when adding numbers.

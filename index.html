@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/reportstyle.css">
+  <link rel="stylesheet" href="css/report-pages.css">
 </head>
 <body>
   <header class="topbar">
@@ -36,12 +36,17 @@
       <button role="tab" data-tab="insights">Insights</button>
       <button role="tab" data-tab="data">Data Studio</button>
       <button role="tab" data-tab="story">Story</button>
-      <button role="tab" data-tab="methodology">Methodology</button>
+      <button role="tab" data-tab="framework">Framework</button>
     </nav>
     <div class="top-actions">
-      <button class="icon-btn fx-btn" id="fxToggle" aria-label="Screen effects" aria-pressed="true" title="Screen effects">FX</button>
-      <button class="btn demo-btn" id="demoBtn" title="Guided tour of every feature, at your own pace. Uses sample data that is discarded on exit.">▶ Demo</button>
-      <button class="btn demo-btn" id="presentBtn" title="15-minute presentation: 17 timed slides with a clock, pace indicator and speaker notes (N). Uses sample data that is discarded on exit.">⏱ Present</button>
+      <details class="menu" id="tourMenu">
+        <summary class="btn demo-btn">▶ Tour</summary>
+        <div class="menu-list">
+          <button id="demoBtn"><b>Guided demo</b><span>Every feature, at your own pace</span></button>
+          <button id="presentBtn"><b>15-minute presentation</b><span>Timed slides with speaker notes (N)</span></button>
+          <button id="fxToggle" aria-pressed="true"><b>Screen effects</b><span>Glow and vignette on or off</span></button>
+        </div>
+      </details>
       <button class="pill" id="ollamaStatus" title="Ollama settings"><span class="dot"></span><span class="label">Ollama: checking…</span></button>
       <div class="seg theme-toggle" id="themeToggle" role="group" aria-label="Colour theme">
         <button data-theme-set="dark" title="Dark mode" aria-label="Dark mode">☾</button>
@@ -81,8 +86,8 @@
             <dl class="facts" id="centralFacts"></dl>
           </article>
           <article class="card">
-            <h2>Flags</h2>
-            <p class="muted">One row per region: spend share vs population share, and First Nations program gaps. Rate each row 👍/👎 and it moves to Rated.</p>
+            <h2>Flags <span class="info" data-tip="One row per region: spend share vs population share (1.75x or more = overspend risk, 0.5x or less = under-served), and First Nations program gaps. Rate each row 👍/👎 and it moves to Rated.">ⓘ</span></h2>
+            <p class="muted">Regions that need a closer look.</p>
             <div class="flag-tabs seg" role="tablist" id="flagTabs">
               <button data-f="todo" class="on" role="tab">To review <span id="flagTodoCount"></span></button>
               <button data-f="rated" role="tab">Rated <span id="flagRatedCount"></span></button>
@@ -124,8 +129,8 @@
       <article class="card">
         <div class="card-head">
           <div>
-            <h2>Targets</h2>
-            <p class="muted">Progress on all five Legacy pillars against the pace needed to hit each target by its target year. Hover a status, bar or pillar heading to see how it is worked out and where the figure comes from.</p>
+            <h2>Targets <span class="info" data-tip="Progress on all five Legacy pillars against the pace needed to hit each target by its target year. Hover a status, bar or pillar heading to see how it is worked out and where the figure comes from.">ⓘ</span></h2>
+            <p class="muted">Are we on pace for every target in the plan?</p>
           </div>
           <div class="controls">
             <div class="seg" role="group" aria-label="Pillar filter" id="targetFilter">
@@ -150,8 +155,8 @@
         <article class="card prog-list">
           <div class="card-head">
             <div>
-              <h2>Programs &amp; grants</h2>
-              <p class="muted">Zero in on any single grant or budget line: what it costs, what it returns, what it contributes to, and what is driving the result.</p>
+              <h2>Programs &amp; grants <span class="info" data-tip="Zero in on any single grant or budget line: what it costs, what it returns, which targets it contributes to, and what is driving the result.">ⓘ</span></h2>
+              <p class="muted">Pick a program to see its cost and return.</p>
             </div>
           </div>
           <div class="prog-filters">
@@ -177,45 +182,72 @@
     <section id="tab-impact" class="tab-panel">
       <div class="card-head">
         <div>
-          <h2>Impact measurement</h2>
-          <p class="muted">Social, economic and cultural impact, measured only with methods published by other organisations: NSW Treasury evaluation and cost-benefit guidelines, the OECD social cohesion framework, the Rugby For Good Benefits Realisation Framework, NSW Rugby League's community impact study, the Cultural Development Network and eventIMPACTS. Hover any block or chip to see how it is measured; the <a href="#" data-goto="methodology">Methodology</a> tab has the full detail.</p>
+          <h2>Impact <span class="info" data-tip="Social, economic and cultural impact, measured only with methods published by other organisations: NSW Treasury evaluation and cost-benefit guidelines, the OECD social cohesion framework, the Rugby For Good Benefits Realisation Framework, NSW Rugby League's community impact study, the Cultural Development Network and eventIMPACTS. Full detail is on the Framework tab.">ⓘ</span></h2>
+          <p class="muted">What difference the program makes, measured with methods other organisations already publish.</p>
         </div>
-        <div class="controls">
-          <button class="btn primary" id="runImpactAgent">Run Impact agent</button>
+        <div class="seg subnav" role="group" aria-label="Impact views">
+          <button data-view="impact:overview">Overview</button>
+          <button data-view="impact:kpis">KPIs</button>
+          <button data-view="impact:valuations">Valuations</button>
+          <button data-view="impact:evidence">Evidence &amp; AI</button>
         </div>
       </div>
-      <div class="lens-grid" id="lensGrid"></div>
 
+      <div class="subview" data-subview="impact:overview">
+        <article class="card" id="dollarCard">
+          <div class="card-head">
+            <div>
+              <h2>Dollar value by pillar <span class="info" data-tip="For each of the three focus pillars: what was invested, the economic contribution of that spending (NSW Rugby League 2026 method) and the dollar value of the benefits (Rugby For Good cost-benefit values, discounted under NSW Treasury TPG23-08). Only published formulas are used. Inputs come from the app's data (Legacy allocations, Rugby Analytics participants); staff can replace them on Valuations. Hover any figure for the full working. Figures that measure different things are never added together.">ⓘ</span></h2>
+              <p class="muted">What each pillar's benefits are worth, using published formulas. Hover a figure to see exactly how it was worked out.</p>
+            </div>
+            <button class="btn" data-view="impact:valuations">Change the inputs</button>
+          </div>
+          <div class="pillar-value-grid" id="dollarRow"></div>
+          <p class="muted small" id="dollarNote"></p>
+        </article>
+        <div class="lens-grid" id="lensGrid"></div>
+      </div>
+
+      <div class="subview" data-subview="impact:valuations">
       <article class="card" id="calcCard">
         <div class="card-head">
           <div>
-            <h2>Impact valuations</h2>
-            <p class="muted">Published formulas from other organisations, applied to figures your team enters. Each calculator names its source, shows its formula and explains every result on hover. Missing data is never counted as zero.</p>
+            <h2>Impact valuations <span class="info" data-tip="Published formulas from other organisations, applied to figures your team enters (or, where the app already holds a figure that matches the method exactly, to that figure until you enter your own). Each calculator names its source and explains every result on hover. Present values follow NSW Treasury TPG23-08 (5% central discount rate, 3% and 7% sensitivity). Values transferred from other studies are indicative until NSW Rugby collects its own data. Missing data is never counted as zero.">ⓘ</span></h2>
+            <p class="muted">Dollar values of benefits, using published formulas.</p>
           </div>
         </div>
         <div class="ek-grid" id="calcGrid"></div>
-        <p class="footnote">Present values follow NSW Treasury TPG23-08 (5% central discount rate, 3% and 7% sensitivity). Values transferred from other studies are indicative until NSW Rugby collects its own data.</p>
       </article>
+      </div>
 
-      <article class="card" id="econCard">
+      <div class="subview" data-subview="impact:kpis">
+      <article class="card" id="kpiCard">
         <div class="card-head">
           <div>
-            <h2>Economic KPIs</h2>
-            <p class="muted">The nine formula-based KPIs from the NSW Rugby Economic KPI Formula Summary. Enter baseline and follow-up totals for each KPI and it is calculated using the documented formula, with the official source behind it. Missing data is never counted as zero.</p>
-            <p class="muted small" id="econSummary"></p>
+            <h2>NSW Rugby KPI Framework <span class="info" data-tip="The evaluation team's 27 KPIs (9 economic, 8 social, 10 cultural), calculated exactly as specified in the KPI Formula Web Handover. Each result is labelled Verified, Estimated or Hypothetical; missing data shows as Data Collection Required and is never counted as zero. KPIs are descriptive, never added together, and results not approved for publication are marked internal only. The full specification is on the Framework tab.">ⓘ</span></h2>
+            <p class="muted small" id="kpiSummary"></p>
           </div>
-          <div class="controls"><button class="btn" id="econExport">Export CSV</button></div>
+          <div class="controls">
+            <div class="seg" role="group" aria-label="Impact dimension" id="kpiDimFilter">
+              <button data-f="all" class="on">All</button><button data-f="Economic">Economic</button><button data-f="Social">Social</button><button data-f="Cultural">Cultural</button>
+            </div>
+            <button class="btn" id="kpiExport">Export CSV</button>
+          </div>
         </div>
-        <div id="econKpis"></div>
-        <p class="footnote">These are descriptive monitoring indicators. On their own they do not show net economic benefit or prove the program caused a change. Each pillar is reported separately and the results are never added together.</p>
+        <div id="kpiFramework"></div>
       </article>
+      </div>
 
+      <div class="subview" data-subview="impact:evidence">
+      <div class="card-head">
+        <p class="muted">Field evidence from the community, and what the Impact agent makes of it.</p>
+        <div class="controls"><button class="btn primary" id="runImpactAgent">Run Impact agent</button></div>
+      </div>
       <div class="bubbles" id="impactBubbles"></div>
 
       <div class="grid-2 even">
         <article class="card">
-          <h2>Record impact evidence</h2>
-          <p class="muted">Capture what you see and hear in the community: survey results, business feedback, stories. The AI agents and the Story generator use these records.</p>
+          <h2>Record impact evidence <span class="info" data-tip="Capture what you see and hear in the community: survey results, business feedback, stories. The AI agents and the Story generator use these records.">ⓘ</span></h2>
           <form id="evidenceForm" class="evidence-form">
             <div class="row wrap">
               <label>Impact
@@ -264,6 +296,7 @@
           <ul class="evidence-list" id="evList"></ul>
         </article>
       </div>
+      </div>
     </section>
 
     <!-- INSIGHTS -->
@@ -271,8 +304,8 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h2>AI insight agents</h2>
-            <p class="muted">Five local agents read the same data, each with its own brief. They run on your Ollama model, one after another.</p>
+            <h2>AI insight agents <span class="info" data-tip="Five local agents read the same data, each with its own brief. They run on your Ollama model, one after another. Every finding is fact-checked and waits for a person to verify it.">ⓘ</span></h2>
+            <p class="muted">Five AI helpers write findings for you to check.</p>
           </div>
           <div class="controls">
             <button class="btn primary" id="runAgents">Run agents</button>
@@ -339,96 +372,80 @@
     <section id="tab-story" class="tab-panel">
       <div class="story-layout">
         <aside class="card story-controls">
-          <h2>Story generator</h2>
-          <p class="muted">Turns the insights into a narrative for the yearly report.</p>
-          <label>Format
+          <h2>Impact report <span class="info" data-tip="One set of nine page templates, combined for each audience: staff choose a report type instead of redesigning. Every page is filled from live data; click any text on the pages to edit it, and click a photo slot to add a photo.">ⓘ</span></h2>
+          <p class="muted">Pick who it is for; the pages assemble themselves.</p>
+          <label>Report type
             <select id="storyFormat">
-              <option value="annual">Annual report chapter</option>
-              <option value="board">Board summary</option>
-              <option value="acquittal">Funding acquittal (NSW Office of Sport)</option>
-              <option value="community">Community impact story</option>
-              <option value="media">Media release</option>
+              <option value="board">Board Summary (3 pages)</option>
+              <option value="acquittal">Funding Acquittal (6 pages)</option>
+              <option value="annual">Annual Report Chapter (8+ pages)</option>
+              <option value="community">Community Story (3 pages)</option>
+              <option value="media">Media Release (1 page)</option>
             </select>
           </label>
-          <label>Report year
-            <input id="storyYear" value="2026">
-          </label>
-          <label>Tone
-            <select id="storyTone">
-              <option>Confident and balanced</option>
-              <option>Formal</option>
-              <option>Warm and community-focused</option>
-              <option>Candid about risks</option>
+          <div class="muted small story-type-info" id="storyTypeInfo"></div>
+          <label>Scope
+            <select id="storyScope">
+              <option value="program">Whole program</option>
+              <option value="pillar">One pillar</option>
+              <option value="region">One region</option>
+              <option value="deliverable">One deliverable</option>
             </select>
           </label>
-          <label>Length
-            <select id="storyLength">
-              <option value="400">Short (~400 words)</option>
-              <option value="800" selected>Standard (~800 words)</option>
-              <option value="1400">Long (~1,400 words)</option>
-            </select>
+          <select id="storyScopeValue" hidden aria-label="Scope selection"></select>
+          <label>Reporting period
+            <input id="storyYear" value="2025–26">
           </label>
-          <fieldset>
-            <legend>Include</legend>
-            <label class="check"><input type="checkbox" name="pillar" value="Facilities & Equipment" checked> Facilities &amp; Equipment</label>
-            <label class="check"><input type="checkbox" name="pillar" value="Programs & Workforce" checked> Programs &amp; Workforce</label>
-            <label class="check"><input type="checkbox" name="pillar" value="Inclusion" checked> Inclusion</label>
-            <label class="check"><input type="checkbox" name="pillar" value="Centralisation" checked> Centralisation</label>
-            <label class="check"><input type="checkbox" name="pillar" value="Impact" checked> Social, economic &amp; cultural impact</label>
-            <label class="check"><input type="checkbox" name="pillar" value="Uploaded data" checked> Uploaded data</label>
-          </fieldset>
-          <label>Extra direction (optional)
-            <textarea id="storyNotes" rows="3" placeholder="e.g. Open with the Holroyd female-friendly facility story"></textarea>
+          <label>Direction for the AI (optional)
+            <textarea id="storyNotes" rows="2" placeholder="e.g. Lead with the Holroyd female-friendly changerooms"></textarea>
           </label>
-          <button class="btn primary wide" id="generateStory">Generate story</button>
-          <button class="btn wide" id="exportPdf" title="Opens the print dialog: choose 'Save as PDF'. Keeps page numbers and running headers.">Export PDF</button>
+          <button class="btn primary wide" id="storyAi" title="Rewrites the narrative sentences (headline, summary, outcome title, region findings, media headline) from the data. The pages already have a rule-based draft without it.">Write narrative with AI</button>
+          <button class="btn wide" id="exportPdf" title="Opens the print dialog: choose 'Save as PDF'. One 16:9 page per template page; text stays selectable.">Export PDF</button>
           <div class="row">
             <button class="btn" id="downloadPdf" title="One-click download (pages rendered as images)">Quick download</button>
             <button class="btn" id="copyStory">Copy text</button>
           </div>
-          <p class="muted small" id="storyStatus"></p>
+          <button class="btn wide" id="storyReset">Reset edits</button>
+          <p class="muted small" id="storyStatus">Click any text on the pages to edit it; click a photo slot to add a photo.</p>
         </aside>
 
         <div class="report-preview">
-        <article class="report report--annual" id="report">
-          <section class="report-cover">
-            <div class="cover-year" id="coverYear">2026</div>
-            <h1 id="reportTitle" contenteditable="true">Legacy Program Year in Review</h1>
-            <p class="cover-sub" id="reportMeta"></p>
-          </section>
-
-          <div class="release-meta" id="releaseMeta" hidden><span>Media release</span><span id="releaseDate"></span></div>
-
-          <section class="report-section">
-            <div class="section-head"><span class="section-num">01</span><h2>At a glance</h2></div>
-            <div class="stat-grid cols-4" id="reportKpis"></div>
-            <figure class="report-figure">
-              <img id="reportChart" alt="Spend by pillar">
-              <figcaption><b>Known Legacy spend by pillar.</b> Dashboard 3-year budgets plus Round 1 grants.</figcaption>
-            </figure>
-          </section>
-
-          <div id="reportBody" class="report-body" contenteditable="true">
-            <section class="report-section"><p class="placeholder">Run the insight agents (or use rule-based insights), then press Generate story. The text is editable before you export.</p></section>
-          </div>
-
-          <div class="end-mark" id="endMark" hidden></div>
-
-          <section class="report-section" id="reportAppendix"></section>
-
-          <p class="source-note"><strong>Sources and caveats.</strong> Prepared with Tackle AI from NSW RWC Legacy program data (RWC Legacy Data Compilation, RWC Dashboard, Annual Report 2025, Program Logic). Figures are known allocations, not audited expenditure. Population figures are indicative. AI-drafted text should be checked before publication.</p>
-        </article>
+          <article class="report rp" id="report"></article>
         </div>
-        </article>
       </div>
+    </section>
+
+    <!-- FRAMEWORK -->
+    <section id="tab-framework" class="tab-panel">
+      <div class="card-head">
+        <div>
+          <h2>Impact measurement framework <span class="info" data-tip="The project deliverable: the full framework as a tool-independent specification, for anyone who wants to build the same thing in another form (a spreadsheet, a survey platform, a BI dashboard or another app). It is generated from the definitions this app calculates with, so it always matches.">ⓘ</span></h2>
+          <p class="muted">The framework on its own, ready to rebuild in any tool.</p>
+        </div>
+        <div class="controls">
+          <div class="seg subnav" role="group" aria-label="Framework pages"><button class="on" data-goto="framework">The framework</button><button data-goto="methodology">How the app works</button></div>
+          <details class="menu">
+            <summary class="btn primary">Download</summary>
+            <div class="menu-list">
+              <button id="fwHtml"><b>Framework document</b><span>Standalone page to read, print or save as PDF</span></button>
+              <button id="fwJson"><b>framework.json</b><span>Machine-readable: KPIs, inputs, rules, baselines, sources</span></button>
+              <button id="fwCsv"><b>input-fields.csv</b><span>One row per input field, for forms or tables</span></button>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div id="framework"></div>
     </section>
 
     <!-- METHODOLOGY -->
     <section id="tab-methodology" class="tab-panel">
       <div class="card-head">
         <div>
-          <h2>Methodology</h2>
-          <p class="muted">How Tackle AI calculates every figure, how the AI writes its insights and how they are checked, and which published methods are used to measure impact. This page is generated from the live app, so it always matches what the app is doing.</p>
+          <h2>How the app works <span class="info" data-tip="How Tackle AI calculates every figure, how the AI writes its insights and how they are checked, and which published methods are used to measure impact. This page is generated from the live app, so it always matches what the app is doing.">ⓘ</span></h2>
+          <p class="muted">The computer does the maths, the AI explains it, a person checks it.</p>
+        </div>
+        <div class="controls">
+          <div class="seg subnav" role="group" aria-label="Framework pages"><button data-goto="framework">The framework</button><button class="on" data-goto="methodology">How the app works</button></div>
         </div>
       </div>
       <div id="methodology"></div>
@@ -491,8 +508,10 @@
   <script src="js/feedback.js"></script>
   <script src="js/upload.js"></script>
   <script src="js/impact.js"></script>
-  <script src="js/econ.js"></script>
+  <script src="js/kpi-framework.js"></script>
+  <script src="js/kpis.js"></script>
   <script src="js/methods.js"></script>
+  <script src="js/framework.js"></script>
   <script src="js/programs.js"></script>
   <script src="js/story.js"></script>
   <script src="js/demo.js"></script>

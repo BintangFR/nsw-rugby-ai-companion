@@ -22,11 +22,39 @@ window.App = (() => {
 
   function initTabs() {
     $$('.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
-    const saved = (() => { try { return localStorage.getItem('tackle.tab'); } catch { return null; } })();
+    // A link like /#impact (or /#impact/kpis for a sub-view) opens that tab directly; otherwise reopen the last tab.
+    const [fromHash, sub] = decodeURIComponent(location.hash.slice(1)).split('/');
+    const known = id => $(`#tab-${CSS.escape(id || '')}`);
+    const saved = known(fromHash) ? fromHash : (() => { try { return localStorage.getItem('tackle.tab'); } catch { return null; } })();
     if (saved) showTab(saved);
+    if (known(fromHash) && sub && $(`[data-subview="${CSS.escape(fromHash)}:${CSS.escape(sub)}"]`)) showView(fromHash, sub); // story/<type> is handled by story.js
   }
+  // Sub-views inside a tab keep long pages short: buttons <button data-view="impact:kpis"> switch the matching
+  // panel <div data-subview="impact:kpis">. The choice is remembered per tab.
+  function showView(group, view) {
+    $$(`[data-subview^="${group}:"]`).forEach(p => p.classList.toggle('active', p.dataset.subview === `${group}:${view}`));
+    $$(`[data-view^="${group}:"]`).forEach(b => { const on = b.dataset.view === `${group}:${view}`; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    try { localStorage.setItem('tackle.view.' + group, view); } catch {}
+    document.dispatchEvent(new CustomEvent('view', { detail: { group, view } }));
+  }
+  function initViews() {
+    const groups = [...new Set($$('[data-subview]').map(p => p.dataset.subview.split(':')[0]))];
+    for (const g of groups) {
+      const first = $(`[data-subview^="${g}:"]`).dataset.subview.split(':')[1];
+      let saved = null; try { saved = localStorage.getItem('tackle.view.' + g); } catch {}
+      showView(g, saved && $(`[data-subview="${g}:${saved}"]`) ? saved : first);
+    }
+    $$('[data-view]').forEach(b => b.addEventListener('click', () => { const [g, v] = b.dataset.view.split(':'); showView(g, v); }));
+  }
+  // Make sure an element is visible: open its sub-view (used by the demo and in-text links).
+  function revealElement(el) {
+    const p = el?.closest?.('[data-subview]');
+    if (p && !p.classList.contains('active')) { const [g, v] = p.dataset.subview.split(':'); showView(g, v); }
+  }
+
   function showTab(id) {
-    $$('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === id));
+    // "methodology" is a page inside the Framework tab, so the Framework tab stays highlighted.
+    $$('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === (id === 'methodology' ? 'framework' : id)));
     $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
     try { localStorage.setItem('tackle.tab', id); } catch {}
     if (id === 'overview' && map) setTimeout(() => {
@@ -967,6 +995,11 @@ window.App = (() => {
     document.addEventListener('mouseover', e => { adopt(e.target.closest('[title]')); const el = e.target.closest('[data-tip]'); if (el && el !== owner) show(el); else if (!el && owner) hide(); });
     document.addEventListener('focusin', e => { const el = e.target.closest('[data-tip]'); el ? show(el) : hide(); });
     document.addEventListener('scroll', hide, true);
+    // Drop-down menus (<details class="menu">): close on outside click, after choosing an item, or with Esc.
+    document.addEventListener('click', e => {
+      for (const m of $$('details.menu[open]')) if (!m.contains(e.target) || e.target.closest('.menu-list button')) m.open = false;
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') $$('details.menu[open]').forEach(m => { m.open = false; }); });
     // In-text links to another tab: <a href="#" data-goto="methodology">
     document.addEventListener('click', e => { const a = e.target.closest('[data-goto]'); if (a) { e.preventDefault(); hide(); showTab(a.dataset.goto); } });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
@@ -977,6 +1010,7 @@ window.App = (() => {
     initTheme();
     await Store.init();
     insights = Store.get('insights') || [];
+    initViews();
     initTabs();
     initSettings();
     initMatrixFilter();
@@ -1001,7 +1035,7 @@ window.App = (() => {
   });
 
   return {
-    $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, bubbleHtml, pillarChartImage, showTab,
+    $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, bubbleHtml, pillarChartImage, showTab, showView, revealElement,
     get insights() { return insights.filter(i => !i.archived); }, // archived (older-run) insights stay out of Impact, Story and the AI
     insightState,
   };

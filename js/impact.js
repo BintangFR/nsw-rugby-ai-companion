@@ -29,7 +29,9 @@
         <div class="big-sub">established measures with data${c.partial ? ` · <span ${tip('Partial = measured for part of the program only (for example, Rugby For Good participants), or a baseline without a follow-up.')}>${c.partial} partial</span>` : ''} · <span ${tip(evTip)}>${n} evidence record${n === 1 ? '' : 's'}</span></div>
         <div class="coverage" aria-label="${pctMeasured}% covered">${c.measures.map(m => `<span class="${m.status}" ${tip(`${m.name}\n${STATUS[m.status]}: ${m.value}\n\nHow: ${m.how}\nFramework: ${F[m.framework].org}, ${F[m.framework].title}\nSource: ${m.source}`)}></span>`).join('')}</div>
         <div class="lens-frameworks small">Frameworks: ${lens.frameworks.map(id => `<span class="impact-chip method" ${tip(`${F[id].org}, ${F[id].title} (${F[id].year}).\n${F[id].use}`)}>${esc(F[id].org.split(' (')[0].split(' for ')[0])}</span>`).join(' ')}</div>
-        <ul class="indicators detail-only">${c.measures.map(m => `<li ${tip(`How: ${m.how}\nFramework: ${F[m.framework].org}\nSource: ${m.source}`)}><span>${esc(m.name)}</span><span class="status ${m.status}">${STATUS[m.status]}</span><span class="iv">${esc(m.value)} · <i>${esc(F[m.framework].org)}</i></span></li>`).join('')}</ul>
+        <details class="lens-measures"><summary>Show the ${c.total} measures</summary>
+          <ul class="indicators">${c.measures.map(m => `<li ${tip(`How: ${m.how}\nFramework: ${F[m.framework].org}\nSource: ${m.source}`)}><span>${esc(m.name)}</span><span class="status ${m.status}">${STATUS[m.status]}</span><span class="iv">${esc(m.value)} · <i>${esc(F[m.framework].org)}</i></span></li>`).join('')}</ul>
+        </details>
         <div class="example">${esc(lens.example)}</div>
       </article>`;
     }).join('');

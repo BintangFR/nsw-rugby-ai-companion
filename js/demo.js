@@ -9,12 +9,16 @@
 
   const SAMPLE = 'DEMO SAMPLE';
   // Clearly labelled sample inputs, only ever held in the sandbox.
+  // KPI Framework samples: record_type "Hypothetical", so every result is labelled "Hypothetical Example".
+  const hypo = (scope, start, end, inputs) => ({ meta: { period_start: start, period_end: end, scope_id: `${SAMPLE} · ${scope}`, method_version: 'v1.0', source_ref: SAMPLE,
+    record_type: 'Hypothetical', source_verification: 'Estimated', source_checks_passed: true, method_permission: 'Pending', capture_status: 'Complete', publication_approved: false }, inputs });
   const SAMPLE_KPIS = {
-    'P1-01': { baseline: { label: `${SAMPLE} · 2025 season`, used: 1180, bookable: 2080 }, followup: { label: `${SAMPLE} · 2026 season (new lights)`, used: 1544, bookable: 2080 } },
-    'P3-02': { baseline: { label: `${SAMPLE} · Coach L1 2025`, cost: 18400, qualified: 46 }, followup: { label: `${SAMPLE} · Coach L1 2026`, cost: 19900, qualified: 61 } },
-    'P4-01': { baseline: { label: `${SAMPLE} · Girls 7s cycle 1`, cost: 12600, people: 84 }, followup: { label: `${SAMPLE} · Girls 7s cycle 2`, cost: 13100, people: 131 } },
+    'P1-01': { comparison_approved: true, waves: [hypo('Holroyd Field 1', '2025-03-01', '2025-09-30', { U: 1180, H: 2080 }), hypo('Holroyd Field 1', '2026-03-01', '2026-09-30', { U: 1544, H: 2080 })] },
+    'P3-02': { comparison_approved: true, waves: [hypo('Coach Level 1', '2025-01-01', '2025-12-31', { C: 18400, N: 46 }), hypo('Coach Level 1', '2026-01-01', '2026-12-31', { C: 19900, N: 61 })] },
+    'S06': { comparison_approved: false, waves: [hypo('End-of-season survey', '2026-08-01', '2026-09-30', { notatall: 4, slightly: 9, moderately: 31, very: 58, extremely: 22, na: 3, unsure: 5, pnta: 1, missing: 6 })] },
+    'C03': { comparison_approved: false, waves: [hypo('End-of-season survey', '2026-08-01', '2026-09-30', { sdisagree: 2, disagree: 4, neutral: 17, agree: 61, sagree: 40, na: 6, unsure: 9, pnta: 3, missing: 2 })] },
   };
-  const SAMPLE_HEALTH = { physical: 400, longActive: 250, mental: 300, cost: 150000 };
+  const loadSampleKpis = () => { Store.set('kpis', { ...(Store.get('kpis') || {}), ...SAMPLE_KPIS }); window.KPIs?.render(); };
 
   const STEPS = [
     // Written for a non-technical audience: plain words, one idea per step, and a "why it matters" line.
@@ -57,14 +61,13 @@
     { tab: 'impact', target: '#lensGrid', title: 'What difference is it making?',
       body: 'Impact is shown three ways: <b>social</b> (do people feel connected and well?), <b>economic</b> (does it bring money and jobs?) and <b>cultural</b> (does it strengthen identity and belonging?). Every measure comes from a method <b>another organisation has already published</b>, such as NSW Treasury, the OECD or NSW Rugby League. The coloured bar shows which measures already have data. Hover any block to see how it is measured.',
       why: 'Our results use methods funders already trust, and we are honest about what we cannot prove yet.' },
-    { tab: 'impact', target: card('#calcGrid'), title: 'Putting a dollar value on the benefits',
-      body: 'These calculators use published formulas, for example the health value per participant from the Rugby For Good cost-benefit study, or the way NSW Rugby League measured its economic contribution. We have typed in <b>practice numbers</b> for the health benefit so you can see it work.',
-      why: 'When the real participant numbers come in, the value can be worked out the same way a Treasury reviewer would.',
-      before: () => { Store.set('methods', { ...(Store.get('methods') || {}), health: SAMPLE_HEALTH }); window.Methods?.renderCalcs(); } },
-    { tab: 'impact', target: '#econCard', title: 'The money results, worked out properly',
-      body: 'Nine money measures from the evaluation team\'s formula workbook, each backed by an official source. We have typed in <b>practice numbers</b> so you can see them work: for example, how well a ground is used, or the cost to train each new coach.',
+    { tab: 'impact', target: '#dollarCard', title: 'Putting a dollar value on the benefits',
+      body: 'The top row turns our real numbers into dollars using <b>published formulas</b>: the health value of taking part (Rugby For Good cost-benefit study, applied to Rugby Australia\'s participant numbers) and the economic contribution of the facility grants (NSW Rugby League\'s method). <b>Hover any figure</b> to see exactly how it was worked out and where each number came from.',
+      why: 'Every dollar figure can be checked the same way a Treasury reviewer would check it.' },
+    { tab: 'impact', target: '#kpiCard', title: 'The KPIs, worked out properly',
+      body: 'The evaluation team\'s 27 KPIs: 9 economic, 8 social and 10 cultural, each calculated exactly as their formula handover says. We have typed in <b>practice numbers</b> so you can see them work, for example how well a ground is used or how many participants feel their culture is respected. Practice results are labelled <b>Hypothetical Example</b>.',
       why: 'The numbers in our reports can be checked and defended.',
-      before: () => { Store.set('econ', { ...(Store.get('econ') || {}), ...SAMPLE_KPIS }); window.Econ?.render(); } },
+      before: loadSampleKpis },
     { tab: 'impact', target: card('#evidenceForm'), title: 'Capture the stories behind the numbers',
       body: 'Staff can write down what they see and hear, like a comment from a player or a local shop owner. We have added a practice example. These stories are used in the reports alongside the figures.',
       why: 'Funders want both the numbers and the human stories.',
@@ -91,7 +94,7 @@
       body: 'Each file gets a traffic light: <b>green</b> (good), <b>amber</b> (usable) or <b>red</b> (too general to rely on). For red files, the app explains what better information would look like.',
       why: 'Every season, the information collected gets better.' },
     { tab: 'story', target: '.story-controls', title: 'Write the report for you',
-      body: 'Choose the kind of document you need: an annual report chapter, a board summary, a funding report for the Office of Sport, a community story or a media release. Pick the tone and length, then press Generate.',
+      body: 'Choose who the report is for: the Board, the Office of Sport, the annual report, local clubs or the media. The right pages assemble themselves from the same data, for the whole program or just one pillar, region or project.',
       why: 'A first draft in minutes instead of days.' },
     { tab: 'story', target: '#report', title: 'Ready to share',
       body: 'The draft comes out as a finished, branded document. You can change any wording directly on the page, then press <b>Export PDF</b> to save or print it.',
@@ -152,14 +155,13 @@
     { section: 'What difference it makes', secs: 75, tab: 'impact', target: '#lensGrid', title: 'Impact, measured with methods others trust',
       body: 'Social, economic and cultural impact, using <b>only published methods</b>: NSW Treasury guidelines, the OECD social cohesion framework, the Rugby For Good Benefits Realisation Framework, NSW Rugby League\'s 2026 community impact study, and the Cultural Development Network. The bar shows which measures already have data.',
       notes: 'Key message: we did not invent formulas. Hover a grey block to show "no data yet" and how it would be measured (e.g. ABS General Social Survey questions with national benchmarks). Mention the new Rugby Analytics data: First Nations participants up 35% since 2022, Pasifika groups almost 4x.' },
-    { section: 'What difference it makes', secs: 75, tab: 'impact', target: card('#calcGrid'), title: 'Valuing the benefits in dollars',
-      body: 'Published formulas, ready for real data: health value per participant from the Rugby For Good cost-benefit study, NSW Rugby League\'s economic contribution method, and eventIMPACTS for RWC event visitors. Shown with <b>practice numbers</b>.',
-      notes: 'Hover the "PV at 5%" result: present value under NSW Treasury TPG23-08 with 3% and 7% sensitivity, and a benefit-cost ratio. Stress these are benefit-transfer values until NSW Rugby collects its own participant data.',
-      before: () => { Store.set('methods', { ...(Store.get('methods') || {}), health: SAMPLE_HEALTH }); window.Methods?.renderCalcs(); } },
-    { section: 'What difference it makes', secs: 30, tab: 'impact', target: '#econCard', title: 'Nine economic KPIs',
-      body: 'The evaluation team\'s nine formulas, each with its official source, calculated from baseline and follow-up figures. Missing data shows as "data collection required", <b>never as zero</b>.',
-      notes: 'One example only: facility utilisation with the practice inputs. Move on quickly.',
-      before: () => { Store.set('econ', { ...(Store.get('econ') || {}), ...SAMPLE_KPIS }); window.Econ?.render(); } },
+    { section: 'What difference it makes', secs: 75, tab: 'impact', target: '#dollarCard', title: 'Valuing the benefits in dollars',
+      body: 'Dollar values from published formulas, run on our own data: health value of taking part (Rugby For Good cost-benefit values × Rugby Australia participants), economic contribution of the facility grants (NSW Rugby League\'s method), RWC event visitor spending (eventIMPACTS, waiting for the visitor survey), and the published Rugby For Good results for comparison.',
+      notes: 'Hover the health figure: it shows participants × $237 × 74%, where each number comes from, and the 5% present value under NSW Treasury TPG23-08. Stress these are indicative benefit-transfer values until NSW Rugby collects its own program data, and that the four figures are never added together.' },
+    { section: 'What difference it makes', secs: 30, tab: 'impact', target: '#kpiCard', title: 'The NSW Rugby KPI framework',
+      body: 'The evaluation team\'s 27 KPIs (9 economic, 8 social, 10 cultural), calculated exactly as their handover specifies. Every result says whether it is verified, estimated or hypothetical, and missing data shows as "Data Collection Required", <b>never as zero</b>.',
+      notes: 'One example only: facility utilisation (practice inputs, labelled Hypothetical Example). Mention 4 cultural KPIs are deliberately inactive in the handover, and the full specification is on the Framework tab.',
+      before: loadSampleKpis },
     { section: 'How the AI works', secs: 60, tab: 'insights', target: '#bubbles', title: 'AI findings, checked by people',
       body: 'Five AI helpers write short findings with the numbers behind them and a next step. <b>Nothing reaches a report until a person has checked it</b>, and the AI learns from every 👍 and 👎.',
       notes: 'The AI runs on NSW Rugby\'s own computer, so data stays private. If the AI is offline, the rule engine fills in, so this always works in a meeting.',
@@ -171,8 +173,8 @@
       body: 'Drop in a spreadsheet, PDF or Word file. Spend, map layers, impact evidence and yearly participation figures flow straight into the dashboard and targets, and each file gets a <b>data quality traffic light</b>.',
       notes: 'Mention the participation workbook was added this way and moved the coach and referee targets.' },
     { section: 'Reporting', secs: 45, tab: 'story', target: '.story-controls', title: 'The report writes its first draft',
-      body: 'Annual report chapter, board summary, funding acquittal, community story or media release, drafted from checked findings and real figures, then edited and exported to PDF.',
-      notes: 'If there is time, press Generate; otherwise show a previously exported PDF.' },
+      body: 'One set of page templates, combined for each audience: a 3-page Board Summary, a 6-page Funding Acquittal, an Annual Report Chapter, a Community Story or a one-page Media Release. Every figure comes from the data; missing data says so.',
+      notes: 'Switch the report type live (Board Summary → Funding Acquittal) to show the pages reassembling. This is our main improvement on the reference reports, which are "one report for everyone".' },
     { section: 'What feedback changed', secs: 60, title: 'How feedback changed the prototype',
       body: `<ul class="feedback-changes">${[
         ['"Show how you got these numbers"', 'Every figure, heatmap column, target and impact measure now explains its calculation and source on hover.'],
@@ -180,7 +182,8 @@
         ['"Explain how the AI gets its answers"', 'A new Methodology page: the computer does the maths, the AI explains it, a person checks it.'],
         ['"We prefer seeing the detailed figures"', 'The simplified 0–100 view is gone: every screen now shows the real figures.'],
       ].map(([was, now]) => `<li><b>${was}</b><span>${now}</span></li>`).join('')}</ul>`,
-      notes: 'Say this came from the feedback session. The biggest change was the second one: we deleted figures we had made up and replaced them with published methods, and the other team now owns any new formulas.' },
+      note: 'You saw each of these on the earlier slides, marked ★ Feedback applied.',
+      notes: 'Say this came from the feedback session, and point back to the amber "Feedback applied" tags on the walkthrough slides. The biggest change was the second one: we deleted figures we had made up and replaced them with published methods, and the other team now owns any new formulas.' },
     { section: 'Recommendations', secs: 60, title: 'Recommendations',
       body: `<ul class="recommendations">${[
         ['Standardise how data is gathered', 'One template for every program and grant: one row per activity with region or LGA, date or season, dollars, pillar, and counts for women & girls, First Nations, Pasifika and people with disability.'],
@@ -198,6 +201,26 @@
       body: 'Tackle AI: <b>where the money goes</b>, <b>whether it is on track</b>, <b>what difference it makes</b>, and <b>the report that proves it</b>, built on methods others already trust.<br><br>Questions?',
       notes: 'Open for questions. Practice data is wiped when you press Finish.' },
   ];
+
+  // Where feedback is visible in the walkthrough: each slide title -> [feedback, what changed on this screen].
+  // Shown as a "Feedback applied" tag on the card, and the highlight around the screen turns to the feedback colour.
+  const FB = {
+    numbers: '"Show how you got these numbers"',
+    methods: '"Use established ways to measure impact, don\'t invent one"',
+    ai: '"Explain how the AI gets its answers"',
+    detail: '"We prefer seeing the detailed figures"',
+  };
+  const FEEDBACK_APPLIED = {
+    'The whole program at a glance': [[FB.numbers, 'Hover any tile: it shows the exact sum and where each part comes from.']],
+    'Is every part of NSW getting its share?': [[FB.detail, 'Real figures on the map, flags and region table, with no 0–100 scores.'], [FB.numbers, 'Hover the legend to see how the chosen measure is calculated.']],
+    'Are we on track?': [[FB.numbers, 'Hover a bar: where the actual came from, how the pace is worked out, and the target\'s source.']],
+    'Impact, measured with methods others trust': [[FB.methods, 'Our own "spend per impact" figure is gone; every block names the published framework it comes from.'], [FB.numbers, 'Hover a block for how it is measured.']],
+    'Valuing the benefits in dollars': [[FB.methods, 'Only published formulas (Rugby For Good CBA, NSW Rugby League, eventIMPACTS), discounted under NSW Treasury rules.'], [FB.numbers, 'Hover a result for the full working.']],
+    'The NSW Rugby KPI framework': [[FB.numbers, 'Hover a result to see the formula with the figures entered, and its source and baseline.'], [FB.methods, 'Formulas come from the evaluation team\'s handover, each with its origin and evidence status.']],
+    'AI findings, checked by people': [[FB.ai, 'The AI may only use figures it is given and never invents formulas or values; claims about regions are checked automatically.']],
+    'The computer does the maths, the AI explains it': [[FB.ai, 'This page is new: how every figure is calculated, how the AI writes its findings, and the exact data it reads.']],
+  };
+  for (const s of PRESENT) if (FEEDBACK_APPLIED[s.title]) s.feedback = FEEDBACK_APPLIED[s.title];
 
   const MODES = {
     demo: { steps: STEPS, badge: 'Demo', exit: 'Exit demo' },
@@ -246,6 +269,7 @@
   function place() {
     if (!active) return;
     const step = steps[i], t = targetOf(step), { spot, box, shade } = els;
+    spot.classList.toggle('feedback', !!step.feedback);
     const pad = 8, vw = innerWidth, vh = innerHeight;
     if (!t) {
       spot.hidden = true; shade.hidden = false;
@@ -276,6 +300,7 @@
       ${M.timed ? '<div class="present-timer"></div>' : ''}
       ${step.mascot ? `<div class="demo-hero"><span class="mascot lg ${step.mascot}" aria-hidden="true"></span><div class="demo-say">${esc(step.say)}</div></div>` : ''}
       <h3>${esc(step.title)}</h3>
+      ${step.feedback ? `<div class="feedback-applied">${step.feedback.map(([quote, what]) => `<div data-tip="${esc(`Feedback from the feedback session: ${quote}\nWhat changed on this screen: ${what}`)}"><span class="fa-tag">★ Feedback applied</span> <b>${esc(quote)}</b><span>${esc(what)}</span></div>`).join('')}</div>` : ''}
       ${/^\s*<(ul|ol|div)/.test(body) ? body : `<p>${body}</p>`}
       ${step.why ? `<p class="demo-why"><b>Why it matters:</b> ${esc(step.why)}</p>` : ''}
       ${step.note ? `<p class="demo-note">${esc(step.note)}</p>` : ''}
@@ -307,6 +332,7 @@
     const step = steps[i];
     if (step.tab) showTab(step.tab);
     try { step.before?.(); } catch (e) { console.error('Demo step', e); }
+    window.App.revealElement?.(targetOf(step)); // open the sub-view (e.g. Impact > KPIs) that holds the highlighted part
     render();
     // Wait for the tab to lay out (and the map to resize) before measuring.
     setTimeout(() => {

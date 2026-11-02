@@ -211,7 +211,24 @@
     const pillarTotal = all.filter(q => q.pillar === p.pillar).reduce((s, q) => s + q.cost, 0);
     const targets = A.kpiTargets().filter(k => p.targetIds.includes(k.id));
     const ds = drivers(p, all), ev = evidenceFor(p);
-    const tile = (label, v, fmt, peer) => `<div class="pd-tile"><span>${label}</span><b>${v == null ? '–' : fmt(v)}</b>${peer ? `<small>typical ${fmt(peer.median)} (${peer.n} similar)</small>` : v == null ? '<small>add results below</small>' : '<small>no similar programs with results yet</small>'}</div>`;
+    // Hover text for each "What it returns" tile: the formula with this program's numbers, and what "typical" means.
+    const costText = `${aud(m.base)} (${m.baseLabel === 'budget' ? 'full budget, because "spent so far" is not entered' : 'spent so far'})`;
+    const WORK = {
+      'Cost per person reached': ['participants', 'people reached'],
+      'Cost per new coach / referee': ['qualified', 'new coaches or referees'],
+      'Cost per session / event': ['events', 'sessions or events delivered'],
+    };
+    const working = (label, v, fmt, peer) => {
+      const w = WORK[label];
+      const how = w ? (v == null ? `${label} = cost ÷ ${w[1]}.\nNot calculated: no number of ${w[1]} has been recorded for this program. Enter it under "Record results for this program" below.`
+          : `${label} = cost ÷ ${w[1]}\n= ${costText} ÷ ${num(r[w[0]]).toLocaleString('en-AU')} ${w[1]}\n= ${fmt(v)}`)
+        : (v == null ? 'Co-funding per $1 = co-funding recorded ÷ Legacy budget.\nNot calculated: no co-funding has been recorded. Enter it under "Record results for this program" below.'
+          : `Co-funding per $1 = co-funding ÷ Legacy budget\n= ${aud(r.coFunding)} ÷ ${aud(p.cost)}\n= ${fmt(v)} for every $1 of Legacy money`);
+      const cmp = peer ? `\n\nTypical = the median of ${peer.n} similar program${peer.n === 1 ? '' : 's'} ("${p.peer}") that have results recorded: ${fmt(peer.median)}.`
+        : `\n\nNo comparison yet: none of the other ${peers.length} programs in "${p.peer}" has this result recorded.`;
+      return how + cmp + '\n\nPrototype indicator: a value-for-money screen, not from an external framework.';
+    };
+    const tile = (label, v, fmt, peer) => `<div class="pd-tile" data-tip="${esc(working(label, v, fmt, peer))}" tabindex="0"><span>${label}</span><b>${v == null ? '–' : fmt(v)}</b>${peer ? `<small>typical ${fmt(peer.median)} (${peer.n} similar)</small>` : v == null ? '<small>no result recorded yet: add it below</small>' : '<small>nothing to compare with yet: no similar program has this result</small>'}</div>`;
     const field = (k, label, unit) => `<label>${label}<span class="unit-in"><input type="number" min="0" step="any" data-k="${k}" value="${num(r[k]) ?? ''}"><i>${unit}</i></span></label>`;
     box.innerHTML = `
       <div class="pd-head">
