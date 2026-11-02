@@ -18,6 +18,7 @@
     'tpg22-22-evaluation-guidelines.pdf',
     'NSW_Rugby_Participation_Dashboard_Data.xlsx',
     'NSW_Rugby_Economic_KPI_Formula_Summary.xlsx',
+    'NSW_Rugby_KPI_Formula_Web_Handover.xlsx',
     'NSW Rugby Union Project Brief - Term 3 2026.pdf',
     'NSW Rugby Union Partner Meeting 1 slides.pdf',
     'Rugby For Good Benefits Realisation Framework Report_Final_04.03.2025[59].pdf',
@@ -133,7 +134,9 @@
           if (Object.keys(values).length >= 2) contribution.layers.push({ id: `${ds.id}-${contribution.layers.length}`, label: `${col.name} (${ds.name})`, values });
         }
       }
-      const lensCol = s.columns.find(c => /lens|impact/i.test(c.name) && s.rows.filter(r => O.normaliseImpact(r[c.name])).length >= s.rows.length * 0.5);
+      // Only a column that is clearly an evidence lens ("Lens", "Impact", "Impact type"), not e.g. a KPI
+      // specification's "Impact Dimension", which would import formula rows as field evidence.
+      const lensCol = s.columns.find(c => /^\s*(impact\s*)?lens\s*$|^\s*impact(\s*type)?\s*$/i.test(c.name) && s.rows.filter(r => O.normaliseImpact(r[c.name])).length >= s.rows.length * 0.5);
       if (lensCol) {
         const textCol = s.columns.filter(c => c !== lensCol && (c.type === 'text' || c.type === 'category')).sort((a, b) => (b.avgLen || 0) - (a.avgLen || 0))[0];
         const sourceCol = s.columns.find(c => /source/i.test(c.name));
@@ -152,16 +155,15 @@
     contribution.measures = ds.sheets.flatMap(extractMeasures);
     ds.contribution = contribution;
     const had = (Store.get('datasets') || []).some(d => d.id === ds.id);
+    // Re-loading a file always replaces its evidence (never duplicates it, and clears rows an older import created).
+    const stale = A.evidenceStore.all().some(e => e.datasetId === ds.id);
+    if (stale) Store.set('evidence', A.evidenceStore.all().filter(e => e.datasetId !== ds.id));
     if (contribution.spend.length || contribution.layers.length || evidence.length || contribution.measures.length) {
       A.saveDataset(contribution);
-      if (evidence.length) {
-        // re-loading the same file replaces its evidence rather than duplicating it
-        Store.set('evidence', A.evidenceStore.all().filter(e => e.datasetId !== ds.id));
-        A.evidenceStore.addMany(evidence);
-      }
+      if (evidence.length) A.evidenceStore.addMany(evidence);
       dataChanged();
-    } else if (had) {
-      A.removeDataset(ds.id); // an earlier version of this file contributed data; this one doesn't
+    } else if (had || stale) {
+      if (had) A.removeDataset(ds.id); // an earlier version of this file contributed data; this one doesn't
       dataChanged();
     }
   }

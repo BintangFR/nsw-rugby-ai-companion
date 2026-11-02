@@ -23,7 +23,7 @@ Edit the `kpis` list in `js/data.js` (ids must be unique). Staff can also change
 
 **Rule: impact is measured only with methods another organisation has published.** Tackle AI does not invent impact formulas; new formulas come from the evaluation team.
 
-- Measures live in `impactMethods` in [js/data.js](../js/data.js). Each one names its `framework` (a key of `frameworks`), `how` it is measured (the framework's own method), `status` (`measured`, `partial`, `none`), `value` and `source`. All of these appear on hover and on the Methodology tab.
+- Measures live in `impactMethods` in [js/data.js](../js/data.js). Each one names its `framework` (a key of `frameworks`), `how` it is measured (the framework's own method), `status` (`measured`, `partial`, `none`), `value` and `source`. All of these appear on hover and on the "How the app works" page.
 - To add a framework, add it to `frameworks` with its organisation, title, year, a `url` or a `Dataset/` `file`, and what it is used for. `npm run check` fails if a measure cites an unknown framework or a framework file is missing.
 - There is deliberately no "dollars per impact type" figure: no published method assigns program spend to impact.
 
@@ -37,11 +37,15 @@ Uploaded files are scanned for yearly counts (players, coaches, match officials,
 
 ### Edit the Presentation or Demo script
 
-Both are in [js/demo.js](../js/demo.js): `STEPS` (self-paced demo) and `PRESENT` (15-minute presentation). Each presentation slide has `secs`; keep the total at 900 (15:00). `body` is what the audience sees, `notes` is the presenter's script.
+Both are in [js/demo.js](../js/demo.js): `STEPS` (self-paced demo) and `PRESENT` (15-minute presentation). Each presentation slide has `secs`; keep the total at 900 (15:00). `body` is what the audience sees, `notes` is the presenter's script. `FEEDBACK_APPLIED` (keyed by slide title) adds the amber "Feedback applied" tags; if you rename a slide, rename its key too.
 
-### Add or change an economic KPI
+### Update the NSW Rugby KPI Framework (when the evaluation team issues a new handover)
 
-Add an entry to `KPIS` in [js/econ.js](../js/econ.js): `inputs`, a `calc` that returns `ok(value)` / `missing()` / `na()` / `nc()` / `bad()`, a formatter and source ids from `SOURCES`. The UI, CSV export, AI context and hover explanation are generated from that entry.
+All 27 KPIs live in [js/kpi-framework.js](../js/kpi-framework.js), copied from `Dataset/NSW_Rugby_KPI_Formula_Web_Handover.xlsx`. Each `add({...})` entry holds the handover's definition, formula, `inputs` (field key, label, type, unit, required, help: the "Web Input Requirements" sheet), `calc` (returns `ok(...)`, `nc()`, `na()`, `fail()` or `dcr()`), origin, evidence status, source and limitations. `BASELINE` and `RULES` hold the baseline requirements and the missing/zero-denominator rules. The Impact screen, the Framework page, the CSV and JSON downloads and the AI context are all generated from these entries.
+
+- Change a formula only when the handover changes, and keep its wording identical.
+- Keep inactive KPIs as `inactive(...)` entries: ID only, no inputs.
+- Add a test for any new rule in section 4 of [scripts/check.mjs](../scripts/check.mjs); `npm run check` runs 30+ tests of the engine against the handover's rules.
 
 ### Add a region
 
@@ -78,14 +82,14 @@ Add `data-tip="..."` (built with `esc()`) and `tabindex="0"` to the element. Use
 
 1. `npm run check` passes.
 2. Start the app (`boot.cmd` / `./boot.sh` / `npm start`) and click through Overview, Impact and Story. The browser console should show no red errors.
-3. Run **▶ Demo** end to end; it exercises most features without changing saved data.
+3. Run **▶ Tour → Guided demo** end to end; it exercises most features without changing saved data.
 4. Push to GitHub. Vercel deploys automatically if the repo is connected.
 
 ## Backups and data
 
 - Local saved data lives in `data-store/` (ignored by git). Copy that folder to back it up.
 - On Vercel, data lives in Upstash Redis; use Upstash's backup / export.
-- Evidence and economic KPIs can also be exported to CSV from the Impact tab.
+- Evidence and all 27 KPI results (with their shared controls) can be exported to CSV from the Impact tab. The framework itself downloads from the Framework tab.
 
 ## When the project grows
 

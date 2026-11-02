@@ -12,7 +12,7 @@ This page is for whoever takes the project over. Start here, then read:
 
 - [ ] Install [Node.js](https://nodejs.org) 18+ and [Ollama](https://ollama.com), then run `ollama pull qwen2.5:7b`.
 - [ ] Start the app: double-click `boot.cmd` (Windows) or run `./boot.sh` (Mac/Linux).
-- [ ] Press **▶ Demo** in the top bar and walk through the tour. It is the fastest way to see every feature.
+- [ ] Open **▶ Tour → Guided demo** in the top bar and walk through the tour. It is the fastest way to see every feature.
 - [ ] Run `npm run check` to confirm your copy is healthy.
 - [ ] Read the "Known limitations" section below.
 
@@ -23,8 +23,8 @@ This page is for whoever takes the project over. Start here, then read:
 | Overview: map, heatmap, centralisation, flags | Working |
 | Programs: cost, return and root cause per program | Working |
 | Targets: status against plan, editable targets | Working |
-| Impact: established-framework measures, valuation calculators, evidence log, economic KPI calculator | Working. Only published methods are used; every number explains itself on hover. |
-| Methodology tab: how figures and AI insights are produced | Working (generated from the live app) |
+| Impact: established-framework measures, valuation calculators, evidence log, NSW Rugby KPI Framework (27 KPIs) | Working. Only published methods are used; every number explains itself on hover. |
+| "How the app works" page (Framework tab): how figures and AI insights are produced | Working (generated from the live app) |
 | Targets read uploaded yearly data (e.g. Rugby Analytics export) | Working |
 | Presentation mode (15 timed slides, speaker notes) | Working |
 | Insights: five AI agents, review queue, rule-based fallback | Working (local Ollama or hosted AI) |
@@ -37,7 +37,8 @@ This page is for whoever takes the project over. Start here, then read:
 ## Where the data comes from
 
 - Built-in data in `js/data.js` was compiled from `Dataset/RWC_Legacy_Data_Compilation.xlsx` and `Dataset/RWC Dashboard 010926 (2).xlsx` (compiled 24 Sep 2026).
-- Economic KPI formulas and sources come from `Dataset/NSW_Rugby_Economic_KPI_Formula_Summary.xlsx`.
+- KPI formulas, input rules, baselines and sources come from `Dataset/NSW_Rugby_KPI_Formula_Web_Handover.xlsx` (27 KPIs; it supersedes `NSW_Rugby_Economic_KPI_Formula_Summary.xlsx`).
+- The **Framework** tab is the project deliverable in tool-independent form; download it as a document, `framework.json` or `input-fields.csv` to rebuild it elsewhere.
 - Region populations and First Nations shares are **indicative** ABS 2021 approximations, used only to compare spend fairly between regions.
 - Spend is **known allocations** (budgets and grants), not audited expenditure.
 
@@ -54,7 +55,7 @@ This page is for whoever takes the project over. Start here, then read:
 ## Suggested next steps
 
 1. **Collect the missing evidence.** Many impact indicators show "No data yet" (e.g. women feeling safe at the ground, local business turnover on game days, First Nations cultural safety). Adding those survey questions has the biggest effect on the report.
-2. **Enter economic KPI baselines** for the nine KPIs on the Impact tab.
+2. **Collect KPI baselines**: no verified baseline exists yet for any of the 27 KPIs (handover, "Baseline Requirements"). Enter them on the Impact tab once custodians have checked them.
 3. **Deploy to Vercel** with Upstash Redis, a hosted AI provider and an access key, so staff can use one shared copy.
 4. **Real sign-in** before wider rollout (see "When the project grows" in [MAINTAINING.md](MAINTAINING.md)).
 

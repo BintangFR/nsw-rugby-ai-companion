@@ -57,9 +57,24 @@ window.Analytics = (() => {
 
   // Coverage of the established impact measures (js/data.js impactMethods), per lens.
   function impactCoverage() {
-    const econDone = window.Econ ? window.Econ.KPIS.filter(k => window.Econ.evaluate(k).calculated).length : 0;
+    // Measures marked dynamic: 'kpi' take their status from the NSW Rugby KPI Framework results for that dimension.
+    const kpiStatus = (m, dim) => {
+      const c = window.KPIs?.coverage(dim);
+      if (!c) return m;
+      return { ...m, status: c.done === 0 ? 'none' : c.done === c.total ? 'measured' : 'partial', value: `${c.done} of ${c.total} active ${dim.toLowerCase()} KPIs have results${c.inactive ? ` (${c.inactive} inactive)` : ''}` };
+    };
+    // Measures with a `calc` take their status from that valuation calculator (js/methods.js). Values filled from app
+    // data, or transferred from another study, count as partial: they are indicative until NSW Rugby collects its own.
+    const calcStatus = m => {
+      const M = window.Methods, c = M?.CALCS.find(x => x.id === m.calc);
+      if (!c) return m;
+      const inp = M.inputsFor(c.id), res = c.run(inp.p);
+      if (res.missing) return m;
+      const last = res.rows.find(r => /^Total/.test(r[0])) || res.rows[0];
+      return { ...m, status: 'partial', value: `${last[0]}: ${last[1]} (${inp.from === 'data' ? 'inputs filled from app data, indicative' : 'staff-entered inputs'})` };
+    };
     return Object.fromEntries(Object.entries(D.impactMethods).map(([k, lens]) => {
-      const ms = lens.measures.map(m => m.dynamic === 'econ' ? { ...m, status: econDone === 0 ? 'none' : econDone === window.Econ.KPIS.length ? 'measured' : 'partial', value: `${econDone} of ${window.Econ?.KPIS.length ?? 9} KPIs calculated from entered data` } : m);
+      const ms = lens.measures.map(m => m.dynamic === 'kpi' ? kpiStatus(m, lens.label) : m.calc ? calcStatus(m) : m);
       const count = s => ms.filter(m => m.status === s).length;
       return [k, { measures: ms, measured: count('measured'), partial: count('partial'), none: count('none'), total: ms.length }];
     }));
@@ -198,7 +213,7 @@ window.Analytics = (() => {
       'IMPACT MEASURES (only established methods: NSW Treasury TPG22-22/TPG23-08, OECD social cohesion with ABS GSS benchmarks, Rugby For Good Benefits Realisation Framework and CBA, NSWRL 2026 community impact methods, CDN cultural outcomes, eventIMPACTS, Rugby Australia participation definitions. Never invent a new formula, multiplier or dollar value; there is no "spend per lens" figure):',
       ...Object.entries(cov).map(([k, c]) => `- ${D.impactMethods[k].label} (${c.measured} measured, ${c.partial} partial, ${c.none} no data): ` + c.measures.map(i => `${i.name} [${D.frameworks[i.framework].org}] ${i.status === 'none' ? 'NO DATA' : i.status + ': ' + i.value}`).join('; ')),
       ...(ms.length ? ['UPLOADED YEARLY SERIES: ' + ms.map(s => `${s.label} (${s.dataset}): ` + Object.entries(s.series).map(([y, v]) => `${y} ${Math.round(v).toLocaleString('en-AU')}`).join(', ')).join(' | ')] : []),
-      ...(window.Econ ? window.Econ.contextLines() : []),
+      ...(window.KPIs ? window.KPIs.contextLines() : []),
       ...(window.Methods ? window.Methods.contextLines() : []),
       ...(window.Programs ? window.Programs.contextLines() : []),
       `FIELD EVIDENCE (${evidenceStore.all().length} records): ` + (ev.length ? ev.map(e => `[${e.lens}, ${e.region}, ${e.source}] "${e.text}"${e.metric ? ' (' + e.metric + ')' : ''}`).join(' | ') : 'none recorded yet'),

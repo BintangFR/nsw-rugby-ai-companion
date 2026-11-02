@@ -1,5 +1,5 @@
-// Visual FX: soft phosphor glow and a gentle screen vignette, switched with the FX button in the
-// top bar (remembered in localStorage 'tackle.fx'). No scanlines, no motion, no transitions.
+// Visual FX: soft phosphor glow and a gentle screen vignette, switched with "Screen effects" in the
+// top bar's Tour menu (remembered in localStorage 'tackle.fx'). No scanlines, no motion, no transitions.
 // Purely decorative: the overlay ignores the pointer and never prints.
 (() => {
   const root = document.documentElement;
@@ -15,7 +15,11 @@
   function apply() {
     root.classList.toggle('fx-on', on);
     const btn = document.getElementById('fxToggle');
-    if (btn) { btn.setAttribute('aria-pressed', on); btn.classList.toggle('on', on); btn.title = on ? 'Glow effects on (click to turn off)' : 'Glow effects off (click to turn on)'; }
+    if (btn) {
+      btn.setAttribute('aria-pressed', on); btn.classList.toggle('on', on);
+      const state = btn.querySelector('span');
+      if (state) state.textContent = on ? 'Glow and vignette are on' : 'Glow and vignette are off';
+    }
   }
 
   function toggle() {

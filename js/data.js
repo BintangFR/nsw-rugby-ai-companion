@@ -221,8 +221,8 @@ window.TACKLE_DATA = (() => {
       use: 'Rugby Australia\'s own club standards assessment, reported by zone and association.' },
     'MNW': { org: 'Maiam nayri Wingara Indigenous Data Sovereignty Collective', title: 'Indigenous Data Sovereignty principles', year: 2018, url: 'https://www.maiamnayriwingara.org/',
       use: 'How First Nations data should be collected, owned and used. A protocol for collection, not a measure.' },
-    'ECON-KPI': { org: 'NSW Rugby evaluation team', title: 'NSW Rugby Economic KPI Formula Summary', year: 2026, file: 'NSW_Rugby_Economic_KPI_Formula_Summary.xlsx',
-      use: 'The nine economic KPI formulas, each referenced to Sport England, NSW Treasury, ASC and NSW Audit Office sources. Calculated on the Impact tab exactly as documented.' },
+    'KPI-HANDOVER': { org: 'NSW Rugby evaluation team', title: 'NSW Rugby KPI Formula Web Handover (27 KPIs: 9 economic, 8 social, 10 cultural)', year: 2026, file: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx',
+      use: 'Approved formulas, variable definitions, missing-data and zero-denominator rules, baseline requirements, formula references and the web input contract. Calculated on the Impact tab exactly as specified; supersedes the earlier economic KPI workbook.' },
   };
 
   // status: measured | partial | none (no data yet). framework: key of `frameworks`. how: the framework's own method.
@@ -231,8 +231,9 @@ window.TACKLE_DATA = (() => {
     social: {
       label: 'Social', question: 'Do people feel connected, included and well?',
       example: 'Women feel safe to play and train because the ground now has women-only changerooms.',
-      frameworks: ['OECD-SC', 'R4G-BRF', 'NSWRL-2026', 'RA-ANALYTICS'],
+      frameworks: ['KPI-HANDOVER', 'OECD-SC', 'R4G-BRF', 'NSWRL-2026', 'RA-ANALYTICS'],
       measures: [
+        { name: 'NSW Rugby KPI Framework: 8 social KPIs (S01 to S08)', framework: 'KPI-HANDOVER', status: 'none', dynamic: 'kpi', value: 'See NSW Rugby KPI Framework below', how: 'Survey items, cohort and profile formulas exactly as in the evaluation team\'s handover.', source: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx' },
         { name: 'Participant retention, churn and recruitment', framework: 'RA-ANALYTICS', status: 'measured', value: 'Retention 62.1%, churn 37.9%, recruitment 39.2% (2026)', how: 'Rugby Analytics definitions: retention = returning this year ÷ participants last year; churn = 1 − retention; recruitment = new this year ÷ participants this year.', source: 'Rugby Analytics, 22/09/2026' },
         { name: 'Female share of participants', framework: 'RA-ANALYTICS', status: 'measured', value: '18.3% (8,765 of 47,822, 2026)', how: 'Female participants ÷ all registered participants (Rugby Analytics gender split).', source: 'Rugby Analytics, 22/09/2026' },
         { name: 'Social capital: volunteered for a civic organisation in the last 12 months', framework: 'OECD-SC', status: 'none', value: 'No NSW Rugby survey yet. Benchmarks: 42% of sport participants, 19% of the general population', how: 'Ask the ABS General Social Survey question in the participant survey and compare with the national benchmarks, as NSWRL 2026 did (rugby league participants: 77%).', source: 'ABS GSS benchmarks as reported in NSWRL 2026' },
@@ -250,9 +251,9 @@ window.TACKLE_DATA = (() => {
     economic: {
       label: 'Economic', question: 'Does rugby bring money and jobs into NSW communities?',
       example: 'The fish and chip shop near the ground is flat out every home game.',
-      frameworks: ['ECON-KPI', 'NSWRL-2026', 'R4G-BRF', 'EVENTIMPACTS'],
+      frameworks: ['KPI-HANDOVER', 'NSWRL-2026', 'R4G-BRF', 'EVENTIMPACTS'],
       measures: [
-        { name: 'Nine economic KPIs (utilisation, co-investment, cost recovery, retention, training cost, volunteer hours, inclusion cost, out-of-pocket cost, participation support)', framework: 'ECON-KPI', status: 'none', dynamic: 'econ', value: 'See Economic KPIs below', how: 'Formulas exactly as documented in the evaluation team\'s workbook, each with its official source.', source: 'NSW_Rugby_Economic_KPI_Formula_Summary.xlsx' },
+        { name: 'NSW Rugby KPI Framework: 9 economic KPIs (P1-01 to P4-03)', framework: 'KPI-HANDOVER', status: 'none', dynamic: 'kpi', value: 'See NSW Rugby KPI Framework below', how: 'Formulas, input contract and status rules exactly as in the evaluation team\'s handover.', source: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx' },
         { name: 'Economic contribution of rugby spending', framework: 'NSWRL-2026', status: 'none', value: 'Needs expenditure by category', how: 'Expenditure flow analysis: spend in each category × NSW retention rate × ABS-based multiplier; participant spend first discounted 50% for substitution. This is economic contribution, not net impact.', source: 'NSWRL 2026', calc: 'contribution' },
         { name: 'Sustainable clubs', framework: 'R4G-BRF', status: 'none', value: 'Not currently tracked', how: 'From club income statements: total revenue rises while the share from traditional funding sources falls (R4G BRF).', source: 'R4G BRF 2025' },
         { name: 'Sustainable employment', framework: 'R4G-BRF', status: 'measured', value: '12 First Nations school-based apprentices (Tackle Life); 10 full-time, 3 part-time and 51 casual program staff (2024)', how: 'Count of First Nations SBATs and FTE jobs running the programs, yearly (R4G BRF).', source: 'NSW Positive Rugby Foundation 2024, via R4G CBA' },
@@ -262,8 +263,9 @@ window.TACKLE_DATA = (() => {
     cultural: {
       label: 'Cultural', question: 'Does rugby strengthen cultural identity and belonging?',
       example: 'Pasifika families now gather at the ground every Saturday - it has become a community meeting place.',
-      frameworks: ['CDN', 'RA-ANALYTICS', 'MNW'],
+      frameworks: ['KPI-HANDOVER', 'CDN', 'RA-ANALYTICS', 'MNW'],
       measures: [
+        { name: 'NSW Rugby KPI Framework: 10 cultural KPIs (C01 to C10, 4 inactive)', framework: 'KPI-HANDOVER', status: 'none', dynamic: 'kpi', value: 'See NSW Rugby KPI Framework below', how: 'Survey items, practice verification, leadership profile and qualitative protocol exactly as in the evaluation team\'s handover.', source: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx' },
         { name: 'First Nations participants', framework: 'RA-ANALYTICS', status: 'measured', value: '3,174 (6.6% of participants, 2026); +35% since 2022', how: 'Participants recording Aboriginal and/or Torres Strait Islander heritage (Rugby Analytics heritage table). Collect and use under Indigenous Data Sovereignty principles.', source: 'Rugby Analytics, 22/09/2026' },
         { name: 'Pasifika participants (Samoan, Fijian, Tongan)', framework: 'RA-ANALYTICS', status: 'measured', value: '3,486 in 2026 (Samoan 1,277, Fijian 1,145, Tongan 1,064); about 3.8 times the 2022 count (911)', how: 'Sum of the Samoan, Fijian and Tongan heritage rows in Rugby Analytics. Other Pacific groups were cut off in the source screenshot.', source: 'Rugby Analytics, 22/09/2026' },
         { name: 'CDN outcome: sense of belonging to a shared cultural heritage deepened', framework: 'CDN', status: 'none', value: 'No survey yet', how: 'Participant / attendee survey using the CDN outcome, unchanged wording, after events and at season end.', source: 'CDN schema' },
