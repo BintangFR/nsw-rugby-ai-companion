@@ -46,6 +46,22 @@
     ['Record delivery, not just budgets', 'Equipment register, hub attendance, Round 2 co-contributions, and statewide programs reported by region.'],
   ];
 
+  // The whole framework as one sequence of steps, for the closing summary diagram. [step, what happens, the rule].
+  const FLOW = () => {
+    const active = KF.KPIS.filter(k => k.state === 'active').length;
+    return [
+      ['Collect', 'Gather standard data once: one template per program and grant, the exact survey wording, Rugby Analytics exports. Submit checked aggregate counts as waves with the shared controls.', 'Same questions, same template, every time (sections 4, 9)'],
+      ['Check', 'Validate every input in a fixed order: invalid values, missing values, source checks, verification, permission, capture.', 'Missing is never zero (section 5)'],
+      ['Monitor', 'Where the money goes and whether the program is on track: known spend by pillar and region, and every plan target as Ahead, Close or Behind.', `${D.kpis.length} plan targets, each with its source (section 8)`],
+      ['Measure', `What difference it makes: ${KF.KPIS.length} KPIs (${DIMS.map(d => `${KF.KPIS.filter(k => k.dim === d).length} ${d.toLowerCase()}`).join(', ')}), ${active} active, each calculated exactly as the evaluation team wrote it.`, 'Never add KPIs together (section 6)'],
+      ['Value', 'Put a dollar value on the benefits with published formulas only, discounted under NSW Treasury TPG23-08. Cultural outcomes stay as survey results: no published dollar method exists.', 'Borrow methods, never invent them (section 7)'],
+      ['Label', 'Every result carries its status, period, scope, method version and source, and can show its formula with the actual inputs.', 'Show your working (section 3)'],
+      ['Report', 'Report each result to its audience (board, funder, annual report, community, media); changes only between comparable waves.', 'Descriptive, not causal; compare like with like'],
+      ['Improve', 'Named owners review results each reporting cycle, fix data gaps, and version any change of method before the next wave.', 'Each cycle starts again at Collect'],
+    ];
+  };
+  const CONCLUSION = 'Collect standard data once, check it, calculate only with published or agreed formulas, label every result, and report it with the working shown, so that every figure NSW Rugby publishes about the Legacy Program can be traced back to its source and recalculated by hand.';
+
   // ---------- the specification document (shared by the tab and the HTML download) ----------
   function specHtml() {
     const calcs = window.Methods?.CALCS || [];
@@ -133,6 +149,12 @@
       </section>
       <section class="fw-section" id="fw-sources"><h2>11. Sources</h2>
         ${table(['Organisation', 'Document', 'Used for'], Object.values(D.frameworks).map(f => [esc(f.org), f.url ? `<a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.title)}</a> (${f.year})` : `${esc(f.title)} (${f.year}; Dataset/${esc(f.file)})`, esc(f.use)]))}
+      </section>
+      <section class="fw-section" id="fw-summary"><h2>12. The framework in one picture</h2>
+        <p>Every part of this framework fits one repeating sequence. Each step has one rule that must not be broken.</p>
+        <ol class="fw-flow">${FLOW().map(([step, what, rule], n) => `<li><span class="fw-n">${n + 1}</span><div><b>${esc(step)}</b><p>${esc(what)}</p><span class="fw-rule">${esc(rule)}</span></div></li>`).join('')}</ol>
+        <p class="fw-loop">↻ Repeat every reporting cycle</p>
+        <div class="fw-conclusion"><b>Conclusion.</b> ${esc(CONCLUSION)}</div>
       </section>`;
   }
 
@@ -159,6 +181,7 @@
       establishedMeasures: Object.values(D.impactMethods).flatMap(l => l.measures.map(m => ({ dimension: l.label, name: m.name, framework: D.frameworks[m.framework].title, how: m.how }))),
       targets: D.kpis.map(({ id, area, kind, name, unit, baseline, baseYear, target, targetYear, source }) => ({ id, pillar: area, kind, name, unit, baseline, baseYear, target, targetYear, source })),
       sources: Object.entries(D.frameworks).map(([id, f]) => ({ id, ...f })),
+      summary: { steps: FLOW().map(([step, what, rule], n) => ({ order: n + 1, step, what, rule })), conclusion: CONCLUSION },
     }, null, 2);
   }
 
@@ -178,7 +201,13 @@
       <style>body{font:15px/1.5 system-ui,sans-serif;color:#111;max-width:1000px;margin:24px auto;padding:0 16px}h1{margin:0 0 4px}h2{margin-top:32px;border-bottom:2px solid #0b6b73;padding-bottom:4px}
       table{border-collapse:collapse;width:100%;margin:8px 0;font-size:13px}th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;vertical-align:top}th{background:#eef4f5}
       code{background:#f2f2f2;padding:1px 4px;border-radius:3px;font-size:12px;white-space:normal}.muted{color:#666}.small{font-size:12px}.fw-kpi{border:1px solid #ddd;border-radius:6px;padding:8px 12px;margin:10px 0;break-inside:avoid}
-      a{color:#0b6b73}@media print{body{margin:0}h2{break-after:avoid}}</style></head>
+      a{color:#0b6b73}@media print{body{margin:0}h2{break-after:avoid}}
+      .fw-flow{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:22px 26px;counter-reset:none}
+      .fw-flow li{position:relative;display:flex;gap:8px;border:1px solid #0b6b73;border-radius:6px;padding:10px;break-inside:avoid}
+      .fw-flow li:not(:last-child)::after{content:"→";position:absolute;right:-21px;top:50%;transform:translateY(-50%);color:#0b6b73;font-weight:700}
+      .fw-n{flex:none;width:24px;height:24px;border-radius:50%;background:#0b6b73;color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+      .fw-flow p{margin:2px 0 4px;font-size:13px}.fw-rule{font-size:12px;color:#0b6b73;font-weight:600}
+      .fw-loop{text-align:center;color:#0b6b73;font-weight:600}.fw-conclusion{border-left:4px solid #0b6b73;background:#eef4f5;padding:10px 14px;border-radius:0 6px 6px 0}</style></head>
       <body><h1>NSW Rugby RWC Legacy Impact Measurement Framework</h1><p class="muted">Specification for building the framework in any tool. Produced from Tackle AI.</p>${specHtml()}</body></html>`;
   }
 
@@ -186,7 +215,7 @@
   function render() {
     const host = $('#framework');
     if (!host) return;
-    const toc = [['fw-about', 'About'], ['fw-structure', 'Structure'], ['fw-principles', 'Principles'], ['fw-contract', 'Input contract'], ['fw-status', 'Statuses'], ['fw-kpis', 'KPI catalogue'], ['fw-valuation', 'Valuation'], ['fw-targets', 'Targets'], ['fw-collect', 'Data & governance'], ['fw-build', 'Build it'], ['fw-sources', 'Sources']];
+    const toc = [['fw-about', 'About'], ['fw-structure', 'Structure'], ['fw-principles', 'Principles'], ['fw-contract', 'Input contract'], ['fw-status', 'Statuses'], ['fw-kpis', 'KPI catalogue'], ['fw-valuation', 'Valuation'], ['fw-targets', 'Targets'], ['fw-collect', 'Data & governance'], ['fw-build', 'Build it'], ['fw-sources', 'Sources'], ['fw-summary', 'In one picture']];
     host.innerHTML = `<nav class="method-toc">${toc.map(([id, l]) => `<a href="#${id}">${l}</a>`).join('')}</nav><article class="card fw-doc">${specHtml()}</article>`;
   }
 

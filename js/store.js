@@ -1,7 +1,9 @@
 // Persistence. Uses the backend (/api/store) when it is running, otherwise the browser's localStorage.
 // Reads are synchronous from an in-memory cache; writes are saved in the background.
 window.Store = (() => {
-  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, econ: {}, targets: {}, programs: {}, methods: {}, kpis: {} };
+  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, econ: {}, targets: {}, programs: {}, methods: {}, kpis: {}, showcase: {} };
+  // Collections still saved while the demo sandbox is on: showcase answers are real feedback, not practice data.
+  const KEEP_IN_SANDBOX = new Set(['showcase']);
   const cache = {};
   const timers = {};
   let mode = 'local';
@@ -47,7 +49,7 @@ window.Store = (() => {
 
   function set(c, value) {
     cache[c] = value;
-    if (sandbox) return;
+    if (sandbox && !KEEP_IN_SANDBOX.has(c)) return;
     clearTimeout(timers[c]);
     timers[c] = setTimeout(() => persist(c), 300);
   }
@@ -68,5 +70,8 @@ window.Store = (() => {
     }
   }
 
-  return { init, get, set, api, headers, startSandbox, get sandbox() { return sandbox; }, get mode() { return mode; }, get health() { return health; } };
+  // Save a pending write now (e.g. before a reload).
+  function flush(c) { clearTimeout(timers[c]); return persist(c); }
+
+  return { init, get, set, flush, api, headers, startSandbox, get sandbox() { return sandbox; }, get mode() { return mode; }, get health() { return health; } };
 })();

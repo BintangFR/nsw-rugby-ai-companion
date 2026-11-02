@@ -285,47 +285,63 @@
   const HEALTH_PER_PERSON = R4G.physical * R4G.physicalShare; // R4G CBA physical health value per participant a year
   const healthWorking = `$${R4G.physical} a year (willingness to pay for better physical health, Herons et al. 2015, 2024 AUD, as used in the Rugby For Good CBA) × ${R4G.physicalShare * 100}% not injured (AusPlay 2023) = $${HEALTH_PER_PERSON.toFixed(2)} per participant a year`;
   const latest = s => { const ys = Object.keys(s || {}).map(Number).filter(y => Number.isFinite(s[y])); return ys.length ? Math.max(...ys) : null; };
+  const LENS_KEYS = ['economic', 'social', 'cultural'];
 
-  // Dollar values per focus pillar: [label, value, sub, hover working]. Every value is a published formula run on the
-  // inputs shown in its hover, or a figure quoted from a published study. Values that measure different things are
-  // never added together.
-  function pillarValues(pillar) {
-    const c = pillarContribution(pillar), nswrl = CALCS.find(x => x.id === 'contribution');
+  // Dollar values per impact lens: [label, value, sub, hover working]. Every value is a published formula run on the
+  // inputs shown in its hover, a figure quoted from a published study, or a plain sum of known allocations. Values that
+  // measure different things are never added together, and no program spend is split across the lenses.
+  function lensValues(lens) {
     const rows = [];
-    rows.push(c.spend ? ['Economic contribution', big$(c.total), 'spending flowing through the NSW economy',
-      `How this is worked out (NSW Rugby League 2026 expenditure flow analysis):\nEach spend line is sorted into an NSWRL spending category, then spend × share kept in NSW × multiplier.\n${c.lines.map(l => '• ' + l).join('\n')}\n\nDirect contribution (spend kept in NSW): ${aud(c.direct)}\nTotal economic contribution: ${aud(c.total)}\n\nSpend = Legacy known allocations (grants and 3-year dashboard budgets), not audited spend.\nCaveat: ${nswrl.caveat}\n${srcLine(nswrl)}`]
-      : ['Economic contribution', 'Needs data', 'no spend recorded', 'No known allocations for this pillar yet.']);
+    const needs = (label, sub, how) => rows.push([label, 'Needs data', sub, how]);
 
-    if (pillar === 'FE') {
-      rows.push(['Health value of facility users', 'Needs data', 'needs regular user counts per upgraded facility',
-        `How it will be calculated (Rugby For Good CBA, benefit transfer):\nregular users of the upgraded facilities who are physically active × ${healthWorking}.\n\nThe app does not yet hold user counts per facility. Collect them with the facility utilisation KPI (P1-01) or club registrations at each upgraded ground.`]);
+    if (lens === 'economic') {
+      const c = CALCS.find(x => x.id === 'contribution'), inp = inputsFor('contribution'), res = c.run(inp.p);
+      if (res.missing) needs('Economic contribution', 'needs spend by category', `How it will be calculated: ${c.formula}\n${srcLine(c)}`);
+      else {
+        const total = res.rows.find(r => r[0] === 'Total economic contribution'), direct = res.rows.find(r => r[0] === 'Direct contribution (retained in NSW)');
+        rows.push(['Economic contribution of Legacy spending', big$(Number(total[1].replace(/[^\d]/g, ''))), 'spending flowing through the NSW economy',
+          `How this is worked out (NSW Rugby League 2026 expenditure flow analysis):\nspend in each NSWRL category × share kept in NSW × multiplier.\n${total[2].split('\n').map(l => '• ' + l).join('\n')}\n\nDirect contribution (spend kept in NSW): ${direct[1]}\nTotal economic contribution: ${total[1]}\n\n${fromLine(inp)}\n\nCaveat: ${c.caveat}\n${srcLine(c)}`]);
+      }
+      const ev = CALCS.find(x => x.id === 'event'), er = ev.run(inputsFor('event').p);
+      if (er.missing) needs('RWC event visitor spending', 'visitor survey not run yet', `How it will be calculated (${ev.name}): ${ev.formula}\n\nNo inputs yet. Run the eventIMPACTS visitor survey at the RWC events, then enter the results on Valuations.\n\nCaveat: ${ev.caveat}\n${srcLine(ev)}`);
+      else {
+        const t = er.rows.find(r => r[0] === 'Total additional expenditure');
+        rows.push(['RWC event visitor spending', big$(Number(t[1].replace(/[^\d]/g, ''))), 'new spending in the host area', `How this is worked out (${ev.name}):\n${er.rows.map(r => `• ${r[0]}: ${r[2]}`).join('\n')}\n\nCaveat: ${ev.caveat}\n${srcLine(ev)}`]);
+      }
     }
 
-    if (pillar === 'PW') {
+    if (lens === 'social') {
       const h = CALCS.find(x => x.id === 'health'), inp = inputsFor('health'), res = h.run(inp.p);
-      if (res.missing) rows.push(['Health value of taking part', 'Needs data', 'needs player and match official numbers', `How it will be calculated: ${h.formula}\n${srcLine(h)}`]);
+      if (res.missing) needs('Health value of taking part', 'needs player and match official numbers', `How it will be calculated: ${h.formula}\n${srcLine(h)}`);
       else {
         const total = res.rows.find(r => r[0] === 'Total yearly benefit'), pv5 = res.rows.find(r => r[0].startsWith('PV at 5%'));
         const parts = res.rows.filter(r => !r[0].startsWith('PV') && r !== total && r[2] !== 'Not entered');
-        rows.push(['Health value of taking part', total[1].replace('/yr', ''), 'a year · indicative',
+        rows.push(['Health value of taking part', big$(Number(total[1].replace(/[^\d]/g, ''))), 'a year · indicative',
           `How this is worked out (${h.name}):\n${parts.map(r => `• ${r[0]}: ${r[2]}`).join('\n')}\nTotal: ${total[1]}\n\n${fromLine(inp)}\n\nPresent value over ${R4G.years} years at 5% (NSW Treasury TPG23-08): ${pv5[1]}.\n\nThis is the health value of rugby participation in NSW. It is not all caused by the Legacy Program.\nCaveat: ${h.caveat}\n${srcLine(h)}`]);
       }
       const benefit = R4G_RESULTS.reduce((s, r) => s + r.benefit, 0), cost = R4G_RESULTS.reduce((s, r) => s + r.cost, 0);
       rows.push(['Rugby For Good programs (published)', big$(benefit), `benefits for ${big$(cost)} of funding · BCR ${R4G_RESULTS.map(r => r.bcr).join(' / ')}`,
         `Quoted from the Rugby For Good Cost Benefit Analysis (Balmoral Group Australia for the NSW Positive Rugby Foundation, 2025), Table 6. Tackle AI does not recalculate these figures.\nPresent value at a 5% discount rate over 20 years, NSW Treasury TPG23-08 method. Costs accrue every year; benefits start after the first year.\n\n`
           + R4G_RESULTS.map(r => `${r.name}, ${r.participants}: benefits ${aud(r.benefit)} vs grant funding ${aud(r.cost)} = BCR ${r.bcr}\n${r.parts.map(([n, v]) => `   ${n}: ${aud(v)}`).join('\n')}`).join('\n\n')
-          + `\n\nTotal: ${aud(benefit)} of benefits for ${aud(cost)} of funding.\n\nShown under Programs & Workforce because the Legacy Program funds the Hunter Rugby For Good manager and activities. These are Rugby For Good results, not Legacy results.`]);
+          + `\n\nTotal: ${aud(benefit)} of benefits for ${aud(cost)} of funding. Most of the value is health, mental health and wellbeing, so it sits under Social.\n\nThese are Rugby For Good results (the Legacy Program funds the Hunter Rugby For Good manager and activities), not Legacy results.`]);
     }
 
-    if (pillar === 'INC') {
+    if (lens === 'cultural') {
+      const tagged = [...A.allGrants().map(g => ({ name: g.project, amount: g.amount, tags: g.tags || [] })), ...D.dashboard.map(d => ({ name: d.initiative, amount: d.total, tags: d.tags || [] }))]
+        .filter(l => l.amount > 0 && (l.tags.includes('firstNations') || l.tags.includes('pasifika')));
+      const sumT = tagged.reduce((s, l) => s + l.amount, 0);
+      rows.push(['Invested in First Nations and Pasifika programs', sumT ? big$(sumT) : 'Needs data', `${tagged.length} spend line${tagged.length === 1 ? '' : 's'} · known allocations`,
+        `How this is worked out: the sum of Legacy known allocations tagged First Nations or Pasifika (each line counted once).\n${tagged.map(l => `• ${l.name}: ${aud(l.amount)}`).join('\n')}\nTotal: ${aud(sumT)}\n\nThis is money invested, not the value of the outcome. Budgets, not audited spend.`]);
       const ms = A.measures();
-      for (const [id, label] of [['femaleParticipants', 'Women and girls'], ['firstNationsParticipants', 'First Nations participants'], ['pasifikaParticipants', 'Pasifika participants']]) {
+      for (const [id, label] of [['firstNationsParticipants', 'First Nations participants'], ['pasifikaParticipants', 'Pasifika participants']]) {
         const m = ms[id], y = latest(m?.series);
-        if (y == null) { rows.push([`Health value: ${label}`, 'Needs data', 'needs participant numbers', `How it will be calculated: ${label.toLowerCase()} × ${healthWorking}.\nUpload Rugby Analytics participation data with this group.`]); continue; }
+        if (y == null) { needs(`Health value: ${label}`, 'needs participant numbers', `How it will be calculated: ${label} × ${healthWorking}.`); continue; }
         const n = m.series[y], v = n * HEALTH_PER_PERSON;
         rows.push([`Health value: ${label}`, big$(v), `a year · ${num(n)} participants in ${y}`,
-          `How this is worked out (Rugby For Good CBA, benefit transfer):\n${num(n)} ${label.toLowerCase()} (${m.dataset}, ${y}) × ${healthWorking} = ${aud(v)} a year.\n\nThese participants are already counted in the Programs & Workforce health value, and the groups overlap, so these figures are never added to it or to each other. Counts include non-playing participants where the source does not split them out.\n\nSource: ${F['R4G-CBA'].org}, ${F['R4G-CBA'].title} (${F['R4G-CBA'].year}); ${F['RA-ANALYTICS'].org}, ${F['RA-ANALYTICS'].title}`]);
+          `How this is worked out (Rugby For Good CBA, benefit transfer):\n${num(n)} ${label} (${m.dataset}, ${y}) × ${healthWorking} = ${aud(v)} a year.\n\nThese participants are already counted in the Social health value, so this is a closer look at the same value, never added to it.\n\nSource: ${F['R4G-CBA'].org}, ${F['R4G-CBA'].title} (${F['R4G-CBA'].year}); ${F['RA-ANALYTICS'].org}, ${F['RA-ANALYTICS'].title}`]);
       }
+      rows.push(['Cultural value itself', 'Not in dollars', 'measured with the five CDN outcomes instead',
+        `No published method puts a dollar value on cultural outcomes such as belonging or cultural identity. The Cultural Development Network measures them as the share of people who agree each outcome happened for them (see the Cultural outcomes calculator on Valuations), and First Nations data is collected under the Maiam nayri Wingara Indigenous Data Sovereignty principles.\n\nSource: ${F.CDN.org}, ${F.CDN.title}`]);
     }
     return rows;
   }
@@ -333,14 +349,11 @@
   function renderDollars() {
     const host = $('#dollarRow');
     if (!host) return;
-    const totals = A.pillarTotals(), invest = { FE: totals.fe, PW: totals.pw, INC: totals.inc };
-    host.innerHTML = PILLARS.map(([k, name]) => `<article class="pillar-value">
-        <h3>${esc(name)}</h3>
-        <div class="pv-invest"><b ${tip(`${name}: known Legacy allocations (Round 1 grants plus 3-year RWC Dashboard budgets${A.uploadedSpend().length ? ' plus uploaded spend' : ''}). These are budgets, not audited spend.`)}>${big$(invest[k])}</b> invested</div>
-        <ul class="pv-rows">${pillarValues(k).map(([l, v, s, t]) => `<li><span class="pv-label">${esc(l)}</span><b class="${v === 'Needs data' ? 'pv-missing' : ''}" ${tip(t)}>${esc(v)}</b><span class="pv-sub">${esc(s)}</span></li>`).join('')}</ul>
+    host.innerHTML = LENS_KEYS.map(k => `<article class="pillar-value lens-${k}">
+        <h3>${esc(D.impactMethods[k].label)} impact</h3>
+        <div class="pv-invest">${esc(D.impactMethods[k].question)}</div>
+        <ul class="pv-rows">${lensValues(k).map(([l, v, s, t]) => `<li><span class="pv-label">${esc(l)}</span><b class="${/^(Needs data|Not in dollars)$/.test(v) ? 'pv-missing' : ''}" ${tip(t)}>${esc(v)}</b><span class="pv-sub">${esc(s)}</span></li>`).join('')}</ul>
       </article>`).join('');
-    const ev = CALCS.find(x => x.id === 'event'), er = ev.run(inputsFor('event').p);
-    $('#dollarNote').innerHTML = `Outside the three pillars: <span ${tip(`${ev.name}\n\n${er.missing ? 'How it will be calculated' : 'How this is worked out'}: ${ev.formula}\n${er.missing ? '\nNo inputs yet. Run the eventIMPACTS visitor survey at the RWC events, then enter the results on Valuations.' : er.rows.map(r => `• ${r[0]}: ${r[2]}`).join('\n')}\n\n${srcLine(ev)}`)}>RWC event visitor spending: <b>${er.missing ? 'needs data' : esc(er.rows.find(r => r[0] === 'Total additional expenditure')[1])}</b></span>.`;
   }
 
   // One line per calculator with a result, for the AI agents and the Story.
@@ -391,7 +404,7 @@
         ['Held centrally', 'Spend on lines marked "Statewide" ÷ all known spend.'],
         ['NSW Rugby KPI Framework', 'The evaluation team\'s 27 KPIs (9 economic, 8 social, 10 cultural) from the KPI Formula Web Handover, applied exactly as specified. Each submission carries a reporting period, scope, method version, source and verification level; results are labelled Calculated — Verified, Calculated — Estimated or Hypothetical Example, and otherwise Data Collection Required, Not Calculable, Not applicable or Validation Failed. Inactive KPIs never show a value. The full specification is on the <a href="#" data-goto="framework">Framework</a> tab.'],
         ['Impact valuations', 'Calculators that apply formulas published by other organisations (R4G CBA, NSWRL 2026, eventIMPACTS, ABS GSS benchmarks, CDN). See Impact methods below.'],
-        ['Dollar value row (Impact)', `Health value = latest Rugby Analytics players + match officials (NSWRL's definition of active participants) ×$${R4G.physical} × ${R4G.physicalShare * 100}% (R4G CBA physical health value, benefit transfer). Economic contribution = Legacy facility grants × ${ORG_CATS.find(c => c[0] === 'capex')[2] * 100}% kept in NSW × ${ORG_CATS.find(c => c[0] === 'capex')[3]} multiplier (NSWRL 2026 capital expenditure rates). Event spending waits for the eventIMPACTS visitor survey. Rugby For Good results are quoted from the published CBA, not recalculated. Inputs typed in on Valuations replace the pre-filled ones. The figures measure different things and are never added together.`],
+        ['Dollar value by impact (Impact)', `<b>Economic</b>: economic contribution of Legacy spending, NSWRL 2026 expenditure flow analysis. Each spend line goes into an NSWRL category (facility grants → capital expenditure ${catOf('capex')[2] * 100}% kept in NSW × ${catOf('capex')[3]}; staff roles → wages and salaries ${catOf('wages')[2] * 100}% × ${catOf('wages')[3]}; match official programs → referees ${catOf('referees')[2] * 100}% × ${catOf('referees')[3]}; everything else → all other expenses ${catOf('other')[2] * 100}% × ${catOf('other')[3]}). RWC event visitor spending (eventIMPACTS) waits for the visitor survey. <b>Social</b>: health value = players + match officials (NSWRL's definition of active participants) × $${R4G.physical} × ${R4G.physicalShare * 100}% (R4G CBA, benefit transfer), plus the published Rugby For Good CBA results, quoted not recalculated. <b>Cultural</b>: spend tagged First Nations or Pasifika (money invested, not value), and the health value for First Nations and Pasifika participants (part of the Social figure, never added). Cultural outcomes themselves have no published dollar method and are measured with the CDN outcomes. Inputs typed in on Valuations replace the pre-filled ones; figures that measure different things are never added together.`],
         ['Targets', 'Status against the pace needed to reach each plan target. See Targets below.'],
       ])) +
       section('m-ai', 'How the AI generates insights', steps([
