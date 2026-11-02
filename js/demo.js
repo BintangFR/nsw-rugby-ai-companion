@@ -62,7 +62,7 @@
       body: 'Impact is shown three ways: <b>social</b> (do people feel connected and well?), <b>economic</b> (does it bring money and jobs?) and <b>cultural</b> (does it strengthen identity and belonging?). Every measure comes from a method <b>another organisation has already published</b>, such as NSW Treasury, the OECD or NSW Rugby League. The coloured bar shows which measures already have data. Hover any block to see how it is measured.',
       why: 'Our results use methods funders already trust, and we are honest about what we cannot prove yet.' },
     { tab: 'impact', target: '#dollarCard', title: 'Putting a dollar value on the benefits',
-      body: 'The top row turns our real numbers into dollars using <b>published formulas</b>: the health value of taking part (Rugby For Good cost-benefit study, applied to Rugby Australia\'s participant numbers) and the economic contribution of the facility grants (NSW Rugby League\'s method). <b>Hover any figure</b> to see exactly how it was worked out and where each number came from.',
+      body: 'Economic, social and cultural value in dollars, using <b>published formulas</b> on our real numbers: the economic contribution of Legacy spending (NSW Rugby League\'s method), the health value of taking part (Rugby For Good cost-benefit study, applied to Rugby Australia\'s participant numbers), and money invested in First Nations and Pasifika programs. <b>Hover any figure</b> to see exactly how it was worked out and where each number came from.',
       why: 'Every dollar figure can be checked the same way a Treasury reviewer would check it.' },
     { tab: 'impact', target: '#kpiCard', title: 'The KPIs, worked out properly',
       body: 'The evaluation team\'s 27 KPIs: 9 economic, 8 social and 10 cultural, each calculated exactly as their formula handover says. We have typed in <b>practice numbers</b> so you can see them work, for example how well a ground is used or how many participants feel their culture is respected. Practice results are labelled <b>Hypothetical Example</b>.',
@@ -156,8 +156,8 @@
       body: 'Social, economic and cultural impact, using <b>only published methods</b>: NSW Treasury guidelines, the OECD social cohesion framework, the Rugby For Good Benefits Realisation Framework, NSW Rugby League\'s 2026 community impact study, and the Cultural Development Network. The bar shows which measures already have data.',
       notes: 'Key message: we did not invent formulas. Hover a grey block to show "no data yet" and how it would be measured (e.g. ABS General Social Survey questions with national benchmarks). Mention the new Rugby Analytics data: First Nations participants up 35% since 2022, Pasifika groups almost 4x.' },
     { section: 'What difference it makes', secs: 75, tab: 'impact', target: '#dollarCard', title: 'Valuing the benefits in dollars',
-      body: 'Dollar values from published formulas, run on our own data: health value of taking part (Rugby For Good cost-benefit values × Rugby Australia participants), economic contribution of the facility grants (NSW Rugby League\'s method), RWC event visitor spending (eventIMPACTS, waiting for the visitor survey), and the published Rugby For Good results for comparison.',
-      notes: 'Hover the health figure: it shows participants × $237 × 74%, where each number comes from, and the 5% present value under NSW Treasury TPG23-08. Stress these are indicative benefit-transfer values until NSW Rugby collects its own program data, and that the four figures are never added together.' },
+      body: 'Dollar values by impact type, from published formulas run on our own data. <b>Economic:</b> contribution of Legacy spending to NSW (NSW Rugby League\'s method) and RWC visitor spending (eventIMPACTS, waiting for the survey). <b>Social:</b> health value of taking part (Rugby For Good cost-benefit values × Rugby Australia participants) and the published Rugby For Good results. <b>Cultural:</b> money invested in First Nations and Pasifika programs; cultural outcomes themselves have no published dollar method.',
+      notes: 'Hover the health figure: it shows players + match officials × $237 × 74%, where each number comes from, and the 5% present value under NSW Treasury TPG23-08. Hover the economic figure to show each spend category × share kept in NSW × multiplier. Stress these are indicative benefit-transfer values until NSW Rugby collects its own program data, and that figures measuring different things are never added together.' },
     { section: 'What difference it makes', secs: 30, tab: 'impact', target: '#kpiCard', title: 'The NSW Rugby KPI framework',
       body: 'The evaluation team\'s 27 KPIs (9 economic, 8 social, 10 cultural), calculated exactly as their handover specifies. Every result says whether it is verified, estimated or hypothetical, and missing data shows as "Data Collection Required", <b>never as zero</b>.',
       notes: 'One example only: facility utilisation (practice inputs, labelled Hypothetical Example). Mention 4 cultural KPIs are deliberately inactive in the handover, and the full specification is on the Framework tab.',
@@ -222,9 +222,114 @@
   };
   for (const s of PRESENT) if (FEEDBACK_APPLIED[s.title]) s.feedback = FEEDBACK_APPLIED[s.title];
 
+  // ---------- Showcase mode ----------
+  // A feedback session: the same walkthrough, but each stop asks the stakeholders questions about that section instead
+  // of presenting it. Answers are saved (Store 'showcase', kept even in the sandbox) and can be downloaded at the end.
+  // q: the question; open: true = free-text answer only, otherwise a quick Yes / Partly / No plus notes.
+  const SCALE = ['Yes', 'Partly', 'No'];
+  const SHOWCASE = [
+    { title: 'Your feedback, section by section', mascot: 'wave', say: "G'day! Today we'd like to hear from you.",
+      body: 'We will stop at each part of Tackle AI and ask a few questions. There are no wrong answers: tell us what works, what is confusing and what is missing. Answers are saved as we go.',
+      questions: [{ q: 'Who is giving feedback today (names and roles)?', open: true }] },
+    { section: 'Where the money goes', tab: 'overview', target: '#kpiRow', title: 'The headline figures',
+      body: 'Known spend, the three pillars, and how much is held centrally. Hover any number to see how it was added up.',
+      questions: [{ q: 'Are these the right headline figures for a board or funder?' }, { q: 'Is anything missing that you would expect to see first?', open: true }] },
+    { section: 'Where the money goes', tab: 'overview', target: card('#map'), title: 'The region map and flags',
+      body: 'Each circle is a region; flags mark regions getting much more or less than their share of the population, and First Nations communities without a program.',
+      questions: [{ q: 'Is the region view useful for your decisions?' }, { q: 'Are the "more / less than its share" flags fair to regional clubs?' }, { q: 'Which measure would you look at most on the map?', open: true }] },
+    { section: 'Where the money goes', tab: 'overview', target: card('#matrix'), title: 'The region table',
+      body: 'Every region and every measure side by side. Hover a column heading to see how it is measured.',
+      questions: [{ q: 'Are the column explanations clear when you hover?' }, { q: 'Which columns would you add or remove?', open: true }] },
+    { section: 'Are we on track', tab: 'targets', target: card('#kpiProgress'), title: 'Targets',
+      body: 'Every plan target judged against the pace needed to reach it: Ahead, Close or Behind. Uploads update them automatically.',
+      questions: [{ q: 'Are these the right targets and target years?' }, { q: 'Is Ahead / Close / Behind easy to understand?' }, { q: 'Are Facilities (P1) and Priority Regions (P2) covered well enough now?' }] },
+    { section: 'Are we on track', tab: 'programs', target: '#progDetail', title: 'A single program',
+      body: 'One grant or budget line: what it cost, what it achieved and what drives the result. Shown with practice results for the Holroyd changerooms.',
+      questions: [{ q: 'Could clubs and staff record these results (spend, people reached, new coaches or referees)?' }, { q: 'Who would record them, and how often?', open: true }],
+      before: () => STEPS.find(s => s.tab === 'programs')?.before?.() },
+    { section: 'What difference it makes', tab: 'impact', target: '#lensGrid', title: 'Social, economic and cultural impact',
+      body: 'Each impact type shows which measures from published frameworks already have data. Hover a block for how it is measured.',
+      questions: [{ q: 'Do these frameworks match how NSW Rugby wants to report impact?' }, { q: 'Which "no data yet" measures could you start collecting this season?', open: true }] },
+    { section: 'What difference it makes', tab: 'impact', target: '#dollarCard', title: 'Dollar value by impact',
+      body: 'Economic, social and cultural value in dollars, from published formulas only. Hover any figure for the full working. Cultural outcomes have no published dollar method, so they stay as survey results.',
+      questions: [{ q: 'Are you comfortable showing these indicative dollar values to funders?' }, { q: 'Is the hover explanation enough to trust a figure?' }, { q: 'Should cultural impact stay without a dollar value?' }] },
+    { section: 'What difference it makes', tab: 'impact', target: '#kpiCard', title: 'The NSW Rugby KPIs',
+      body: 'The evaluation team\'s 27 KPIs, calculated exactly as their handover specifies. Practice results are labelled Hypothetical Example.',
+      questions: [{ q: 'Can your team supply the data these KPIs need?' }, { q: 'Which KPIs matter most to start with?', open: true }],
+      before: loadSampleKpis },
+    { section: 'How the AI works', tab: 'insights', target: '#bubbles', title: 'AI findings',
+      body: 'Short findings with the numbers behind them and a suggested next step. Staff verify or dispute each one before it can reach a report.',
+      questions: [{ q: 'Are the findings accurate and useful?' }, { q: 'Would your team review findings with 👍 / 👎 regularly?' }],
+      before: () => { if (!window.App.insights.length) $('#runRules')?.click(); } },
+    { section: 'Keeping it current', tab: 'data', target: '#dataQuality', title: 'Adding data and data quality',
+      body: 'Drop in a spreadsheet, PDF or Word file. Each file gets a traffic light: green, amber or red (too high level).',
+      questions: [{ q: 'Is the traffic light rating fair for your files?' }, { q: 'Which files would you upload regularly, and who owns them?', open: true }] },
+    { section: 'Reporting', tab: 'story', target: '.story-controls', title: 'Impact reports',
+      body: 'Pick a report type (Board Summary, Funding Acquittal, Annual Report Chapter, Community Story or Media Release) and a scope; the pages assemble themselves.',
+      questions: [{ q: 'Does the report look like something you would send out?' }, { q: 'Which report type do you need first, and for when?', open: true }] },
+    { section: 'Explaining it', tab: 'methodology', target: '#m-overview', title: 'Methodology',
+      body: 'How every figure is calculated, how the AI writes its findings and how they are checked.',
+      questions: [{ q: 'Is this clear enough for a board member or an auditor?' }] },
+    { section: 'Wrap-up', title: 'Overall',
+      body: 'Last questions, then you can see and download everything we heard today.',
+      questions: [{ q: 'Would your team use Tackle AI after handover?' }, { q: 'What is the one thing we should change before handover?', open: true }, { q: 'Anything else?', open: true }] },
+    { section: 'Wrap-up', title: 'What we heard today', mascot: 'cheer', say: 'Thanks for your feedback!',
+      body: () => summaryHtml(),
+      note: 'Answers are already saved. Download them before you finish if you want a copy for the meeting notes.' },
+  ];
+
+  let session = null; // id of the current showcase session
+  const qid = (step, n) => `${step.title}#${n}`;
+  const allSessions = () => Store.get('showcase') || {};
+  const sessionData = () => allSessions()[session] || { started: Date.now(), answers: {} };
+  function saveAnswer(id, patch) {
+    const s = sessionData();
+    s.answers = { ...s.answers, [id]: { ...(s.answers[id] || {}), ...patch } };
+    Store.set('showcase', { ...allSessions(), [session]: s });
+  }
+  // Every question of the session with its answer, in walkthrough order.
+  const answered = () => SHOWCASE.flatMap(s => (s.questions || []).map((q, n) => ({ section: s.section || 'Intro', step: s.title, q: q.q, ...(sessionData().answers[qid(s, n)] || {}) })));
+  function summaryHtml() {
+    const rows = answered().filter(a => a.rating || a.note);
+    const list = rows.length ? `<ul class="sc-summary">${rows.map(a => `<li><b>${esc(a.step)}:</b> ${esc(a.q)}<span>${a.rating ? `<i class="sc-r ${a.rating.toLowerCase()}">${esc(a.rating)}</i> ` : ''}${esc(a.note || '')}</span></li>`).join('')}</ul>` : '<p>No answers recorded yet.</p>';
+    return `<div>${list}<div class="row sc-dl"><button class="btn" data-sc-dl="md">Download notes (.md)</button><button class="btn" data-sc-dl="csv">Download table (.csv)</button></div></div>`;
+  }
+  function download(kind) {
+    const rows = answered(), date = new Date(sessionData().started).toLocaleString('en-AU');
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const text = kind === 'csv'
+      ? [['section', 'screen', 'question', 'answer', 'notes'].join(','), ...rows.map(a => [a.section, a.step, a.q, a.rating, a.note].map(q).join(','))].join('\r\n')
+      : `# Tackle AI showcase feedback\n\n${date}\n` + SHOWCASE.filter(s => s.questions).map(s => `\n## ${s.title}\n\n` + rows.filter(a => a.step === s.title).map(a => `- **${a.q}** ${a.rating ? `${a.rating}. ` : ''}${a.note || (a.rating ? '' : '_no answer_')}`).join('\n')).join('\n') + '\n';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: kind === 'csv' ? 'text/csv' : 'text/markdown' }));
+    a.download = `tackle-showcase-feedback-${new Date(sessionData().started).toISOString().slice(0, 10)}.${kind}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function questionsHtml(step) {
+    const ans = sessionData().answers;
+    return `<ol class="sc-questions">${step.questions.map((q, n) => { const id = qid(step, n), a = ans[id] || {};
+      return `<li data-q="${esc(id)}"><p>${esc(q.q)}</p>
+        ${q.open ? '' : `<div class="sc-scale" role="group">${SCALE.map(o => `<button type="button" class="${a.rating === o ? 'on' : ''}" data-r="${o}" aria-pressed="${a.rating === o}">${o}</button>`).join('')}</div>`}
+        <textarea rows="2" placeholder="${q.open ? 'Their answer' : 'What they said (optional)'}">${esc(a.note || '')}</textarea></li>`; }).join('')}</ol>`;
+  }
+  function bindQuestions(box) {
+    $$('.sc-questions li', box).forEach(li => {
+      const id = li.dataset.q;
+      $$('.sc-scale button', li).forEach(b => b.onclick = () => {
+        const on = !b.classList.contains('on');
+        $$('.sc-scale button', li).forEach(x => { x.classList.toggle('on', on && x === b); x.setAttribute('aria-pressed', on && x === b); });
+        saveAnswer(id, { rating: on ? b.dataset.r : '' });
+      });
+      $('textarea', li).oninput = e => saveAnswer(id, { note: e.target.value });
+    });
+    $$('[data-sc-dl]', box).forEach(b => b.onclick = () => download(b.dataset.scDl));
+  }
+
   const MODES = {
     demo: { steps: STEPS, badge: 'Demo', exit: 'Exit demo' },
     present: { steps: PRESENT, badge: 'Presenting', exit: 'End presentation', timed: true },
+    showcase: { steps: SHOWCASE, badge: 'Showcase', exit: 'End showcase' },
   };
   let mode = 'demo', steps = STEPS;
   // Timer: total elapsed against the 15:00 budget, and time on the current slide against its allocation.
@@ -295,6 +400,7 @@
     const step = steps[i], M = MODES[mode];
     const body = typeof step.body === 'function' ? step.body() : step.body;
     els.box.classList.toggle('presenting', !!M.timed);
+    els.box.classList.toggle('showcasing', mode === 'showcase');
     els.box.innerHTML = `
       <div class="demo-top"><span class="demo-badge">${M.badge}</span>${step.section ? `<span class="demo-section">${esc(step.section)}</span>` : ''}<span class="demo-count">${i + 1} / ${steps.length}</span><button class="demo-x" aria-label="${M.exit}" title="${M.exit} (Esc)">×</button></div>
       ${M.timed ? '<div class="present-timer"></div>' : ''}
@@ -302,6 +408,7 @@
       <h3>${esc(step.title)}</h3>
       ${step.feedback ? `<div class="feedback-applied">${step.feedback.map(([quote, what]) => `<div data-tip="${esc(`Feedback from the feedback session: ${quote}\nWhat changed on this screen: ${what}`)}"><span class="fa-tag">★ Feedback applied</span> <b>${esc(quote)}</b><span>${esc(what)}</span></div>`).join('')}</div>` : ''}
       ${/^\s*<(ul|ol|div)/.test(body) ? body : `<p>${body}</p>`}
+      ${step.questions ? questionsHtml(step) : ''}
       ${step.why ? `<p class="demo-why"><b>Why it matters:</b> ${esc(step.why)}</p>` : ''}
       ${step.note ? `<p class="demo-note">${esc(step.note)}</p>` : ''}
       ${step.notes ? `<details class="present-notes" ${notesOpen ? 'open' : ''}><summary>Speaker notes <span class="muted">(N)</span></summary><p>${esc(step.notes)}</p></details>` : ''}
@@ -309,13 +416,14 @@
       <div class="demo-nav">
         <button class="btn" data-go="-1" ${i === 0 ? 'disabled' : ''}>Back</button>
         ${M.timed ? `<button class="btn" data-pause>${pausedAt ? 'Resume' : 'Pause'} <span class="muted">(P)</span></button>` : ''}
-        <button class="btn primary" data-go="1">${i === steps.length - 1 ? 'Finish' : i === 0 ? (M.timed ? 'Start' : 'Start the tour') : 'Next'}</button>
+        <button class="btn primary" data-go="1">${i === steps.length - 1 ? 'Finish' : i === 0 ? (mode === 'demo' ? 'Start the tour' : 'Start') : 'Next'}</button>
       </div>`;
     $('.demo-x', els.box).onclick = stop;
     $$('[data-go]', els.box).forEach(b => b.onclick = () => go(i + Number(b.dataset.go)));
     $$('.demo-dots button', els.box).forEach(b => b.onclick = () => go(Number(b.dataset.n)));
     const pb = $('[data-pause]', els.box); if (pb) pb.onclick = togglePause;
     const nd = $('.present-notes', els.box); if (nd) nd.ontoggle = () => { notesOpen = nd.open; };
+    bindQuestions(els.box);
     tick();
   }
 
@@ -345,7 +453,7 @@
   }
 
   function onKey(e) {
-    if (!active || e.target.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+    if (!active || e.target.closest?.('input, textarea, select, [contenteditable="true"], .sc-questions')) return;
     if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); go(i + 1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); go(i - 1); }
     else if (e.key === 'Escape') { e.preventDefault(); stop(); }
@@ -359,6 +467,7 @@
     steps = MODES[mode].steps;
     startedAt = stepAt = Date.now(); pausedAt = 0;
     if (MODES[mode].timed) clock = setInterval(tick, 1000);
+    if (mode === 'showcase') session = 'sc-' + startedAt;
     Store.startSandbox();
     active = true;
     document.body.classList.add('demo-on');
@@ -370,23 +479,25 @@
     go(0);
   }
 
-  function stop() {
+  async function stop() {
     active = false;
     clearInterval(clock);
+    // Showcase answers are real: make sure they are saved before the reload.
+    if (mode === 'showcase') try { await Store.flush('showcase'); } catch {}
     // Sample data only ever lived in memory: reload to return to the real data.
     const url = new URL(location.href);
-    url.searchParams.delete('demo');
-    url.searchParams.delete('present');
+    ['demo', 'present', 'showcase'].forEach(k => url.searchParams.delete(k));
     location.replace(url.toString());
   }
 
   document.addEventListener('app-ready', () => {
     $('#demoBtn')?.addEventListener('click', () => start('demo'));
     $('#presentBtn')?.addEventListener('click', () => start('present'));
+    $('#showcaseBtn')?.addEventListener('click', () => start('showcase'));
     const q = new URLSearchParams(location.search);
-    if (q.has('demo')) setTimeout(() => start('demo'), 600);
-    else if (q.has('present')) setTimeout(() => start('present'), 600);
+    const which = ['demo', 'present', 'showcase'].find(k => q.has(k));
+    if (which) setTimeout(() => start(which), 600);
   });
 
-  window.Demo = { start, stop, STEPS, PRESENT, BUDGET };
+  window.Demo = { start, stop, STEPS, PRESENT, SHOWCASE, BUDGET };
 })();
