@@ -168,7 +168,7 @@ Write in plain Australian English for program managers and board members.`;
 
   const AGENTS = [
     { id: 'FE', name: 'Facilities Agent', pillar: 'Facilities & Equipment',
-      brief: 'Assess facilities and equipment spend by region: which regions are well served, which look overspent or underserved relative to population, which audit gaps (female changerooms, lighting, drainage, accessibility) are being addressed, and the equipment gap.' },
+      brief: 'Assess facilities and equipment spend by region: which regions are well served, which are above or below their population share, which audit gaps (female changerooms, lighting, drainage, accessibility) are being addressed, and the equipment gap.' },
     { id: 'PW', name: 'Workforce Agent', pillar: 'Programs & Workforce',
       brief: 'Assess programs and workforce: coach and match official growth vs targets, ratios, volunteer burnout, salary sustainability after 2028, and where workforce investment is located.' },
     { id: 'INC', name: 'Inclusion Agent', pillar: 'Inclusion',
@@ -198,10 +198,11 @@ Use the IMPACT MEASURES lines (each measure names the published framework it com
     const task = `TASK FOR ${agent.name.toUpperCase()}: ${agent.brief}
 
 Return JSON exactly in this shape:
-{"insights":[{"title":"max 10 words","insight":"2-3 sentences","severity":"positive|watch|risk","impact":"social|economic|cultural","region":"region name or empty","evidence":"the key numbers","action":"one recommended action"}]}
+{"insights":[{"title":"max 10 words","insight":"2-3 sentences: what happened, then the likely cause","severity":"positive|watch|risk","impact":"social|economic|cultural","region":"region name or empty","evidence":"the key numbers","action":"one recommendation, written as: Since [the key figure], we can [action]"}]}
 Give ${count} insights.
 Rules:
-- The FLAGS lines are ground truth. Only call a region overspent if it is listed under Overspend risk, under-served only if listed under Under-served. Never call a balanced region overspent.
+- Connect the data: say what happened, the likely cause shown by DATA (say "likely", never claim proof), then the recommendation. If DATA does not show a cause, say the cause is not known yet.
+- The FLAGS lines are ground truth. Say a region is above its population share only if it is listed there, and below only if it is listed there. Never use the words overspent, over budget or under-served: a different share of funding is not a fault.
 - "First Nations" in the data means Aboriginal and Torres Strait Islander peoples. Refer to them as "First Nations" and use the First Nations program reach and GAP lines exactly.
 - Take each dollar figure from that region's own row. Do not move numbers between regions.
 - "impact" is the main kind of impact: social (safety, wellbeing, belonging, women feeling safe), economic (local business, tourism, jobs, construction, co-investment) or cultural (community gatherings, Pasifika, First Nations, multicultural activation).
@@ -223,7 +224,7 @@ Rules:
     }));
   }
 
-  // Small models sometimes contradict the computed flags (e.g. call an overspend region "under-served").
+  // Small models sometimes contradict the computed flags (e.g. say a region above its population share is below it).
   // Check over/under claims against the real status and mark contradictions instead of hiding them.
   const OVER_RE = /over[- ]?(spen|serv|fund|budget|alloc)|too much/i;
   const UNDER_RE = /under[- ]?(serv|fund|spen|invest|resourc)|neglect/i;
@@ -235,9 +236,9 @@ Rules:
       const about = sentences.filter(s => s.includes(r.name));
       if (!about.length) continue;
       const claimsOver = about.some(s => OVER_RE.test(s)), claimsUnder = about.some(s => UNDER_RE.test(s));
-      const label = { over: 'overspend risk', under: 'under-served', balanced: 'balanced' }[r.status];
-      if (claimsOver && r.status !== 'over') issues.push(`${r.name} is ${label} (${r.spendIndex.toFixed(2)}x), not overspent`);
-      if (claimsUnder && r.status !== 'under') issues.push(`${r.name} is ${label} (${r.spendIndex.toFixed(2)}x), not under-served`);
+      const label = { over: 'above its population share', under: 'below its population share', balanced: 'in line with its population share' }[r.status];
+      if (claimsOver && r.status !== 'over') issues.push(`${r.name} is ${label} (${r.spendIndex.toFixed(2)}x), not above it`);
+      if (claimsUnder && r.status !== 'under') issues.push(`${r.name} is ${label} (${r.spendIndex.toFixed(2)}x), not below it`);
     }
     return issues.length ? { ...ins, check: issues.join('; ') } : ins;
   }

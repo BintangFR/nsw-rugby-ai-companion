@@ -26,7 +26,7 @@ window.App = (() => {
     const [fromHash, sub] = decodeURIComponent(location.hash.slice(1)).split('/');
     const known = id => $(`#tab-${CSS.escape(id || '')}`);
     const saved = known(fromHash) ? fromHash : (() => { try { return localStorage.getItem('tackle.tab'); } catch { return null; } })();
-    if (saved) showTab(saved);
+    if (saved && known(saved)) showTab(saved);
     if (known(fromHash) && sub && $(`[data-subview="${CSS.escape(fromHash)}:${CSS.escape(sub)}"]`)) showView(fromHash, sub); // story/<type> is handled by story.js
   }
   // Sub-views inside a tab keep long pages short: buttons <button data-view="impact:kpis"> switch the matching
@@ -46,12 +46,6 @@ window.App = (() => {
     }
     $$('[data-view]').forEach(b => b.addEventListener('click', () => { const [g, v] = b.dataset.view.split(':'); showView(g, v); }));
   }
-  // Make sure an element is visible: open its sub-view (used by the demo and in-text links).
-  function revealElement(el) {
-    const p = el?.closest?.('[data-subview]');
-    if (p && !p.classList.contains('active')) { const [g, v] = p.dataset.subview.split(':'); showView(g, v); }
-  }
-
   function showTab(id) {
     // "methodology" is a page inside the Framework tab, so the Framework tab stays highlighted.
     $$('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === (id === 'methodology' ? 'framework' : id)));
@@ -68,7 +62,7 @@ window.App = (() => {
   function initTheme() {
     let theme = null;
     try { theme = localStorage.getItem('tackle.theme'); } catch {}
-    if (theme) document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light'; // light is the default (Power BI style)
     const mark = () => $$('#themeToggle button').forEach(b => b.classList.toggle('on', b.dataset.themeSet === (isDark() ? 'dark' : 'light')));
     $$('#themeToggle button').forEach(b => b.addEventListener('click', () => {
       if ((isDark() ? 'dark' : 'light') === b.dataset.themeSet) return;
@@ -79,7 +73,22 @@ window.App = (() => {
     }));
     mark();
   }
-  // Dark is the default; light is opt-in via the toggle.
+  // Pages pane: full width or a narrow icon rail (☰ in the header), remembered per browser.
+  function initRail() {
+    const btn = $('#railToggle');
+    if (!btn) return;
+    const set = collapsed => {
+      document.documentElement.classList.toggle('rail-collapsed', collapsed);
+      btn.setAttribute('aria-expanded', !collapsed);
+      btn.setAttribute('aria-label', collapsed ? 'Expand the Pages pane' : 'Collapse the Pages pane');
+      try { localStorage.setItem('tackle.rail', collapsed ? 'collapsed' : 'open'); } catch {}
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 200); // the map re-measures its width
+    };
+    let saved = null; try { saved = localStorage.getItem('tackle.rail'); } catch {}
+    set(saved === 'collapsed');
+    btn.addEventListener('click', () => set(!document.documentElement.classList.contains('rail-collapsed')));
+  }
+  // Light is the default; dark is opt-in via the toggle.
   const isDark = () => document.documentElement.dataset.theme !== 'light';
 
   // ---------- Ollama status & settings ----------
@@ -146,23 +155,23 @@ window.App = (() => {
       { id: 'pw', label: 'Programs & Workforce $', fmt: money },
       { id: 'inc', label: 'Inclusion $', fmt: money },
       { id: 'perResident', label: '$ per resident', fmt: v => '$' + v.toFixed(2) },
-      { id: 'spendIndex', label: 'Spend vs population (over/under)', fmt: v => v.toFixed(2) + 'x', diverging: true },
-      { id: 'inclusionIndex', label: 'Inclusion index', fmt: v => Math.round(v * 100) + '/100' },
+      { id: 'spendIndex', label: 'Spend vs population', fmt: v => v.toFixed(2) + 'x', diverging: true },
       { id: 'evidenceCount', label: 'Impact evidence records', fmt: v => String(v) },
     ];
     for (const l of A.customLayers()) defs.push({ id: 'custom:' + l.id, label: '⬆ ' + l.label, fmt: v => v == null ? '–' : Number(v).toLocaleString() });
     return defs;
   }
 
-  function renderKpis(rows, c, p) {
-    const flagged = rows.filter(r => r.status !== 'balanced').length;
+  // The headline: the $10M, and how much of it can be traced so far.
+  function renderKpis(c) {
+    const funding = D.context.totalLegacyFunding, res = Store.get('programs') || {};
+    const reported = window.Programs.programs().map(p => res[p.id]).filter(r => Number.isFinite(r?.spent));
+    const spent = reported.reduce((s, r) => s + r.spent, 0), dummy = reported.some(r => r.dummy);
     const tiles = [
-      ['Known spend', money(c.knownTotal), `of $10M Legacy Program`, `${moneyFull(c.knownTotal)} = Round 1 Legacy grants + 3-year RWC Dashboard budgets + any uploaded spend.\nSpend not yet in these sources is not counted.`],
-      ['Facilities & Equipment', money(p.fe), `${D.grants.filter(g => g.pillar === 'FE').length} facility projects`, `${moneyFull(p.fe)} = sum of every Legacy grant (Round 1 + uploaded) marked Pillar 1 (Facilities & Equipment).`],
-      ['Programs & Workforce', money(p.pw), 'coaches, MOs, competitions', `${moneyFull(p.pw)} = sum of every grant and budget line marked Pillar 3 (Programs & Workforce).`],
-      ['Inclusion', money(p.inc), 'women, First Nations, Pasifika, disability', `${moneyFull(p.inc)} = sum of every grant and budget line marked Pillar 4 (Inclusion).`],
-      ['Held centrally', pct(c.centralShare), money(c.central) + ' in statewide budgets', `${moneyFull(c.central)} in "Statewide" budget lines (held by NSW Rugby, not assigned to a region) ÷ ${moneyFull(c.knownTotal)} known spend = ${pct(c.centralShare)}`],
-      ['Regions flagged', `${flagged} / ${rows.length}`, 'over- or under-served', `Regions whose spend is well above or below their share of the population. See "What's driving this?" for each region.`],
+      ['Legacy funding', money(funding), '2025 to 2028', 'Total NSW Rugby World Cup Legacy Program funding. Everything on this page is about what this money delivers.'],
+      ['Allocated so far', money(c.knownTotal), `${Math.round(c.knownTotal / funding * 100)}% of the $10M`, `${moneyFull(c.knownTotal)} = Round 1 Legacy grants + 3-year RWC Dashboard budgets + any uploaded spend. Allocations, not audited spend.`],
+      ['Not yet traced', money(Math.max(0, funding - c.knownTotal)), 'no project or budget line yet', `${moneyFull(funding)} − ${moneyFull(c.knownTotal)} allocated. Includes Round 2 grants, which are decided but not announced yet. Its impact cannot be measured until it is assigned.`],
+      ['Spent so far', reported.length ? money(spent) + (dummy ? ' [DUMMY]' : '') : 'Not reported', reported.length ? `${reported.length} lines reported` : 'recipients report at acquittal', reported.length ? `Sum of spend recorded for ${reported.length} lines.${dummy ? ' Made-up figures from Demo view.' : ''}` : 'No project has finished. Recipients report actual spend in their acquittal report, when the project ends (31/12/2027 or 30/06/2028).'],
     ];
     $('#kpiRow').innerHTML = tiles.map(([l, v, s, t]) => `<div class="kpi"><div class="label">${l}</div><div class="value"><span data-tip="${esc(t)}" tabindex="0">${v}</span></div><div class="sub">${s}</div></div>`).join('');
   }
@@ -288,22 +297,22 @@ window.App = (() => {
 
     const legendHtml = def.diverging
       ? `<b>${esc(def.label)}</b>
-         <div><span class="swatch" style="background:var(--series-1)"></span>Under-served ≤0.5x</div>
-         <div><span class="swatch" style="background:var(--good)"></span>Balanced</div>
-         <div><span class="swatch" style="background:var(--critical)"></span>Overspend risk ≥1.75x</div>`
+         <div><span class="swatch" style="background:var(--series-1)"></span>Below population share ≤0.5x</div>
+         <div><span class="swatch" style="background:var(--good)"></span>In line</div>
+         <div><span class="swatch" style="background:var(--critical)"></span>Above population share ≥1.75x</div>`
       : `<b>${esc(def.label)}</b>
          <div class="ramp">${seqVars.slice(2).map(v => `<span style="background:var(${v})"></span>`).join('')}</div>
          <div class="ramp-ends"><span>Low</span><span>${def.fmt(max)}</span></div>`;
     const how = COL_TIPS[def.id] || colTip({ key: def.id, label: def.label });
     legendCtl.getContainer().innerHTML = legendHtml.replace('<b>', `<b data-tip="${esc(`How "${def.label}" is measured:\n${how}`)}" tabindex="0">`)
-      + `<div class="pulse-key" data-tip="Pulsing = the region is flagged: overspend risk (≥1.75x its population share), under-served (≤0.5x), or a First Nations gap."><span class="pulse-dot"></span>Pulsing = flagged</div>`;
+      + `<div class="pulse-key" data-tip="Pulsing = worth a closer look: well above (≥1.75x) or below (≤0.5x) its population share, or a First Nations program opportunity."><span class="pulse-dot"></span>Pulsing = worth a closer look</div>`;
     $('#mapLegend').innerHTML = `<span class="muted">Bubble size and colour = <span data-tip="${esc(how)}" tabindex="0">${esc(def.label)}</span> · click a region for detail · labels for Sydney regions appear when you zoom in</span>`;
   }
 
   function popupHtml(r) {
     const tags = A.INCLUSION_TAGS.filter(t => r.tagSpend[t] > 0).map(t => ({ women: 'Women & girls', firstNations: 'First Nations', pasifika: 'Pasifika/CALD', access: 'Accessibility' }[t]));
     const parts = [['fe', 'Facilities', 'var(--series-1)'], ['pw', 'Workforce', 'var(--series-2)'], ['inc', 'Inclusion', 'var(--series-3)']];
-    return `<div class="pop-head"><h3>${esc(r.name)}</h3><span class="status ${r.status}">${{ over: 'Overspend risk', under: 'Under-served', balanced: 'Balanced' }[r.status]}</span></div>
+    return `<div class="pop-head"><h3>${esc(r.name)}</h3><span class="status ${r.status}">${{ over: 'Above population share', under: 'Below population share', balanced: 'In line with population' }[r.status]}</span></div>
       <div class="pop-stats">
         <div><b>${money(r.total)}</b><span>known spend</span></div>
         <div><b>${r.spendIndex.toFixed(2)}x</b><span>vs population</span></div>
@@ -316,96 +325,7 @@ window.App = (() => {
       ${r.items.length ? `<details><summary>${r.items.length} funded item${r.items.length > 1 ? 's' : ''}</summary><ul>${r.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></details>` : ''}`;
   }
 
-  function renderCentral(c) {
-    const parts = [
-      { label: 'Held centrally (statewide)', v: c.central, color: 'var(--series-1)' },
-      { label: 'Greater Sydney', v: c.metro, color: 'var(--series-2)' },
-      { label: 'Regional NSW', v: c.regional, color: 'var(--series-3)' },
-    ];
-    const tot = parts.reduce((s, p) => s + p.v, 0);
-    $('#centralBar').innerHTML = parts.map(p => `<div style="flex:${p.v};background:${p.color}" title="${p.label}: ${moneyFull(p.v)} (${pct(p.v / tot)})"></div>`).join('');
-    const legend = parts.map(p => `<span style="--c:${p.color}">${p.label} ${pct(p.v / tot)}</span>`).join('');
-    let lg = $('#centralLegend');
-    if (!lg) { lg = document.createElement('div'); lg.id = 'centralLegend'; lg.className = 'stack-legend'; $('#centralBar').after(lg); }
-    lg.innerHTML = legend;
-    $('#centralFacts').innerHTML = `
-      <dt>Greater Sydney share of regional spend</dt><dd>${pct(c.metroShareOfAllocated)}</dd>
-      <dt>Greater Sydney share of population</dt><dd>${pct(c.metroPopShare)}</dd>
-      <dt>Facility grants outside Greater Sydney</dt><dd>${pct(1 - c.feMetroShare)}</dd>
-      <dt>Inclusion budget held centrally</dt><dd>${pct(c.incCentralShare)}</dd>
-      <dt>Effective number of regions funded</dt><dd>${c.hhiEquivalentRegions.toFixed(1)} of ${D.regions.length}</dd>`;
-    let v = $('#centralVerdict');
-    if (!v) { v = document.createElement('div'); v.id = 'centralVerdict'; $('#centralFacts').after(v); }
-    const central = c.verdict === 'Centralised';
-    v.innerHTML = `<span class="verdict"><span class="status ${central ? 'watch' : 'positive'}">${central ? 'Leaning centralised' : 'Well distributed'}</span></span>
-      <p class="muted small" style="margin-top:6px">${central
-        ? `${pct(c.centralShare)} of known dollars sit in statewide NSWRU budgets. Facility grants are spread widely, but inclusion and workforce money is mostly managed from the centre.`
-        : 'Most known dollars are allocated to named regions.'}</p>`;
-  }
-
-  function renderFlags(rows) {
-    const flagged = rows.filter(r => r.status !== 'balanced' || r.fnGap).sort((a, b) => b.spendIndex - a.spendIndex);
-    const F = window.Feedback;
-    // One row per region; a region with several issues (e.g. overspend + First Nations gap) gets one row with
-    // a label for each. The rating key names the issues, so a new issue puts the region back in the review queue.
-    const items = flagged.map(r => {
-      const issues = [];
-      if (r.status !== 'balanced') {
-        const label = r.status === 'over' ? 'Overspend risk' : 'Under-served';
-        issues.push({ code: r.status, status: r.status, label,
-          line: `${r.spendIndex.toFixed(2)}x · ${money(r.total)} · $${r.perResident.toFixed(2)}/resident` });
-      }
-      if (r.fnGap) issues.push({ code: 'fn-gap', status: 'risk', label: 'First Nations gap',
-        line: `~${r.fnShare}% First Nations residents, no program reach` });
-      return {
-        key: `flag:${r.name}:${issues.map(i => i.code).join('+')}`,
-        text: `${r.name} - ${issues.map(i => i.label).join(' + ')}`,
-        chips: issues.map(i => `<span class="status ${i.status}">${i.label}</span>`).join(''),
-        body: `<b>${esc(r.name)}</b>${issues.length === 1 ? ' ' + issues[0].line : `<ul class="flag-issues">${issues.map(i => `<li>${i.line}</li>`).join('')}</ul>`}`,
-      };
-    });
-    // Split into "To review" (unrated) and "Rated": a flag leaves the review queue once someone rates it.
-    const rated = items.filter(it => F?.ratingFor(it.key));
-    const todo = items.filter(it => !F?.ratingFor(it.key));
-    $('#flagTodoCount').textContent = todo.length;
-    $('#flagRatedCount').textContent = rated.length;
-    $$('#flagTabs button').forEach(b => b.classList.toggle('on', b.dataset.f === flagView));
-    const list = flagView === 'rated' ? rated : todo;
-    $('#flagList').innerHTML = list.map(it => {
-      const disputed = F?.ratingFor(it.key)?.vote === 'down';
-      return `<li class="${disputed ? 'disputed' : ''}"><span class="flag-chips">${it.chips}</span><div>${it.body} ${F ? F.badgeHtml(it.key) : ''}</div>${F ? F.ratingHtml(it.key, it.text, 'Flag') : ''}</li>`;
-    }).join('') || `<li class="muted">${!items.length ? 'No regions flagged.' : flagView === 'rated' ? 'Nothing rated yet.' : 'All flags reviewed. See the Rated tab.'}</li>`;
-  }
-  let flagView = 'todo';
-  function initFlagTabs() {
-    $$('#flagTabs button').forEach(b => b.addEventListener('click', () => { flagView = b.dataset.f; renderFlags(A.regionMetrics()); }));
-  }
-
-  let matrixSort = { key: 'total', dir: -1 }, matrixFilter = 'all';
-  function matrixColumns() {
-    const cols = [
-      { key: 'fe', label: 'Facilities $', group: 'Spend', f: ['all', 'FE'], fmt: money },
-      { key: 'pw', label: 'Workforce $', group: 'Spend', f: ['all', 'PW'], fmt: money },
-      { key: 'inc', label: 'Inclusion $', group: 'Spend', f: ['all', 'INC'], fmt: money },
-      { key: 'total', label: 'Total $', group: 'Spend', f: ['all', 'FE', 'PW'], fmt: money },
-      { key: 'perResident', label: '$ / resident', group: 'Fairness', f: ['all', 'FE', 'PW', 'INC'], fmt: v => '$' + v.toFixed(2) },
-      { key: 'spendIndex', label: 'Spend vs pop.', group: 'Fairness', f: ['all', 'FE', 'PW', 'INC'], fmt: v => v.toFixed(2) + 'x', diverging: true },
-      { key: 'facilityCount', label: 'Projects', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–' },
-      { key: 'gapCoverage', label: 'Audit gaps (of 4)', group: 'Facilities', f: ['all', 'FE'], fmt: v => v || '–', max: 4 },
-      { key: 'inclusionIndex', label: 'Inclusion index', group: 'Inclusion', f: ['all', 'INC'], fmt: v => Math.round(v * 100) },
-      { key: 'women', label: 'Women & girls $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.women },
-      { key: 'fn', label: 'First Nations', group: 'Inclusion', f: ['all', 'INC'], get: r => r.fnShare, fn: true },
-      { key: 'pasifika', label: 'Pasifika/CALD $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.pasifika },
-      { key: 'access', label: 'Access $', group: 'Inclusion', f: ['all', 'INC'], fmt: money, get: r => r.tagSpend.access },
-    ];
-    // Impact is not measured in dollars per region: no established method assigns spend to impact types.
-    // The heatmap shows only what is counted directly: field evidence records logged against each region.
-    cols.push({ key: 'evidenceCount', label: 'Evidence records', group: 'Impact', f: ['all', 'IMP'], fmt: v => v || '–' });
-    for (const l of A.customLayers()) cols.push({ key: 'custom:' + l.id, label: l.label, group: 'Uploaded', f: ['all', 'FE', 'PW', 'INC', 'IMP'], fmt: v => v == null ? '–' : Number(v).toLocaleString() });
-    return cols.filter(c => c.f.includes(matrixFilter));
-  }
-
-  // "How is this measured?" for every heatmap column (shown on hover over the column header).
+  // "How is this measured?" for every map measure (shown on hover over the legend).
   const PROTO = '\n\nPrototype screening indicator: not from an external framework. Pending review by the evaluation team.';
   const COL_TIPS = {
     fe: 'Sum of Facilities & Equipment (Pillar 1) Legacy grants located in this region: Round 1 grants plus uploaded spend.',
@@ -413,267 +333,20 @@ window.App = (() => {
     inc: 'Sum of Inclusion (Pillar 4) grants and 3-year RWC Dashboard budget lines located in this region.',
     total: 'All known allocations located in this region (grants + dashboard budgets + uploads). "Statewide" lines held centrally are not in any region.',
     perResident: 'Total $ in the region ÷ region population (indicative ABS 2021 approximation).',
-    spendIndex: 'Region\'s share of regionally allocated spend ÷ its share of NSW population. 1.75x or more = overspend risk; 0.5x or less = under-served.' + PROTO,
+    spendIndex: 'Region\'s share of regionally allocated spend ÷ its share of NSW population. 1.75x or more = above population share; 0.5x or less = below it.' + PROTO,
     facilityCount: 'Number of Facilities & Equipment grants located in the region.',
-    gapCoverage: 'How many of the 4 audit gap types (lighting, changerooms, drainage/surface, accessibility) have at least one funded project here. Gap types come from the RA facility audit.',
-    inclusionIndex: '0–100 score = 50 × (spend on lines tagged for an inclusion group ÷ all spend in the region, capped at 1) + 50 × (inclusion groups reached ÷ 4). Groups: women & girls, First Nations, Pasifika/CALD, disability.' + PROTO,
     women: 'Sum of grants and budget lines tagged women & girls in this region.',
     fn: 'Indicative First Nations share of residents (ABS 2021, rounded). ✓ = a First Nations-tagged line or talent ID workshop reaches the region; ⚠ gap = First Nations share of 7% or more and no program reach.',
     pasifika: 'Sum of grants and budget lines tagged Pasifika / CALD in this region.',
     access: 'Sum of grants and budget lines tagged disability / accessibility in this region.',
-    evidenceCount: 'Count of field evidence records (surveys, interviews, business feedback, stories) logged against this region on the Impact tab or imported from uploads. This is a count of evidence, not a measure of impact: impact is measured with the established methods on the Impact and Methodology tabs.',
+    evidenceCount: 'Count of field evidence records (surveys, interviews, business feedback, stories) logged against this region or imported from uploads. This is a count of evidence, not a measure of impact.',
   };
   const colTip = c => COL_TIPS[c.key] || (c.key.startsWith('custom:') ? 'Values from an uploaded file\'s numeric region column, added up per region.' : c.label);
 
-  function renderMatrix(rows) {
-    const cols = matrixColumns();
-    const val = (r, c) => c.get ? c.get(r) : r[c.key];
-    const sorted = [...rows].sort((a, b) => {
-      const col = cols.find(c => c.key === matrixSort.key) || cols[0];
-      return ((val(a, col) ?? -Infinity) - (val(b, col) ?? -Infinity)) * matrixSort.dir;
-    });
-    const groups = [];
-    for (const c of cols) { const g = groups[groups.length - 1]; if (g && g.name === c.group) g.n++; else groups.push({ name: c.group, n: 1 }); }
-
-    let html = `<thead><tr><th class="group"></th>${groups.map(g => `<th class="group" colspan="${g.n}">${g.name}</th>`).join('')}</tr>
-      <tr><th data-k="name">Region</th>${cols.map(c => `<th data-k="${c.key}" class="${c.key === matrixSort.key ? 'sorted' : ''}" data-tip="${esc(`${c.label}\n${colTip(c)}\n\nClick to sort.`)}">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>`;
-    const maxes = Object.fromEntries(cols.map(c => [c.key, c.max || Math.max(...rows.map(r => Math.abs(val(r, c) ?? 0)), 1e-9)]));
-    for (const r of sorted) {
-      html += `<tr><td class="name">${esc(r.name)}<small>${r.metro ? 'Greater Sydney' : 'Regional'} · ~${r.pop.toLocaleString()}k residents</small></td>`;
-      for (const c of cols) {
-        const v = val(r, c);
-        let bg = 'transparent', ink = 'var(--ink)', text, tip = `${r.name} · ${c.label}`;
-        if (c.fn) {
-          text = `~${v}% ${r.fnReach ? '✓' : r.fnGap ? '⚠' : ''}`;
-          tip += `: ~${v}% of residents; ${r.fnReach ? 'program reach' : 'no program reach yet'}`;
-          if (r.fnGap) { bg = redRamp[1]; ink = '#0b0b0b'; text += ' gap'; }
-          else { const t = v / 16; bg = seqColor(t); ink = seqInk(t); }
-        } else if (c.diverging) {
-          const l = Math.max(-2, Math.min(2, Math.log2(v || 0.01)));
-          const step = Math.min(5, Math.floor(Math.abs(l) / 2 * 6));
-          if (Math.abs(l) < 0.4) { bg = css('--div-mid'); }
-          else if (l > 0) { bg = redRamp[step]; ink = step >= 3 ? '#fff' : '#0b0b0b'; }
-          else { bg = seqColor(step / 5); ink = seqInk(step / 5); }
-          text = c.fmt(v);
-          tip += `: ${c.fmt(v)} (${r.status === 'over' ? 'overspend risk' : r.status === 'under' ? 'under-served' : 'balanced'})`;
-        } else if (v == null || v === 0) {
-          text = '–';
-        } else {
-          // Colour depth is relative to the highest region in the column.
-          const t = Math.abs(v) / maxes[c.key];
-          bg = seqColor(t); ink = seqInk(t);
-          text = c.fmt(v);
-          tip += `: ${c.fmt(v)}`;
-        }
-        html += `<td class="cell" style="background:${bg};color:${ink}" title="${esc(tip)}">${text}</td>`;
-      }
-      html += '</tr>';
-    }
-    $('#matrix').innerHTML = html + '</tbody>';
-    $('#matrixNote').textContent = 'Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Hover a column header for how it is measured; click it to sort.';
-    $$('#matrix th[data-k]').forEach(th => th.addEventListener('click', () => {
-      const k = th.dataset.k;
-      if (k === 'name') return;
-      matrixSort = { key: k, dir: matrixSort.key === k ? -matrixSort.dir : -1 };
-      renderMatrix(A.regionMetrics());
-    }));
-  }
-
-  let editingTargets = false, targetFilter = 'all';
-  const STATUS_RULE = {
-    Achieved: 'The target number has already been reached.',
-    Ahead: 'Progress is at or above the pace needed to hit the target by its target year.',
-    Close: 'Progress is between 80% and 100% of the pace needed.',
-    Behind: 'Progress is below 80% of the pace needed.',
-    'No data': 'No actual figure has been published or uploaded yet, so progress cannot be judged.',
-    'No target': 'The plan sets no number for this target yet. Staff can set one with "Adjust targets".',
-    'Check year': 'The target year is not after the start year, so no pace can be worked out.',
-  };
-  // The five pillars from the project brief, in order.
-  const PILLAR_NAMES = { FE: 'Pillar 1 · Facilities & Equipment', PRP: 'Pillar 2 · Priority Regions & Pathways', PW: 'Pillar 3 · Programs & Workforce', INC: 'Pillar 4 · Inclusion', ACT: 'Pillar 5 · RWC Activation' };
-  function renderProgress() {
-    const statusClass = { Ahead: 'positive', Achieved: 'positive', Close: 'watch', Behind: 'risk', 'No data': '', 'No target': '', 'Check year': 'risk' };
-    const n = v => Number.isInteger(v) ? v : +v.toFixed(1);
-    const item = k => {
-      let bar, sub, tip;
-      if (k.kind === 'growth') {
-        const need = k.requiredPa ?? 0, scale = Math.max(need, k.actual || 0, 0.01) * 1.25;
-        bar = `${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}${k.requiredPa != null ? `<div class="target" style="left:${(need / scale) * 100}%"></div>` : ''}`;
-        tip = `${k.actualYear} growth ${k.actual == null ? 'not published' : pct(k.actual)}; needed ${k.requiredPa != null ? pct(k.requiredPa) : '-'} a year`;
-        const from = k.baseline != null ? k.baseline.toLocaleString() : 'baseline not recorded';
-        const to = k.target == null ? 'no target set' : k.targetValue != null ? `${k.targetValue.toLocaleString()} (+${pct(k.target)}) by ${k.targetYear}` : `+${pct(k.target)} by ${k.targetYear}`;
-        sub = `${k.actualYear}: ${k.actual == null ? 'no figure published' : '+' + pct(k.actual)} · needs ${k.requiredPa != null ? pct(k.requiredPa) + ' p.a.' : '-'} · ${from} → ${to}`;
-      } else if (k.kind === 'annual') {
-        const scale = Math.max(k.target ?? 0, k.actual ?? 0, 1) * 1.15;
-        bar = `${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}${k.target != null ? `<div class="target" style="left:${(k.target / scale) * 100}%"></div>` : ''}`;
-        tip = `${k.actual == null ? 'No figure published' : `${n(k.actual)} in the latest year`}${k.target != null ? `; target ${n(k.target)} ${k.unit}` : ''}`;
-        sub = `${k.actual == null ? 'no figure published' : `${n(k.actual)} last year`} · target ${k.target != null ? `${n(k.target)} ${k.unit} to ${k.targetYear}` : 'not set'}`;
-      } else if (k.kind === 'level') {
-        // Bar = share of the way from baseline to target (works for targets that go down, such as ratios or churn).
-        const gap = k.target != null ? k.target - k.baseline : 0;
-        const frac = v => gap ? Math.max(0, Math.min(1, (v - k.baseline) / gap)) * 100 : 0;
-        bar = `${k.actual != null && gap ? `<div class="fill" style="width:${frac(k.actual)}%"></div>` : ''}${k.expected != null && gap ? `<div class="target" style="left:${frac(k.expected)}%"></div>` : ''}`;
-        tip = `${k.actual == null ? 'No figure published' : `${n(k.actual)}${k.unit} in ${k.actualYear || 'the latest year'}`}${k.expected != null ? `; ~${n(k.expected)}${k.unit} expected by ${k.asAt} to stay on pace` : ''}${k.lowerIsBetter ? ' (lower is better)' : ''}`;
-        sub = `${k.actual == null ? 'no figure published' : `${n(k.actual)}${k.unit} (${k.actualYear || 'latest'})`} · baseline ${n(k.baseline)}${k.unit} (${k.baseYear}) → target ${k.target != null ? `${n(k.target)}${k.unit} by ${k.targetYear}` : 'not set'}${k.expected != null && k.status !== 'Achieved' ? ` · on pace = ~${n(k.expected)}${k.unit} by ${k.asAt}` : ''}`;
-      } else {
-        const share = k.kind === 'share', unit = share ? '%' : ' ' + k.unit, shareOf = share ? ` ${k.unit || 'of facilities'}` : '';
-        const scale = share ? 100 : Math.max(k.target ?? 0, k.actual ?? 0, 1);
-        bar = `${k.actual != null ? `<div class="fill" style="width:${(k.actual / scale) * 100}%"></div>` : ''}${k.expected != null ? `<div class="target" style="left:${(k.expected / scale) * 100}%"></div>` : ''}`;
-        tip = `${k.actual == null ? 'No figure published' : `${n(k.actual)}${unit} so far`}${k.expected != null ? `; ~${n(k.expected)}${unit} expected by ${k.asAt} to stay on pace` : ''}`;
-        sub = `${k.actual == null ? 'no figure published' : `${n(k.actual)}${share ? '%' : ''} so far`}${share ? ` · baseline ${k.baseline}%${shareOf} (${k.baseYear})` : ''} · target ${k.target != null ? `${n(k.target)}${unit}${shareOf} by ${k.targetYear}` : 'not set'}${k.expected != null && k.status !== 'Achieved' ? ` · on pace = ~${n(k.expected)}${share ? '%' : ''} by ${k.asAt}` : ''}`;
-      }
-      const editor = !editingTargets ? '' : `<div class="target-edit" data-id="${k.id}">
-          <label>${k.kind === 'growth' ? 'Target growth' : k.kind === 'share' ? 'Target share' : k.kind === 'annual' ? 'Target per year' : 'Target'}
-            <span class="unit-in"><input type="number" step="any" min="0" data-f="target" value="${k.target == null ? '' : k.kind === 'growth' ? +(k.target * 100).toFixed(2) : k.target}" placeholder="not set"><i>${k.kind === 'count' ? esc(k.unit) : k.kind === 'annual' ? esc(k.unit.replace(/ a (year|season)$/, '')) : k.kind === 'level' ? esc(k.unit.trim()) : '%'}</i></span></label>
-          <label>Target year <input type="number" step="1" min="2025" max="2040" data-f="targetYear" value="${k.targetYear}"></label>
-          ${k.adjusted ? `<button type="button" class="link" data-reset title="Plan: ${k.planTarget == null ? 'no target' : k.kind === 'growth' ? '+' + pct(k.planTarget) : k.planTarget}, ${k.planYear}">Reset to plan</button>` : ''}
-        </div>`;
-      const how = k.kind === 'growth'
-        ? `Needed a year = (1 + target growth)^(1 ÷ years from ${k.baseYear} to ${k.targetYear}) − 1${k.requiredPa != null ? ` = (1 + ${pct(k.target)})^(1/${k.targetYear - k.baseYear}) − 1 = ${pct(k.requiredPa)}` : ''}.\nCompared with the latest year-on-year growth.`
-        : k.kind === 'annual' ? 'Latest year\'s count compared with the yearly target.'
-        : k.kind === 'level' ? `On-pace value = baseline + (target − baseline) × (years elapsed ÷ years from ${k.baseYear} to ${k.targetYear}). Progress = how far the actual has moved from the baseline toward the target, compared with how far it should have moved by ${k.asAt}.${k.lowerIsBetter ? ' Lower is better for this target.' : ''}`
-        : `On-pace value = start + (target − start) × (years elapsed ÷ years to target year), i.e. an even pace from ${k.kind === 'share' ? k.baseYear : k.startYear} to ${k.targetYear}.`;
-      const statusTip = `${k.status}\n${STATUS_RULE[k.status] || ''}\n\nRule from the RWC Legacy Data Compilation: Ahead if at or above the pace needed, Close if within 80% of it, otherwise Behind.`;
-      const trackTip = `${tip}\n\nWhere the actual comes from: ${k.actualFrom}\n\nHow the pace is worked out: ${how}\n\nTarget source: ${k.source}${k.adjusted ? `\nTarget adjusted by staff (plan: ${k.planTarget == null ? 'none' : k.kind === 'growth' ? '+' + pct(k.planTarget) : k.planTarget}, ${k.planYear}).` : ''}`;
-      return `<div class="progress-item">
-        <div class="top"><b>${esc(k.name)}${k.adjusted ? ' <span class="adj-chip" title="Target adjusted from the plan">adjusted</span>' : ''}${k.fromUpload ? ` <span class="adj-chip upload-chip" data-tip="${esc(`Actual recalculated from the uploaded file "${k.fromUpload}". Remove the file in Data Studio to go back to the published figure.`)}">from upload</span>` : ''}</b><span class="status ${statusClass[k.status] ?? ''}" data-tip="${esc(statusTip)}">${k.status}</span></div>
-        <div class="track" data-tip="${esc(trackTip)}" tabindex="0">${bar}</div>
-        <div class="sub" data-tip="${esc(trackTip)}">${esc(sub)}</div>
-        ${editor}
-      </div>`;
-    };
-    const all = A.kpiTargets();
-    const list = all.filter(k => targetFilter === 'all' || k.area === targetFilter);
-    // Status summary: how many targets are in each state for the current filter.
-    const order = ['Achieved', 'Ahead', 'Close', 'Behind', 'No data', 'No target', 'Check year'];
-    const counts = Object.fromEntries(order.map(s => [s, list.filter(k => k.status === s).length]));
-    $('#targetSummary').innerHTML = `<span class="ts-total"><b>${list.length}</b> targets</span>` +
-      order.filter(s => counts[s]).map(s => `<span class="status ${statusClass[s] ?? ''}" data-tip="${esc(`${counts[s]} target${counts[s] === 1 ? '' : 's'} ${s}: ${STATUS_RULE[s]}`)}">${s} <b>${counts[s]}</b></span>`).join('');
-    $$('#targetFilter button').forEach(b => b.classList.toggle('on', b.dataset.f === targetFilter));
-    // Pillars flow as blocks through balanced columns, so no single pillar makes one long column. Inclusion is split
-    // into one block per community (women & girls, First Nations, Pasifika, disability, Pride, safeguarding).
-    // Plan items with no number set ("increase", "support") go in a collapsed watch list, except while editing,
-    // so staff can still give them a target with "Adjust targets".
-    const watch = editingTargets ? [] : list.filter(k => k.status === 'No target');
-    const shown = list.filter(k => !watch.includes(k));
-    const blocks = [];
-    for (const [p, label] of Object.entries(PILLAR_NAMES)) {
-      const ks = shown.filter(k => k.area === p);
-      const groups = [...new Set(ks.map(k => k.group || ''))];
-      groups.forEach((g, gi) => blocks.push({ p, label, g, first: gi === 0, ks: ks.filter(k => (k.group || '') === g) }));
-    }
-    const pillarCount = p => list.filter(k => k.area === p).length;
-    $('#kpiProgress').innerHTML = `<div class="target-flow">${blocks.map(b => `<section class="target-block">
-        <h3 class="target-group${b.first ? '' : ' cont'}" data-tip="${esc(`${b.label}: ${pillarCount(b.p)} target${pillarCount(b.p) === 1 ? '' : 's'}. Targets come from the Project Plan, RWC Dashboard and Program Logic; each one shows its source on hover.`)}">${esc(b.label)}${b.first ? '' : ' (cont.)'}</h3>
-        ${b.g ? `<h4 class="target-subgroup">${esc(b.g)}</h4>` : ''}
-        ${b.ks.map(item).join('')}
-      </section>`).join('')}</div>` + (watch.length ? `<details class="watch-list">
-        <summary data-tip="These are in the plan as aims (e.g. &quot;increase&quot; or &quot;support&quot;) but have no number or year, so progress cannot be judged. Press &quot;Adjust targets&quot; to set one and it moves into the main list.">Watch list: ${watch.length} plan item${watch.length === 1 ? '' : 's'} with no target set yet</summary>
-        <ul>${watch.map(k => `<li data-tip="${esc(`Source: ${k.source}`)}"><span class="wl-pillar">${esc(PILLAR_NAMES[k.area].split(' · ')[0])}</span> <b>${esc(k.name)}</b>${k.group ? ` <span class="muted">(${esc(k.group)})</span>` : ''}${k.baseline != null ? ` <span class="muted">· baseline ${k.baseline.toLocaleString()}${k.kind === 'share' ? '%' : k.kind === 'level' ? k.unit : ''}${k.baseYear ? ` (${k.baseYear})` : ''}</span>` : ''}</li>`).join('')}</ul>
-      </details>` : '') + `<p class="footnote">${editingTargets
-      ? 'Changes save automatically and update the status, the growth needed, the AI agents and the Story. Growth targets are total growth from the baseline year.'
-      : 'Bar = progress so far (workforce and inclusion: latest annual growth). Tick = the pace needed to hit the target by its target year. Ahead if at or above pace, Close if within 80% of it.'}</p>`;
-    if (!editingTargets) return;
-    $$('#kpiProgress .target-edit').forEach(box => {
-      const id = box.dataset.id, k = list.find(x => x.id === id);
-      $$('input', box).forEach(inp => inp.addEventListener('change', () => {
-        const raw = inp.value.trim();
-        if (inp.dataset.f === 'targetYear') {
-          const y = Number(raw);
-          if (!Number.isInteger(y) || y < 2025 || y > 2040) { toast('Target year must be between 2025 and 2040.'); inp.value = k.targetYear; return; }
-          A.setTarget(id, { targetYear: y });
-        } else {
-          const v = raw === '' ? null : Number(raw);
-          if (v != null && (!Number.isFinite(v) || v < 0)) { toast('Target must be a positive number.'); return; }
-          A.setTarget(id, { target: v == null ? null : k.kind === 'growth' ? v / 100 : v });
-        }
-        renderProgress();
-        document.dispatchEvent(new CustomEvent('targets-changed'));
-      }));
-      $('[data-reset]', box)?.addEventListener('click', () => { A.setTarget(id, null); renderProgress(); document.dispatchEvent(new CustomEvent('targets-changed')); });
-    });
-  }
-  function initTargets() {
-    $$('#targetFilter button').forEach(b => b.addEventListener('click', () => { targetFilter = b.dataset.f; renderProgress(); }));
-    $('#editTargets').addEventListener('click', e => {
-      editingTargets = !editingTargets;
-      e.currentTarget.textContent = editingTargets ? 'Done' : 'Adjust targets';
-      e.currentTarget.setAttribute('aria-pressed', editingTargets);
-      e.currentTarget.classList.toggle('primary', editingTargets);
-      renderProgress();
-    });
-  }
-
-  let pillarChart;
-  function pillarChartConfig(p, colors) {
-    const labels = ['Facilities & Equipment', 'Programs & Workforce', 'Inclusion', 'Activation, M&E, PM'];
-    const data = [p.fe, p.pw, p.inc, p.other];
-    return {
-      type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors.bar, borderRadius: 4, borderSkipped: false, barThickness: 22 }] },
-      options: {
-        indexAxis: 'y', responsive: colors.responsive !== false, maintainAspectRatio: false, animation: colors.animation,
-        layout: { padding: { right: 60 } },
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => moneyFull(c.raw) } } },
-        scales: {
-          x: { grid: { color: colors.grid }, border: { display: false }, ticks: { color: colors.muted, callback: v => money(v) } },
-          y: { grid: { display: false }, border: { color: colors.axis }, ticks: { color: colors.ink, font: { size: 12 } } },
-        },
-      },
-      plugins: [{
-        id: 'endLabels',
-        afterDatasetsDraw(chart) {
-          const { ctx } = chart;
-          ctx.save(); ctx.fillStyle = colors.ink; ctx.font = '600 12px system-ui, sans-serif'; ctx.textBaseline = 'middle';
-          chart.getDatasetMeta(0).data.forEach((bar, i) => ctx.fillText(money(data[i]), bar.x + 6, bar.y));
-          ctx.restore();
-        },
-      }],
-    };
-  }
-  function renderPillarChart(p) {
-    if (!window.Chart) return;
-    if (pillarChart) pillarChart.destroy();
-    pillarChart = new Chart($('#pillarChart'), pillarChartConfig(p, {
-      bar: css('--series-1'), grid: css('--grid'), axis: css('--axis'), muted: css('--muted'), ink: css('--ink'),
-    }));
-  }
-  // Light-theme image of the pillar chart for the PDF report.
-  function pillarChartImage() {
-    if (!window.Chart) return '';
-    const canvas = document.createElement('canvas');
-    canvas.width = 1400; canvas.height = 480;
-    const chart = new Chart(canvas, pillarChartConfig(A.pillarTotals(), {
-      bar: '#2a78d6', grid: '#e1e0d9', axis: '#c3c2b7', muted: '#898781', ink: '#0b0b0b', responsive: false, animation: false,
-    }));
-    chart.options.devicePixelRatio = 1;
-    chart.options.scales.y.ticks.font.size = 22; chart.options.scales.x.ticks.font = { size: 20 };
-    chart.update();
-    const url = canvas.toDataURL('image/png');
-    chart.destroy();
-    return url;
-  }
-
   function renderOverview() {
     const rows = A.regionMetrics();
-    const c = A.centralisation(rows);
-    const p = A.pillarTotals(rows);
-    renderKpis(rows, c, p);
+    renderKpis(A.centralisation(rows));
     renderMap(rows);
-    renderCentral(c);
-    renderFlags(rows);
-    renderMatrix(rows);
-    renderProgress();
-    renderPillarChart(p);
-  }
-
-  function initMatrixFilter() {
-    $$('#matrixFilter button').forEach(b => b.addEventListener('click', () => {
-      $$('#matrixFilter button').forEach(x => x.classList.toggle('on', x === b));
-      matrixFilter = b.dataset.f;
-      if (!matrixColumns().some(c => c.key === matrixSort.key)) matrixSort = { key: matrixColumns()[0].key, dir: -1 };
-      renderMatrix(A.regionMetrics());
-    }));
   }
 
   // ---------- insights ----------
@@ -842,7 +515,8 @@ window.App = (() => {
   }
 
   async function runAgents() {
-    if (!requireModel()) return;
+    // No model: fill the insights from the rule engine (real data) instead of leaving the queue empty.
+    if (!(O.config.model && $('#ollamaStatus').classList.contains('ok'))) { runRules({ quiet: true }); toast('Your AI model is not connected, so the insights come from the rule engine (calculated from the data). Connect a model in Settings to run the agents.', 6000); return; }
     const btn = $('#runAgents');
     btn.disabled = true; btn.textContent = 'Running…';
     run = { states: {}, start: Date.now(), ctl: new AbortController() };
@@ -881,20 +555,35 @@ window.App = (() => {
     run.finished = true; run.end = Date.now();
     tick();
     btn.disabled = false; btn.textContent = 'Run agents';
+    if (!run.ctl.signal.aborted) window.DataHistory?.markAiRun();
     toast(run.ctl.signal.aborted ? 'Agents cancelled.' : 'Agents finished.');
   }
 
-  function runRules() {
+  function runRules({ quiet = false } = {}) {
     const r = addInsights(A.ruleInsights(), { replacePillar: p => p !== 'Uploaded data' && p !== 'Data quality' });
-    toast(`Rule-based insights: ${runSummary(r)}.`);
+    window.DataHistory?.markAiRun();
+    if (!quiet) toast(`Rule-based insights: ${runSummary(r)}.`);
+  }
+
+  // Bring the insights up to date with the data: the AI agents when the model is connected, else the rule engine.
+  // Called from Data Studio > History ("Refresh AI insights") and automatically after data changes when switched on.
+  function refreshAi({ quiet = false } = {}) {
+    if ($('#runAgents')?.disabled) return; // already running
+    if (O.config.model && $('#ollamaStatus').classList.contains('ok')) { if (!quiet) toast('AI agents are re-reading the latest data…'); return runAgents(); }
+    runRules({ quiet });
+    if (!quiet) toast('AI not connected: insights refreshed with the rule engine.');
   }
 
   async function ask(question) {
-    if (!requireModel()) return;
     const el = document.createElement('article');
     el.className = 'bubble answer watch thinking';
     el.innerHTML = `<div class="meta"><span>You asked</span></div><h3>${esc(question)}</h3><div class="md"><p></p></div>`;
     $('#bubbles').prepend(el);
+    if (!(O.config.model && $('#ollamaStatus').classList.contains('ok'))) { // no model: answer from the data instead of nothing
+      el.classList.remove('thinking');
+      $('.md', el).innerHTML = `<p class="muted small">Your AI model is not connected (Settings, top bar), so this answer is the closest findings from the data, worked out in code:</p>${md(dataAnswer(question))}`;
+      return;
+    }
     // Keep everything after the shared data short: on a CPU-only machine every extra token adds reading time.
     const known = insights.filter(i => !i.archived && insightState(i) !== 'disputed').slice(0, 6).map(i => `- [${i.pillar}] ${i.title}`).join('\n');
     const tail = `\n\nEXISTING INSIGHT TITLES:\n${known || 'none'}\n\nQUESTION: ${question}\nAnswer in under 120 words using markdown. Cite figures from the data.`;
@@ -920,8 +609,23 @@ window.App = (() => {
       el.classList.remove('thinking');
     } catch (e) {
       el.classList.remove('thinking');
-      $('.md', el).innerHTML = `<p>Could not reach the AI: ${esc(e.message)}</p>`;
+      $('.md', el).innerHTML = `<p class="muted small">Your AI model could not answer (${esc(e.message)}). Closest findings from the data, worked out in code:</p>${md(dataAnswer(question))}`;
     }
+  }
+
+  // Placeholder answer when the model fails: the rule-based insights and recommendations that share the most words
+  // with the question. Real data only (Demo view's [DUMMY] figures are not used by these rules' Legacy figures).
+  function dataAnswer(question) {
+    const stop = /^(what|which|where|when|have|does|with|from|that|this|they|their|about|into|much|many|the|and|for|are|how|our|has|did|was|were|will|can|should|legacy|program|rugby)$/;
+    const qw = [...new Set(question.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stop.test(w)))];
+    const facts = [
+      ...A.ruleInsights().map(r => ({ text: `**${r.title}.** ${r.insight}`, hay: `${r.title} ${r.insight} ${r.pillar} ${r.region || ''}` })),
+      ...(window.Recommendations?.build?.() || []).map(r => ({ text: `**Since ${r.since},** ${r.can}.`, hay: `${r.area} ${r.since} ${r.can}` })),
+    ];
+    const score = f => qw.filter(w => f.hay.toLowerCase().includes(w)).length;
+    const ranked = facts.map(f => ({ ...f, s: score(f) })).sort((a, b) => b.s - a.s);
+    const top = (ranked[0]?.s ? ranked.filter(f => f.s) : ranked).slice(0, 3);
+    return top.length ? top.map(f => `- ${f.text}`).join('\n') : '- No calculated finding matches this question yet.';
   }
 
   // Pre-read the program data into the model's memory while the user is about to ask something,
@@ -936,7 +640,7 @@ window.App = (() => {
     renderBubbles();
     $('#runAgents').addEventListener('click', runAgents);
     $('#cancelAgents').addEventListener('click', () => { run?.ctl.abort(); toast('Cancelling…'); });
-    $('#runRules').addEventListener('click', runRules);
+    $('#runRules').addEventListener('click', () => runRules());
     $$('#insightFilter button').forEach(b => b.addEventListener('click', () => {
       $$('#insightFilter button').forEach(x => x.classList.toggle('on', x === b));
       insightFilter = b.dataset.f;
@@ -953,7 +657,6 @@ window.App = (() => {
       toast('Insight moved back to To review.');
     });
     $('#askInput').addEventListener('focus', prewarm);
-    document.addEventListener('tab', e => { if (e.detail === 'insights') setTimeout(prewarm, 800); });
     $('#askForm').addEventListener('submit', e => {
       e.preventDefault();
       const q = $('#askInput').value.trim();
@@ -1008,18 +711,17 @@ window.App = (() => {
   document.addEventListener('DOMContentLoaded', async () => {
     initTips();
     initTheme();
+    initRail();
     await Store.init();
+    await window.DemoView?.init();
     insights = Store.get('insights') || [];
     initViews();
     initTabs();
     initSettings();
-    initMatrixFilter();
-    initTargets();
-    initFlagTabs();
     renderOverview();
     initInsights();
-    checkOllama().then(models => { if (models && $('#tab-insights').classList.contains('active')) prewarm(); });
-    document.addEventListener('feedback-changed', () => { renderFlags(A.regionMetrics()); renderBubbles(); });
+    checkOllama();
+    document.addEventListener('feedback-changed', () => renderBubbles());
     // Top-bar pill mirrors whatever the AI is doing anywhere in the app.
     document.addEventListener('ai-activity', e => {
       const d = e.detail, pill = $('#ollamaStatus');
@@ -1035,7 +737,7 @@ window.App = (() => {
   });
 
   return {
-    $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, bubbleHtml, pillarChartImage, showTab, showView, revealElement,
+    $, $$, esc, md, money, moneyFull, pct, toast, requireModel, addInsights, renderOverview, renderBubbles, refreshAi, bubbleHtml, showTab, showView,
     get insights() { return insights.filter(i => !i.archived); }, // archived (older-run) insights stay out of Impact, Story and the AI
     insightState,
   };

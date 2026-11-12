@@ -1,9 +1,7 @@
 // Persistence. Uses the backend (/api/store) when it is running, otherwise the browser's localStorage.
 // Reads are synchronous from an in-memory cache; writes are saved in the background.
 window.Store = (() => {
-  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, econ: {}, targets: {}, programs: {}, methods: {}, kpis: {}, showcase: {} };
-  // Collections still saved while the demo sandbox is on: showcase answers are real feedback, not practice data.
-  const KEEP_IN_SANDBOX = new Set(['showcase']);
+  const DEFAULTS = { evidence: [], feedback: { ratings: {}, deletions: [] }, datasets: [], insights: [], story: null, quality: {}, programs: {}, methods: {}, kpis: {}, wellbeing: {}, signals: {}, history: [] };
   const cache = {};
   const timers = {};
   let mode = 'local';
@@ -46,10 +44,12 @@ window.Store = (() => {
   }
 
   function get(c) { return cache[c]; }
+  // Demo view: put values in memory only. Never saved and never logged in History.
+  function overlay(c, value) { cache[c] = value; }
 
   function set(c, value) {
     cache[c] = value;
-    if (sandbox && !KEEP_IN_SANDBOX.has(c)) return;
+    if (sandbox) return;
     clearTimeout(timers[c]);
     timers[c] = setTimeout(() => persist(c), 300);
   }
@@ -61,17 +61,27 @@ window.Store = (() => {
     sandbox = true;
   }
 
+  // Resolves true when saved, false when the save failed (the user is told why).
   async function persist(c) {
     if (mode === 'server') {
-      try { await api('/api/store?c=' + encodeURIComponent(c), { method: 'PUT', body: JSON.stringify({ value: cache[c] }) }); }
-      catch (e) { console.error('Save failed', c, e); window.App?.toast?.(`Could not save ${c} to the server.`); }
-    } else {
-      try { localStorage.setItem('tackle.' + c, JSON.stringify(cache[c])); } catch {}
+      try { await api('/api/store?c=' + encodeURIComponent(c), { method: 'PUT', body: JSON.stringify({ value: cache[c] }) }); return true; }
+      catch (e) {
+        console.error('Save failed', c, e);
+        // 400 = the running server does not know this collection yet: it was started before an update added it.
+        window.App?.toast?.(/returned 400/.test(e.message)
+          ? `Could not save ${c}: the server is older than this page. Close the Tackle AI window and run boot.cmd again.`
+          : `Could not save ${c} to the server.`, 8000);
+        return false;
+      }
     }
+    try { localStorage.setItem('tackle.' + c, JSON.stringify(cache[c])); return true; } catch { return false; }
   }
 
-  // Save a pending write now (e.g. before a reload).
+  // Save a pending write now (e.g. before a reload). Resolves true when saved.
   function flush(c) { clearTimeout(timers[c]); return persist(c); }
 
-  return { init, get, set, flush, api, headers, startSandbox, get sandbox() { return sandbox; }, get mode() { return mode; }, get health() { return health; } };
+  // Every collection and its empty starting value (used by Reset and backups).
+  const defaults = () => structuredClone(DEFAULTS);
+
+  return { init, get, set, overlay, flush, defaults, api, headers, startSandbox, get sandbox() { return sandbox; }, get mode() { return mode; }, get health() { return health; } };
 })();

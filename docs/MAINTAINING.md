@@ -17,7 +17,7 @@ No-code alternative: upload a spreadsheet with region and amount columns in **Da
 
 ### Change or add a plan target
 
-Edit the `kpis` list in `js/data.js` (ids must be unique). Staff can also change targets and target years in the app (**Targets → Adjust targets**) without touching code.
+Edit the `kpis` list in `js/data.js` (ids must be unique). These plan targets no longer have a page: they feed the recommendations, Story, the AI briefing and the Framework.
 
 ### Update an impact measure (social / economic / cultural)
 
@@ -31,13 +31,9 @@ Edit the `kpis` list in `js/data.js` (ids must be unique). Staff can also change
 
 Calculators live in `CALCS` in [js/methods.js](../js/methods.js). Only add one when the formula and its parameters are published (cite them in `frameworks` and in the calculator's `formula`, `caveat` and result workings). Each calculator's `run()` returns result rows with their workings, which become the hover explanations, and a `missing` message when inputs are absent (never treat missing as zero).
 
-### Add a yearly measure that updates Targets
+### Add a yearly measure from uploads
 
 Uploaded files are scanned for yearly counts (players, coaches, match officials, female / First Nations / Pasifika participants). The patterns are in `MEASURES` in [js/analytics.js](../js/analytics.js); the layouts the scanner understands are in `extractMeasures()` in [js/upload.js](../js/upload.js). Link a target to a measure with `measure: '<id>'` in `kpis`. With two consecutive years from one file, the target's actual becomes that file's latest year ÷ previous year − 1.
-
-### Edit the Presentation or Demo script
-
-Both are in [js/demo.js](../js/demo.js): `STEPS` (self-paced demo) and `PRESENT` (15-minute presentation). Each presentation slide has `secs`; keep the total at 900 (15:00). `body` is what the audience sees, `notes` is the presenter's script. `FEEDBACK_APPLIED` (keyed by slide title) adds the amber "Feedback applied" tags; if you rename a slide, rename its key too.
 
 ### Update the NSW Rugby KPI Framework (when the evaluation team issues a new handover)
 
@@ -82,7 +78,7 @@ Add `data-tip="..."` (built with `esc()`) and `tabindex="0"` to the element. Use
 
 1. `npm run check` passes.
 2. Start the app (`boot.cmd` / `./boot.sh` / `npm start`) and click through Overview, Impact and Story. The browser console should show no red errors.
-3. Run **▶ Tour → Guided demo** end to end; it exercises most features without changing saved data.
+3. Switch on **Demo view** and check each page; it does not change saved data.
 4. Push to GitHub. Vercel deploys automatically if the repo is connected.
 
 ## Backups and data

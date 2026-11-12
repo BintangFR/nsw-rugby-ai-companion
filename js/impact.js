@@ -1,7 +1,7 @@
-// Impact tab: Social / Economic / Cultural lenses, the field evidence log and the Impact agent.
+// Impact: Social / Economic / Cultural lenses and the field evidence log.
 (() => {
   const { $, $$, esc, toast } = window.App;
-  const A = window.Analytics, O = window.Ollama, D = window.TACKLE_DATA;
+  const A = window.Analytics, D = window.TACKLE_DATA;
   const LENSES = ['social', 'economic', 'cultural'];
   const STATUS = { measured: 'Measured', partial: 'Partial', none: 'No data yet' };
   let filter = 'all';
@@ -19,14 +19,14 @@
       const mine = ev.filter(e => e.lens === k);
       const n = mine.length, fromData = mine.filter(e => e.dataset).length;
       const pctMeasured = Math.round((c.measured + 0.5 * c.partial) / c.total * 100);
-      const covTip = `How "${c.measured} of ${c.total}" is worked out:\nEach block is one measure defined by an established framework (listed below the bar).\n${c.measured} measured (green) · ${c.partial} partial (amber, e.g. Rugby For Good programs only) · ${c.none} no data yet (grey).\n\n`
+      const covTip = `How "${c.measured} of ${c.total}" is worked out:\nEach block is one measure defined by an established framework (listed below the bar).\n${c.measured} measured (green) · ${c.partial} partial (amber, e.g. all NSW rugby rather than Legacy only) · ${c.none} no data yet (grey).\n\n`
         + c.measures.map(m => `• ${m.name}: ${STATUS[m.status]}`).join('\n');
       const evTip = `Records tagged ${lens.label} in the evidence log below: ${n - fromData} entered by staff, ${fromData} imported from uploaded files. Evidence supports the measures; it is not itself a measure.`;
       return `<article class="card lens ${k}">
         <h2>${lens.label} impact</h2>
         <div class="q">${esc(lens.question)}</div>
         <div class="big"><span ${tip(covTip)}>${c.measured} of ${c.total}</span></div>
-        <div class="big-sub">established measures with data${c.partial ? ` · <span ${tip('Partial = measured for part of the program only (for example, Rugby For Good participants), or a baseline without a follow-up.')}>${c.partial} partial</span>` : ''} · <span ${tip(evTip)}>${n} evidence record${n === 1 ? '' : 's'}</span></div>
+        <div class="big-sub">established measures with data${c.partial ? ` · <span ${tip('Partial = measured for part of the program only (for example, all NSW rugby rather than Legacy-funded work only), or a baseline without a follow-up.')}>${c.partial} partial</span>` : ''} · <span ${tip(evTip)}>${n} evidence record${n === 1 ? '' : 's'}</span></div>
         <div class="coverage" aria-label="${pctMeasured}% covered">${c.measures.map(m => `<span class="${m.status}" ${tip(`${m.name}\n${STATUS[m.status]}: ${m.value}\n\nHow: ${m.how}\nFramework: ${F[m.framework].org}, ${F[m.framework].title}\nSource: ${m.source}`)}></span>`).join('')}</div>
         <div class="lens-frameworks small">Frameworks: ${lens.frameworks.map(id => `<span class="impact-chip method" ${tip(`${F[id].org}, ${F[id].title} (${F[id].year}).\n${F[id].use}`)}>${esc(F[id].org.split(' (')[0].split(' for ')[0])}</span>`).join(' ')}</div>
         <details class="lens-measures"><summary>Show the ${c.total} measures</summary>
@@ -35,12 +35,6 @@
         <div class="example">${esc(lens.example)}</div>
       </article>`;
     }).join('');
-  }
-
-  function renderImpactBubbles() {
-    const list = window.App.insights.filter(i => i.pillar === 'Impact' || i.impact);
-    $('#impactBubbles').innerHTML = list.length ? list.map(window.App.bubbleHtml).join('')
-      : '<div class="empty">Press <b>Run Impact agent</b> to have the local model assess social, economic and cultural impact from the data and your evidence log.</div>';
   }
 
   function renderEvidence() {
@@ -78,29 +72,9 @@
     URL.revokeObjectURL(a.href);
   }
 
-  async function runImpactAgent() {
-    if (!window.App.requireModel()) return;
-    const btn = $('#runImpactAgent');
-    btn.disabled = true; btn.textContent = 'Assessing impact…';
-    try {
-      const agent = O.AGENTS.find(a => a.id === 'IMP');
-      const list = await O.runAgent(agent, { onProgress: pr => {
-        btn.textContent = pr.phase === 'writing' ? `Writing… ${pr.tokens} tokens (insight ${Math.min(pr.insightsTotal, pr.insightsWritten + 1)} of ${pr.insightsTotal})` : `Reading the data… ${Math.round((Date.now() - pr.start) / 1000)}s`;
-      } });
-      window.App.addInsights(list, { replacePillar: 'Impact' });
-      toast(`${list.length} impact insights added.`);
-    } catch (e) {
-      window.App.addInsights(A.ruleInsights().filter(i => i.pillar === 'Impact'), { replacePillar: 'Impact' });
-      toast('AI failed - showing rule-based impact insights.');
-    } finally {
-      btn.disabled = false; btn.textContent = 'Run Impact agent';
-    }
-  }
-
   function refresh() {
     renderLenses();
     renderEvidence();
-    renderImpactBubbles();
     window.App.renderOverview();
   }
 
@@ -125,12 +99,9 @@
       renderEvidence();
     }));
     $('#evExport').addEventListener('click', exportCsv);
-    $('#runImpactAgent').addEventListener('click', runImpactAgent);
     renderLenses();
     renderEvidence();
-    renderImpactBubbles();
   });
-  document.addEventListener('insights-changed', () => { if ($('#impactBubbles')) renderImpactBubbles(); });
   document.addEventListener('data-changed', () => { renderLenses(); renderEvidence(); });
 
   window.Impact = { refresh };

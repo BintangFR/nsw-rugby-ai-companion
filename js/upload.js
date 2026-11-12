@@ -21,8 +21,6 @@
     'NSW_Rugby_KPI_Formula_Web_Handover.xlsx',
     'NSW Rugby Union Project Brief - Term 3 2026.pdf',
     'NSW Rugby Union Partner Meeting 1 slides.pdf',
-    'Rugby For Good Benefits Realisation Framework Report_Final_04.03.2025[59].pdf',
-    'Rugby For Good Business Case Report_Final_04.03.2025[74].pdf',
     'NRL community-impact-study_example.pdf', // community-impact-study_260924_202052.pdf is an identical copy, so it is not loaded twice
     'NSWJRU Impact report (2).pdf',
     'Super Rugby review_Tahs_2026.pdf',
@@ -103,7 +101,7 @@
 
   // Turn an uploaded table into spend rows, region layers and impact evidence that the dashboard reads.
   function integrate(ds) {
-    const contribution = { id: ds.id, name: ds.name, ext: ds.ext, size: ds.size, created: Date.now(), spend: [], layers: [], skipped: 0, evidence: 0 };
+    const contribution = { id: ds.id, name: ds.name, ext: ds.ext, size: ds.size, created: Date.now(), spend: [], layers: [], wellbeing: [], skipped: 0, evidence: 0 };
     const evidence = [];
     for (const s of ds.sheets) {
       const regionCol = s.columns.find(c => c.region);
@@ -133,6 +131,17 @@
           }
           if (Object.keys(values).length >= 2) contribution.layers.push({ id: `${ds.id}-${contribution.layers.length}`, label: `${col.name} (${ds.name})`, values });
         }
+        // Survey answers to the life satisfaction question (one row per respondent, 0-10): average per region.
+        const lsCol = nums.find(c => /life satisfaction|satisfied with (your )?life|happiness|wellbeing score/i.test(c.name));
+        if (lsCol) {
+          const by = {};
+          for (const r of s.rows) {
+            const region = A.matchRegion(r[regionCol.name]), v = parseNum(r[lsCol.name]);
+            if (!region || isNaN(v) || v < 0 || v > 10) continue;
+            (by[region] = by[region] || []).push(v);
+          }
+          for (const [region, vs] of Object.entries(by)) contribution.wellbeing.push({ region, n: vs.length, mean: vs.reduce((a, b) => a + b, 0) / vs.length, column: lsCol.name, sheet: s.name });
+        }
       }
       // Only a column that is clearly an evidence lens ("Lens", "Impact", "Impact type"), not e.g. a KPI
       // specification's "Impact Dimension", which would import formula rows as field evidence.
@@ -158,7 +167,7 @@
     // Re-loading a file always replaces its evidence (never duplicates it, and clears rows an older import created).
     const stale = A.evidenceStore.all().some(e => e.datasetId === ds.id);
     if (stale) Store.set('evidence', A.evidenceStore.all().filter(e => e.datasetId !== ds.id));
-    if (contribution.spend.length || contribution.layers.length || evidence.length || contribution.measures.length) {
+    if (contribution.spend.length || contribution.layers.length || contribution.wellbeing.length || evidence.length || contribution.measures.length) {
       A.saveDataset(contribution);
       if (evidence.length) A.evidenceStore.addMany(evidence);
       dataChanged();
@@ -172,8 +181,9 @@
     const parts = [];
     if (c.spend.length) parts.push(`${money(c.spend.reduce((s, x) => s + x.amount, 0))} spend from ${c.spend.length} rows`);
     if (c.layers.length) parts.push(`${c.layers.length} map layer${c.layers.length > 1 ? 's' : ''}`);
+    if (c.wellbeing?.length) parts.push(`life satisfaction survey results for ${c.wellbeing.length} region${c.wellbeing.length > 1 ? 's' : ''} (updates the happiness index)`);
     if (c.evidence) parts.push(`${c.evidence} impact evidence record${c.evidence > 1 ? 's' : ''}`);
-    if (c.measures?.length) parts.push(`yearly ${c.measures.map(m => A.MEASURES[m.id].label.toLowerCase()).join(', ')} (updates Targets)`);
+    if (c.measures?.length) parts.push(`yearly ${c.measures.map(m => A.MEASURES[m.id].label.toLowerCase()).join(', ')} (feeds recommendations and reports)`);
     if (c.skipped) parts.push(`${c.skipped} rows already in the dashboard skipped`);
     return parts.join(', ') || 'no region or spend columns found';
   }

@@ -12,7 +12,7 @@ This page is for whoever takes the project over. Start here, then read:
 
 - [ ] Install [Node.js](https://nodejs.org) 18+ and [Ollama](https://ollama.com), then run `ollama pull qwen2.5:7b`.
 - [ ] Start the app: double-click `boot.cmd` (Windows) or run `./boot.sh` (Mac/Linux).
-- [ ] Open **▶ Tour → Guided demo** in the top bar and walk through the tour. It is the fastest way to see every feature.
+- [ ] Switch on **Demo view** in the top bar and go through the Dashboard, Data Studio, Story and Framework. It is the fastest way to see every feature.
 - [ ] Run `npm run check` to confirm your copy is healthy.
 - [ ] Read the "Known limitations" section below.
 
@@ -22,10 +22,8 @@ This page is for whoever takes the project over. Start here, then read:
 |---|---|
 | Overview: map, heatmap, centralisation, flags | Working |
 | Programs: cost, return and root cause per program | Working |
-| Targets: status against plan, editable targets | Working |
 | Impact: established-framework measures, valuation calculators, evidence log, NSW Rugby KPI Framework (27 KPIs) | Working. Only published methods are used; every number explains itself on hover. |
 | "How the app works" page (Framework tab): how figures and AI insights are produced | Working (generated from the live app) |
-| Targets read uploaded yearly data (e.g. Rugby Analytics export) | Working |
 | Presentation mode (15 timed slides, speaker notes) | Working |
 | Insights: five AI agents, review queue, rule-based fallback | Working (local Ollama or hosted AI) |
 | Data Studio: uploads, quality rating, dashboard integration | Working |
@@ -44,7 +42,7 @@ This page is for whoever takes the project over. Start here, then read:
 
 ## Known limitations
 
-- **Single shared password.** `APP_ACCESS_KEY` protects the API, but there are no individual user accounts or audit trail of who changed what.
+- **Single shared password.** `APP_ACCESS_KEY` protects the API, but there are no individual user accounts. Data Studio > History records what changed and when, but not who.
 - **Last write wins.** Each collection (e.g. all evidence) is saved as a whole. Two people editing the same thing at once can overwrite each other.
 - **`Dataset/` is public on Vercel.** Anyone with the URL can download those files. Use Deployment Protection or remove the folder before sharing a link.
 - **AI accuracy.** The default local model (`qwen2.5:7b`) sometimes mixes up figures. Insights are fact-checked against computed flags, and staff can dispute them with 👎, but they should still be reviewed before publishing.
