@@ -1,4 +1,4 @@
-// Impact tab: the NSW Rugby KPI Framework (27 KPIs from NSW_Rugby_KPI_Formula_Web_Handover.xlsx).
+// Impact: the NSW Rugby KPI Framework (27 KPIs from NSW_Rugby_KPI_Formula_Web_Handover.xlsx).
 // Calculation rules live in js/kpi-framework.js; this file is the screen, storage, CSV export and AI context.
 // Stored in Store 'kpis': { [kpiId]: { waves: [{ meta, inputs }, ...], comparison_approved } }.
 (() => {
@@ -11,28 +11,6 @@
   const all = () => Store.get('kpis') || {};
   const entryOf = id => all()[id] || { waves: [], comparison_approved: false };
   const save = (id, entry) => Store.set('kpis', { ...all(), [id]: entry });
-
-  // One-off move of results entered with the earlier 9-KPI economic calculator (Store 'econ') into this format.
-  // Metadata did not exist then, so migrated waves show "Data Collection Required" until it is completed.
-  function migrateEcon() {
-    const old = Store.get('econ');
-    if (!old || Object.keys(all()).length) return;
-    const MAP = { 'P1-01': { used: 'U', bookable: 'H' }, 'P1-02': { contrib: 'C', returns: 'R' }, 'P1-03': { income: 'I', cost: 'E' }, 'P3-01': { cohort: 'B', retained: 'R' },
-      'P3-02': { cost: 'C', qualified: 'N' }, 'P3-03': { hours: 'h' }, 'P4-01': { cost: 'C', people: 'N' }, 'P4-03': { support: 'P', reversals: 'R' } };
-    const out = {};
-    for (const [id, map] of Object.entries(MAP)) {
-      const e = old[id];
-      if (!e) continue;
-      const waves = ['baseline', 'followup'].map(p => {
-        const src = e[p] || {}, inputs = {};
-        for (const [from, to] of Object.entries(map)) if (typeof src[from] === 'number') inputs[to] = src[from];
-        if (id === 'P3-03' && typeof src.coverage === 'number') inputs.coverage = `${src.coverage}% log coverage`;
-        return { meta: src.label ? { scope_id: src.label } : {}, inputs };
-      });
-      if (waves.some(w => Object.keys(w.inputs).length)) out[id] = { waves, comparison_approved: false };
-    }
-    if (Object.keys(out).length) Store.set('kpis', out);
-  }
 
   function evaluateEntry(k) {
     const e = entryOf(k.id);
@@ -78,7 +56,7 @@
       return `<span class="status ${statusCls(r.status)}" title="${esc(`${l}: ${r.status}${r.reason ? ' — ' + r.reason : ''}`)}">${k.waves.length > 1 ? `${esc(l.replace('Cohort pair ', 'Pair '))}: ` : ''}${KF.isCalculated(r.status) && r.display ? esc(r.display) : SHORT[r.status] || esc(r.status)}</span>`;
     }).join('');
     return `<details class="kf-row" data-row="${k.id}" ${openRows.has(k.id) ? 'open' : ''}>
-      <summary><span class="ek-id">${k.id}</span><span class="kf-name">${esc(k.name)}</span><span class="kf-pills">${pills}${ev.chg?.status === 'Calculated' ? `<span class="status positive" title="Change">${esc(ev.chg.text)}</span>` : ''}</span></summary>
+      <summary><span class="ek-id">${k.id}</span><span class="kf-name">${esc(k.name)}${window.DemoView.tag(ev.e.dummy)}</span><span class="kf-pills">${pills}${ev.chg?.status === 'Calculated' ? `<span class="status positive" title="Change">${esc(ev.chg.text)}</span>` : ''}</span></summary>
       ${card(k)}
     </details>`;
   }
@@ -166,7 +144,7 @@
         if (k.state === 'inactive') return `- ${k.id} ${k.name} [${k.dim}]: INACTIVE, no calculation authorised`;
         const ev = evaluateEntry(k);
         const parts = k.waves.map((l, i) => { const r = ev.res[i]; return `${l} ${r.status}${r.display ? ' ' + r.display : ''}${KF.isCalculated(r.status) ? (r.publishable ? ' (publishable)' : ' (internal only)') : ''}`; });
-        return `- ${k.id} ${k.name} [${k.dim}${k.state === 'conditional' ? ', research only' : ''}] = ${k.formula}: ${parts.join('; ')}${ev.chg?.status === 'Calculated' ? '; change ' + ev.chg.text : ''}`;
+        return `- ${ev.e.dummy ? '[DUMMY] ' : ''}${k.id} ${k.name} [${k.dim}${k.state === 'conditional' ? ', research only' : ''}] = ${k.formula}: ${parts.join('; ')}${ev.chg?.status === 'Calculated' ? '; change ' + ev.chg.text : ''}`;
       })];
   }
 
@@ -197,7 +175,6 @@
   }
 
   document.addEventListener('app-ready', () => {
-    migrateEcon();
     $$('#kpiDimFilter button').forEach(b => b.addEventListener('click', () => { dimFilter = b.dataset.f; render(); }));
     $('#kpiExport')?.addEventListener('click', exportCsv);
     render();

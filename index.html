@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tackle AI</title>
   <meta name="description" content="AI companion for the NSW Rugby World Cup Legacy Program - facilities, workforce and inclusion insights.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23020a0c'/><circle cx='32' cy='32' r='24' fill='none' stroke='%233fe8f5' stroke-width='6' stroke-dasharray='6.3 6.3'/><circle cx='32' cy='32' r='20' fill='none' stroke='%233fe8f5' stroke-width='2.5'/><ellipse cx='32' cy='32' rx='12' ry='7.5' transform='rotate(-35 32 32)' fill='%233fe8f5'/><path d='M27 37l10-10M29 31l4 4M32 28l4 4' stroke='%23020a0c' stroke-width='1.8' stroke-linecap='round'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%230d1f45'/><rect y='56' width='64' height='8' fill='%23c8102e'/><circle cx='32' cy='30' r='22' fill='none' stroke='%23ffffff' stroke-width='2.5'/><ellipse cx='32' cy='30' rx='12' ry='7.5' transform='rotate(-35 32 30)' fill='%23ffffff'/><path d='M27 35l10-10M29 29l4 4M32 26l4 4' stroke='%230d1f45' stroke-width='1.8' stroke-linecap='round'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -15,6 +15,7 @@
 </head>
 <body>
   <header class="topbar">
+    <button class="rail-toggle" id="railToggle" aria-label="Collapse the Pages pane" aria-expanded="true" title="Collapse or expand the Pages pane">☰</button>
     <div class="brand">
       <!-- Cog-ringed rugby ball -->
       <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -29,39 +30,28 @@
       </div>
     </div>
     <nav class="tabs" role="tablist">
-      <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
-      <button role="tab" data-tab="targets">Targets</button>
-      <button role="tab" data-tab="programs">Programs</button>
-      <button role="tab" data-tab="impact">Impact</button>
-      <button role="tab" data-tab="insights">Insights</button>
-      <button role="tab" data-tab="data">Data Studio</button>
-      <button role="tab" data-tab="story">Story</button>
-      <button role="tab" data-tab="framework">Framework</button>
+      <button role="tab" data-tab="overview" aria-selected="true" title="Dashboard"><i class="ti" aria-hidden="true">▦</i>Dashboard</button>
+      <button role="tab" data-tab="data" title="Data Studio"><i class="ti" aria-hidden="true">⛁</i>Data Studio</button>
+      <button role="tab" data-tab="story" title="Story"><i class="ti" aria-hidden="true">✎</i>Story</button>
+      <button role="tab" data-tab="framework" title="Framework"><i class="ti" aria-hidden="true">▤</i>Framework</button>
     </nav>
     <div class="top-actions">
-      <details class="menu" id="tourMenu">
-        <summary class="btn demo-btn">▶ Tour</summary>
-        <div class="menu-list">
-          <button id="demoBtn"><b>Guided demo</b><span>Every feature, at your own pace</span></button>
-          <button id="presentBtn"><b>15-minute presentation</b><span>Timed slides with speaker notes (N)</span></button>
-          <button id="showcaseBtn"><b>Feedback showcase</b><span>Walk through each section and record stakeholder answers</span></button>
-          <button id="fxToggle" aria-pressed="true"><b>Screen effects</b><span>Glow and vignette on or off</span></button>
-        </div>
-      </details>
+      <button class="btn demo-btn" id="presentBtn" data-tip="The 20-minute Final Pitch Presentation, run inside the live tool: timed slides for each assessment heading, live spotlights on the dashboard, speaker notes (N) and each presenter's time. Keys: → next, ← back, P pause, Esc end.">▶ Present</button>
+      <label class="demo-switch" data-tip="Off: real data only. On: anything not recorded or not measured yet is filled with made-up figures from Dataset/Dummy-dataset.csv, each tagged [DUMMY]. Nothing is saved while it is on, and your real records are not touched. The page reloads when you switch."><input type="checkbox" id="demoViewToggle"><span>Demo view</span></label>
       <button class="pill" id="ollamaStatus" title="Ollama settings"><span class="dot"></span><span class="label">Ollama: checking…</span></button>
       <div class="seg theme-toggle" id="themeToggle" role="group" aria-label="Colour theme">
         <button data-theme-set="dark" title="Dark mode" aria-label="Dark mode">☾</button>
-        <button data-theme-set="light" title="Light mode (good for projectors and printing)" aria-label="Light mode">☀</button>
+        <button data-theme-set="light" title="Light mode (default; good for projectors and printing)" aria-label="Light mode">☀</button>
       </div>
     </div>
   </header>
 
   <main>
-    <!-- OVERVIEW -->
+    <div class="demo-banner demo-only" role="status"><span class="dummy-tag">[DUMMY]</span> <b>Demo view is on.</b> Anything not recorded or measured yet is filled with made-up figures, tagged [DUMMY]. Nothing is saved until you switch it off. <a href="Dataset/Dummy-dataset.csv" download>Download Dummy-dataset.csv</a></div>
+    <!-- DASHBOARD: map, impact and insights on one page -->
     <section id="tab-overview" class="tab-panel active">
       <div class="kpis" id="kpiRow"></div>
-
-      <div class="grid-2">
+      <div class="grid-2 dash-top" id="dashMap">
         <article class="card map-card">
           <div class="card-head">
             <div>
@@ -78,132 +68,88 @@
           <div id="map" role="img" aria-label="Map of NSW with spend by region"></div>
           <div class="legend" id="mapLegend"></div>
         </article>
-
-        <div class="stack">
-          <article class="card">
-            <h2>Is it too centralised?</h2>
-            <p class="muted">Where every known dollar sits today.</p>
-            <div id="centralBar" class="stack-bar"></div>
-            <dl class="facts" id="centralFacts"></dl>
-          </article>
-          <article class="card">
-            <h2>Flags <span class="info" data-tip="One row per region: spend share vs population share (1.75x or more = overspend risk, 0.5x or less = under-served), and First Nations program gaps. Rate each row 👍/👎 and it moves to Rated.">ⓘ</span></h2>
-            <p class="muted">Regions that need a closer look.</p>
-            <div class="flag-tabs seg" role="tablist" id="flagTabs">
-              <button data-f="todo" class="on" role="tab">To review <span id="flagTodoCount"></span></button>
-              <button data-f="rated" role="tab">Rated <span id="flagRatedCount"></span></button>
-            </div>
-            <ul class="flag-list scroll-list" id="flagList"></ul>
-          </article>
-        </div>
-      </div>
-
-      <article class="card">
-        <div class="card-head">
-          <div>
-            <h2>Region heatmap</h2>
-            <p class="muted" id="matrixNote">Darker = more. The spend vs population column is diverging: blue under-served, red over-served, grey balanced. Click a column to sort.</p>
-          </div>
-          <div class="seg" role="group" aria-label="Pillar filter" id="matrixFilter">
-            <button data-f="all" class="on">All</button>
-            <button data-f="FE">Facilities</button>
-            <button data-f="PW">Workforce</button>
-            <button data-f="INC">Inclusion</button>
-            <button data-f="IMP">Impact</button>
-          </div>
-        </div>
-        <div class="table-wrap"><table class="matrix" id="matrix"></table></div>
-        <p class="footnote">Population and First Nations share are indicative ABS 2021 approximations used only to normalise spend. Upload a dataset with a region column in Data Studio to add your own layers.</p>
-      </article>
-
-      <div>
-        <article class="card">
-          <h2>Spend by pillar</h2>
-          <p class="muted">Known allocations: dashboard 3-year budgets plus Round 1 grants.</p>
-          <div class="chart-box"><canvas id="pillarChart"></canvas></div>
+        <article class="card" id="recoCard">
+          <h2>Recommendations <span class="info" data-tip="Each recommendation connects the data as a chain: what happened, the likely cause, and what we can do. Calculated from the app's data, so they update when the data changes and work without the AI. A likely cause is what the data points to, not proof. Hover a recommendation for its working.">ⓘ</span></h2>
+          <p class="muted">What happened, why, and what we can do.</p>
+          <ul class="reco-list" id="recoList"></ul>
         </article>
       </div>
-    </section>
 
-    <!-- TARGETS -->
-    <section id="tab-targets" class="tab-panel">
-      <article class="card">
+      <article class="card dash-section" id="round2Card">
         <div class="card-head">
           <div>
-            <h2>Targets <span class="info" data-tip="Progress on all five Legacy pillars against the pace needed to hit each target by its target year. Hover a status, bar or pillar heading to see how it is worked out and where the figure comes from.">ⓘ</span></h2>
-            <p class="muted">Are we on pace for every target in the plan?</p>
-          </div>
-          <div class="controls">
-            <div class="seg" role="group" aria-label="Pillar filter" id="targetFilter">
-              <button data-f="all" class="on">All</button>
-              <button data-f="FE" title="Pillar 1: Facilities & Equipment">P1 Facilities</button>
-              <button data-f="PRP" title="Pillar 2: Priority Regions & Pathways">P2 Regions</button>
-              <button data-f="PW" title="Pillar 3: Programs & Workforce">P3 Workforce</button>
-              <button data-f="INC" title="Pillar 4: Inclusion">P4 Inclusion</button>
-              <button data-f="ACT" title="Pillar 5: RWC Activation">P5 Activation</button>
-            </div>
-            <button class="btn" id="editTargets" aria-pressed="false">Adjust targets</button>
+            <h2>Zone view: where Legacy money has reached <span class="info" data-tip="For each rugby zone: Round 1 Legacy money, participation and its trend, churn, players per coach, and First Nations, Pasifika and female shares, from the Rugby Analytics association exports. Zones and clubs come from NSW Rugby's club list. Round 2 is already decided, so use this to check the Round 2 list once the Minister announces it, and to target future funding and support. 'Worth a look' lists what stands out against the total of all zones: prompts, not a ranking. Hover any heading or note for how it is worked out.">ⓘ</span></h2>
+            <p class="muted" id="round2Note"></p>
           </div>
         </div>
-        <div class="target-summary" id="targetSummary"></div>
-        <div id="kpiProgress" class="progress-list"></div>
+        <div class="table-scroll" id="round2Table"></div>
+        <p class="footnote">Figures add up the associations in each zone, so someone registered in two associations is counted twice. Umbrella bodies (NSW Country, school and district competitions) are left out to avoid double counting.</p>
       </article>
-    </section>
 
-    <!-- PROGRAMS -->
-    <section id="tab-programs" class="tab-panel">
-      <div class="prog-layout">
-        <article class="card prog-list">
-          <div class="card-head">
-            <div>
-              <h2>Programs &amp; grants <span class="info" data-tip="Zero in on any single grant or budget line: what it costs, what it returns, which targets it contributes to, and what is driving the result.">ⓘ</span></h2>
-              <p class="muted">Pick a program to see its cost and return.</p>
-            </div>
-          </div>
-          <div class="prog-filters">
-            <input id="progSearch" type="search" placeholder="Search by program, club, council, town or region" aria-label="Search programs">
-            <div class="seg" id="progPillar" role="group" aria-label="Pillar">
-              <button data-f="all" class="on">All</button><button data-f="FE">Facilities</button><button data-f="PW">Workforce</button><button data-f="INC">Inclusion</button><button data-f="other">Other</button>
-            </div>
-            <select id="progSource" aria-label="Source">
-              <option value="all">All sources</option><option value="grant">Round 1 grants</option><option value="budget">3-year budget lines</option><option value="upload">Uploaded</option>
-            </select>
-            <select id="progRegion" aria-label="Region"></select>
-            <label class="check"><input type="checkbox" id="progOnlyResults"> Only with results</label>
-          </div>
-          <div class="prog-summary" id="progSummary"></div>
-          <div class="table-scroll prog-scroll"><table class="pretty-table prog-table" id="progTable"></table></div>
-          <p class="footnote">Return figures are calculated only from results entered for each program. Flags count the problems found under "What's driving this?".</p>
-        </article>
-        <article class="card prog-detail" id="progDetail"></article>
-      </div>
-    </section>
-
-    <!-- IMPACT -->
-    <section id="tab-impact" class="tab-panel">
-      <div class="card-head">
+      <div class="card-head dash-section" id="dashImpact">
         <div>
-          <h2>Impact <span class="info" data-tip="Social, economic and cultural impact, measured only with methods published by other organisations: NSW Treasury evaluation and cost-benefit guidelines, the OECD social cohesion framework, the Rugby For Good Benefits Realisation Framework, NSW Rugby League's community impact study, the Cultural Development Network and eventIMPACTS. Full detail is on the Framework tab.">ⓘ</span></h2>
-          <p class="muted">What difference the program makes, measured with methods other organisations already publish.</p>
+          <h2>Impact of the $10M <span class="info" data-tip="What the Legacy Program's funding has delivered: social, economic and cultural impact, measured only with methods other organisations publish. Every dollar figure comes from Legacy spending or from people reached by Legacy programs, not from rugby as a whole. Full detail is on the Framework page.">ⓘ</span></h2>
+          <p class="muted">What the Legacy Program's funding has delivered so far.</p>
         </div>
         <div class="seg subnav" role="group" aria-label="Impact views">
-          <button data-view="impact:overview">Overview</button>
+          <button data-view="impact:overview">Summary</button>
           <button data-view="impact:kpis">KPIs</button>
-          <button data-view="impact:valuations">Valuations</button>
-          <button data-view="impact:evidence">Evidence &amp; AI</button>
+          <button data-view="impact:valuations">Calculators</button>
+          <button data-view="impact:evidence">Evidence</button>
         </div>
       </div>
-
       <div class="subview" data-subview="impact:overview">
         <article class="card" id="dollarCard">
           <div class="card-head">
             <div>
-              <h2>Dollar value by impact <span class="info" data-tip="Economic, social and cultural impact in dollars, using only published methods: NSW Rugby League 2026 expenditure flow analysis (economic contribution), eventIMPACTS (event visitor spending), the Rugby For Good cost-benefit values discounted under NSW Treasury TPG23-08 (health), and the published Rugby For Good results. Cultural outcomes have no published dollar method, so they are measured with the Cultural Development Network outcomes instead. Inputs come from the app's data (Legacy allocations, Rugby Analytics participants); staff can replace them on Valuations. Hover any figure for the full working. Figures that measure different things are never added together.">ⓘ</span></h2>
-              <p class="muted">What the economic, social and cultural benefits are worth, using published formulas. Hover a figure to see exactly how it was worked out.</p>
+              <h2>What the $10M has delivered <span class="info" data-tip="Dollar values tied to Legacy money only: the economic contribution of Legacy spending (NSW Rugby League 2026 method), the social value of people taking part weekly in Legacy programs ($5,932 each a year, Australian Sports Commission 2018) and of volunteer time, and RWC event visitor spending (eventIMPACTS). Rugby-wide numbers are not counted, because most players are not reached by Legacy funding. Cultural outcomes have no published dollar method. Hover any figure for the full working. Figures that measure different things are never added together.">ⓘ</span></h2>
+              <p class="muted">Economic, social and cultural results from Legacy funding, per $1 where it can be calculated. Hover a figure to see how it was worked out.</p>
             </div>
             <button class="btn" data-view="impact:valuations">Change the inputs</button>
           </div>
           <div class="pillar-value-grid" id="dollarRow"></div>
+          <section class="pub-block" id="signalCard">
+            <div class="card-head">
+              <div>
+                <h3>What the public is saying <span class="info" data-tip="Public news (Google News, Bing News) and public social media (Reddit, Bluesky) about the towns Legacy funds: local business, rugby tourism, jerseys and merchandise, participation, First Nations and Pasifika activity. Each story is linked to the Legacy-funded club, town or region it names and sorted into the same three impacts as the figures above. Deep search uses your own AI model to plan extra searches, review each story and summarise each impact. A story shows something happened near funded work, not that the funding caused it, so a person checks each one before it becomes evidence. Facebook, Instagram, X and TikTok need approved developer access, so they are not searched.">ⓘ</span></h3>
+                <p class="muted small" id="sigStatus">Not searched yet.</p>
+              </div>
+              <div class="controls">
+                <button class="btn" id="sigRun">Search public data</button>
+                <button class="btn primary" id="sigDeep" data-tip="Uses your AI model (Ollama) in three steps: plans extra searches from the funded projects, reviews every story, and writes a summary per impact. Takes about 5 to 12 minutes on a laptop; you can keep using the page.">Deep search with AI</button>
+              </div>
+            </div>
+            <div id="sigList"></div>
+          </section>
+        </article>
+        <article class="card" id="activityCard">
+          <div class="card-head">
+            <div>
+              <h2>Activity and happiness by facility and region <span class="info" data-tip="For each facility and region: how many people take part, what that activity is worth in dollars (people taking part weekly × $5,932 a year, the Australian Sports Commission's value of weekly club sport), and how happy people are (the life satisfaction question from Sport England's Active Lives survey, 0-10, shown as 0-100). Activity is the number of people Legacy-funded work reaches, entered below. In Demo view, missing figures are filled with made-up ones tagged [DUMMY], and the place stays flagged as needing real data.">ⓘ</span></h2>
+              <p class="muted">What each Legacy-funded place delivers: people reached, their dollar value, and a happiness index from surveys. <span id="activitySummary"></span></p>
+            </div>
+            <div class="seg" id="activityView" role="group" aria-label="Show by">
+              <button data-av="facility" class="on">Facilities</button>
+              <button data-av="region">Regions</button>
+            </div>
+          </div>
+          <div class="table-scroll" id="activityTable"></div>
+          <details class="ek-more">
+            <summary>Enter a result</summary>
+            <p class="muted small">Ask: <i id="wbQuestion"></i> Enter how many people the work reaches, and/or how many answered and their average score. A survey file with a region column and a "life satisfaction" column can also be uploaded in Data Studio.</p>
+            <form class="ek-form" id="wbForm">
+              <fieldset>
+                <label>Facility or region<select id="wbPlace"></select></label>
+                <label>People reached<span class="unit-in"><input id="wbPeople" type="number" min="0" step="1"><i>people</i></span></label>
+                <label data-tip="People who took part at least once a week through the season. Only they are valued ($5,932 a year each, Australian Sports Commission 2018): one-off attendees are not.">Of whom weekly<span class="unit-in"><input id="wbWeekly" type="number" min="0" step="1"><i>people</i></span></label>
+                <label>Respondents<span class="unit-in"><input id="wbN" type="number" min="1" step="1"><i>people</i></span></label>
+                <label>Average score<span class="unit-in"><input id="wbMean" type="number" min="0" max="10" step="0.1"><i>0-10</i></span></label>
+                <label data-tip="Optional: the average from an earlier survey of the same people or place, to show the change.">Earlier average (optional)<span class="unit-in"><input id="wbBefore" type="number" min="0" max="10" step="0.1"><i>0-10</i></span></label>
+                <label>Survey date<input id="wbDate" type="date"></label>
+              </fieldset>
+              <div class="row end"><button type="button" class="btn" id="wbClear">Remove result</button><button class="btn primary">Save result</button></div>
+            </form>
+          </details>
         </article>
         <div class="lens-grid" id="lensGrid"></div>
       </div>
@@ -212,7 +158,7 @@
       <article class="card" id="calcCard">
         <div class="card-head">
           <div>
-            <h2>Impact valuations <span class="info" data-tip="Published formulas from other organisations, applied to figures your team enters (or, where the app already holds a figure that matches the method exactly, to that figure until you enter your own). Each calculator names its source and explains every result on hover. Present values follow NSW Treasury TPG23-08 (5% central discount rate, 3% and 7% sensitivity). Values transferred from other studies are indicative until NSW Rugby collects its own data. Missing data is never counted as zero.">ⓘ</span></h2>
+            <h2>Value calculators <span class="info" data-tip="Published formulas from other organisations, applied to figures your team enters (or, where the app already holds a figure that matches the method exactly, to that figure until you enter your own). Each calculator names its source and explains every result on hover. Present values follow NSW Treasury TPG23-08 (5% central discount rate, 3% and 7% sensitivity). Values transferred from other studies are indicative until NSW Rugby collects its own data. Missing data is never counted as zero.">ⓘ</span></h2>
             <p class="muted">Dollar values of benefits, using published formulas.</p>
           </div>
         </div>
@@ -239,12 +185,19 @@
       </div>
 
       <div class="subview" data-subview="impact:evidence">
-      <div class="card-head">
-        <p class="muted">Field evidence from the community, and what the Impact agent makes of it.</p>
-        <div class="controls"><button class="btn primary" id="runImpactAgent">Run Impact agent</button></div>
-      </div>
-      <div class="bubbles" id="impactBubbles"></div>
-
+      <article class="card" id="mdCard">
+        <h2>Match-day check <span class="info" data-tip="Compares a daily figure on match or event days with ordinary days, for example local spending, a business's takings, visitor counts, or interest in a place on Google Trends. Compared with all other days and with the same weekday, so weekends do not inflate the result. A difference shows what happened on those days; it does not prove the match caused it.">ⓘ</span></h2>
+        <p class="muted">Is the area busier on match days? Upload a daily file with a date column and a number column: a Google Trends download (trends.google.com, set the time range, then Download), council daily spending data, a business's takings or visitor counts.</p>
+        <div class="md-form">
+          <label>Daily file <input type="file" id="mdFile" accept=".csv,.xlsx,.xls"></label>
+          <label>What it measures <input id="mdWhat" placeholder="e.g. Takeaway sales near Endeavour Oval"></label>
+          <label>Place <select id="mdPlace"></select></label>
+          <label class="md-days">Match or event dates <textarea id="mdDays" rows="2" placeholder="e.g. 09/05/2026, 23/05/2026, 06/06/2026"></textarea></label>
+          <div class="row end"><button class="btn primary" id="mdRun">Compare</button></div>
+        </div>
+        <p class="muted small" id="mdFileNote"></p>
+        <div id="mdResult"></div>
+      </article>
       <div class="grid-2 even">
         <article class="card">
           <h2>Record impact evidence <span class="info" data-tip="Capture what you see and hear in the community: survey results, business feedback, stories. The AI agents and the Story generator use these records.">ⓘ</span></h2>
@@ -267,6 +220,9 @@
                   <option>Community event</option>
                   <option>Media</option>
                   <option>Staff observation</option>
+                  <option>Social media post</option>
+                  <option>Google Maps or business listing</option>
+                  <option>Destination NSW or tourism data</option>
                 </select>
               </label>
             </div>
@@ -297,10 +253,8 @@
         </article>
       </div>
       </div>
-    </section>
 
-    <!-- INSIGHTS -->
-    <section id="tab-insights" class="tab-panel">
+      <div class="dash-section" id="dashInsights">
       <div class="card">
         <div class="card-head">
           <div>
@@ -349,13 +303,33 @@
       <div class="bubbles" id="bubbles"></div>
 
       <form class="ask card" id="askForm">
-        <input id="askInput" placeholder="Ask a follow-up, e.g. Which regions should Round 2 prioritise for female-friendly changerooms?" autocomplete="off">
+        <input id="askInput" placeholder="Ask a follow-up, e.g. Which zones have no Legacy facility grant yet?" autocomplete="off">
         <button class="btn primary" type="submit">Ask</button>
       </form>
+      </div>
     </section>
 
     <!-- DATA STUDIO -->
     <section id="tab-data" class="tab-panel">
+      <div class="card-head">
+        <div>
+          <h2>Data Studio <span class="info" data-tip="Every figure on the site is calculated from the data here. Files lists the data and its quality; History is a log of every change (uploads, results and surveys, calculator inputs, KPI data and evidence), what it changed and which pages it affects, like a GitHub commit history.">ⓘ</span></h2>
+          <p class="muted">The data behind every page, and a history of every change.</p>
+        </div>
+        <div class="controls"><button class="btn" id="resetBtn" data-tip="Clear changes and start fresh, with backup and restore.">Reset</button>
+        <div class="seg subnav" role="group" aria-label="Data Studio views">
+          <button data-view="data:files">Files</button>
+          <button data-view="data:history">History <span class="count" id="historyCount"></span></button>
+        </div></div>
+      </div>
+      <div class="subview" data-subview="data:history">
+        <article class="card" id="historyCard">
+          <div class="ai-sync" id="aiSync"></div>
+          <div class="hist-filter seg" role="group" aria-label="Filter history" id="histFilter"></div>
+          <div id="historyView"></div>
+        </article>
+      </div>
+      <div class="subview" data-subview="data:files">
       <label class="dropzone" id="dropzone">
         <input type="file" id="fileInput" multiple accept=".csv,.tsv,.txt,.md,.json,.xlsx,.xls,.xlsm,.pdf,.docx">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -366,6 +340,7 @@
       <div class="dataset-tabs" id="datasetTabs"></div>
       <div id="datasetView"></div>
       <article class="card" id="dataQuality"></article>
+      </div>
     </section>
 
     <!-- STORY -->
@@ -376,9 +351,9 @@
           <p class="muted">Pick who it is for; the pages assemble themselves.</p>
           <label>Report type
             <select id="storyFormat">
-              <option value="board">Board Summary (3 pages)</option>
-              <option value="acquittal">Funding Acquittal (6 pages)</option>
-              <option value="annual">Annual Report Chapter (8+ pages)</option>
+              <option value="board">Board Summary (4 pages)</option>
+              <option value="acquittal">Funding Acquittal (7 pages)</option>
+              <option value="annual">Annual Report Chapter (9+ pages)</option>
               <option value="community">Community Story (3 pages)</option>
               <option value="media">Media Release (1 page)</option>
             </select>
@@ -423,13 +398,19 @@
           <p class="muted">The framework on its own, ready to rebuild in any tool.</p>
         </div>
         <div class="controls">
+          <button class="btn primary" id="fwGuideBtn" data-tip="A step-by-step guide to using the framework, in plain words, with a link to each part of the page.">How to use this framework</button>
           <div class="seg subnav" role="group" aria-label="Framework pages"><button class="on" data-goto="framework">The framework</button><button data-goto="methodology">How the app works</button></div>
           <details class="menu">
-            <summary class="btn primary">Download</summary>
+            <summary class="btn">Download</summary>
             <div class="menu-list">
               <button id="fwHtml"><b>Framework document</b><span>Standalone page to read, print or save as PDF</span></button>
-              <button id="fwJson"><b>framework.json</b><span>Machine-readable: KPIs, inputs, rules, baselines, sources</span></button>
-              <button id="fwCsv"><b>input-fields.csv</b><span>One row per input field, for forms or tables</span></button>
+              <button id="fwLines"><b>Legacy lines template</b><span>CSV to fill in: one row per grant or budget line (steps 1 to 4)</span></button>
+              <button id="fwSurvey"><b>Post-event survey</b><span>CSV: the questions to ask after each event (tracking tools)</span></button>
+              <button id="fwAttend"><b>Attendance sheet</b><span>CSV to fill in at each session or event</span></button>
+              <button id="fwFollow"><b>Post-event follow-up script</b><span>Text: who does what, from the day to acquittal</span></button>
+              <button id="fwBaseline"><b>Baseline register</b><span>CSV: the starting point to compare against after Legacy</span></button>
+              <button id="fwCsv"><b>KPI input fields</b><span>CSV: every input the 27 KPIs need (step 5)</span></button>
+              <button id="fwJson"><b>framework.json</b><span>Machine-readable: steps, formulas, parameters, KPIs, sources</span></button>
             </div>
           </details>
         </div>
@@ -501,6 +482,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="js/nsw-boundary.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/demo-view.js"></script>
+  <script src="js/history.js"></script>
   <script src="js/data.js"></script>
   <script src="js/analytics.js"></script>
   <script src="js/ollama.js"></script>
@@ -513,8 +496,14 @@
   <script src="js/methods.js"></script>
   <script src="js/framework.js"></script>
   <script src="js/programs.js"></script>
+  <script src="js/activity.js"></script>
+  <script src="js/reset.js"></script>
+  <script src="js/round2.js"></script>
+  <script src="js/ausplay.js"></script>
+  <script src="js/recommendations.js"></script>
+  <script src="js/signals.js"></script>
+  <script src="js/matchday.js"></script>
   <script src="js/story.js"></script>
-  <script src="js/demo.js"></script>
-  <script src="js/fx.js"></script>
+  <script src="js/present.js"></script>
 </body>
 </html>

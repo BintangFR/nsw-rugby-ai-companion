@@ -61,7 +61,7 @@ window.TACKLE_DATA = (() => {
     g(1, 'FE', 'Wakehurst Rugby Club', 'Change room modernisation', 'Changerooms', 'Belrose', 'Sydney - Northern Beaches', 55405),
     g(1, 'FE', 'Warren Shire Council', 'Victoria Park: hot water, recovery & safety', 'Amenities', 'Warren', 'Western NSW', 31018),
     g(1, 'FE', 'Woollahra Colleagues RUFC', 'Drainage works at Woollahra Oval 2/3', 'Drainage', 'Rose Bay', 'Sydney - East', 150000),
-    g(1, 'FE', 'Woonona Shamrocks JRC', 'Youth & girls growth and accessibility', 'Accessibility', 'Woonona', 'Illawarra', 39980, ['women', 'access']),
+    // Woonona Shamrocks ($39,980; $40,000 in some files) removed: see excludedGrants below.
     g(2, 'PW', 'Central West Rugby Union', 'Referee Support & Development Program', 'Match officials', 'Orange', 'Central West', 16000),
     g(2, 'INC', 'Coffs Harbour Junior RU', 'Crusaders Girls Rugby Safety & Coaching', 'Coaching / female', 'Toormina', 'Mid North Coast', 5500, ['women']),
     g(2, 'PW', 'Coffs Harbour Snappers RUC', 'Coach & athlete development', 'Coaching', 'Toormina', 'Mid North Coast', 12500),
@@ -186,7 +186,7 @@ window.TACKLE_DATA = (() => {
     westernSydney: '11 Western Sydney LGAs hold ~30% of NSW rugby demand but 11% of players; conversion Fairfield 2.2% vs NSW 32%; <25% of residents within 10 minutes of a club.',
     volunteers: '45% of volunteers give 6+ hours/week; workforce churn baseline 39.5%.',
     equipment: 'Major equipment grants (scrum machines) planned but no recipients published; Round 1 folded equipment into Category 2. MO cards & whistles: $5,087.50 for 250 new referees.',
-    round2: 'Round 2 (2026/27): up to ~$2.15M more; outcomes from Nov 2026; 25% co-contribution.',
+    round2: 'Round 2 (2026/27, up to ~$2.15M, 25% co-contribution) is already decided; NSW Rugby says the Minister will announce the recipients in the coming weeks.',
     socialValue: 'World Rugby SROI: US$3,132 per female player vs US$1,900 per male player per year.',
   };
 
@@ -199,14 +199,10 @@ window.TACKLE_DATA = (() => {
       use: 'Overall structure: program logic, outputs vs outcomes, baseline and follow-up, evaluation questions. The project brief requires the framework to comply with NSW Treasury guidelines.' },
     'TPG23-08': { org: 'NSW Treasury', title: 'NSW Government Guide to Cost-Benefit Analysis (TPG23-08)', year: 2023, url: 'https://www.treasury.nsw.gov.au/sites/default/files/2023-04/tpg23-08_nsw-government-guide-to-cost-benefit-analysis_202304.pdf',
       use: 'Turning yearly benefits into present values: 5% real central discount rate, mandatory sensitivity tests at 3% and 7%, BCR = PV of benefits ÷ PV of costs.' },
-    'OIA-VSL': { org: 'Office of Impact Analysis (PM&C)', title: 'Value of statistical life guidance note', year: 2026, url: 'https://oia.pmc.gov.au/sites/default/files/2026-01/value-statistical-life-guidance-note.pdf',
-      use: 'Value of a statistical life year (VSLY) of $253,000 in 2025 dollars, used to value health years gained.' },
     'NSWRL-2026': { org: 'Solucio for NSW Rugby League', title: 'Community Impact of Rugby League in NSW', year: 2026, file: 'NRL community-impact-study_example.pdf',
-      use: 'A comparable code\'s published method: economic contribution by expenditure flow analysis (retention rates and ABS-based multipliers), health contribution by DALYs × VSLY, and social capital compared with ABS General Social Survey benchmarks.' },
+      use: 'A comparable code\'s published method: economic contribution by expenditure flow analysis (retention rates and ABS-based multipliers), and social capital compared with ABS General Social Survey benchmarks.' },
     'R4G-CBA': { org: 'Balmoral Group Australia for the NSW Positive Rugby Foundation', title: 'Rugby For Good Cost Benefit Analysis / Business Case', year: 2025, file: 'Rugby For Good Business Case Report_Final_04.03.2025[74].pdf',
-      use: 'NSW Treasury-aligned CBA of three Rugby For Good programs (BCRs 5.78, 3.14, 3.63) with sourced per-participant benefit values.' },
-    'R4G-BRF': { org: 'Balmoral Group Australia for the NSW Positive Rugby Foundation', title: 'Rugby For Good Benefits Realisation Framework', year: 2025, file: 'Rugby For Good Benefits Realisation Framework Report_Final_04.03.2025[59].pdf',
-      use: 'Eight benefit areas, each with KPIs, baselines, targets, owner and reporting frequency.' },
+      use: 'Shared by NSW Rugby as an example of how another program measured impact. Rugby For Good is a different program: none of its figures or results are used here (NSW Rugby feedback, Nov 2026).' },
     'OECD-SC': { org: 'OECD', title: 'Perspectives on Global Development 2012: Social Cohesion in a Shifting World', year: 2011, url: 'https://doi.org/10.1787/persp_glob_dev-2012-en',
       use: 'Three dimensions of social cohesion: social capital, social inclusion and social mobility (the organising frame used by NSWRL 2026).' },
     'ABS-GSS': { org: 'Australian Bureau of Statistics', title: 'General Social Survey', year: 2020, url: 'https://www.abs.gov.au/statistics/people/people-and-communities/general-social-survey-summary-results-australia',
@@ -215,6 +211,24 @@ window.TACKLE_DATA = (() => {
       use: 'Five cultural outcomes. Creative Commons: attribute to CDN and do not change the outcome wording without CDN\'s permission.' },
     'EVENTIMPACTS': { org: 'UK Sport and partners (EventScotland, DCMS, Welsh Government, Tourism NI)', title: 'eventIMPACTS toolkit', year: 2010, url: 'https://www.eventimpacts.com/',
       use: 'Industry-standard event evaluation: additional spending in the host area that happens because the event is staged (mainly visitors from outside the area).' },
+    'ASC-CLUB': { org: 'Australian Sports Commission and Griffith Business School', title: 'Economic value of community club-based sport in Australia', year: 2018, url: 'https://www.ausport.gov.au/clearinghouse/evidence/value-and-benefits/economic',
+      use: 'Social benefit of playing community club sport once a week: $5,932 per participant a year (health, social and human-capital benefits), as reported by the Clearinghouse for Sport. Used for Legacy participants who take part weekly.' },
+    'BCG-ASC': { org: 'Boston Consulting Group for the Australian Sports Commission', title: 'Intergenerational Review of Australian Sport', year: 2017, url: 'https://www.ausport.gov.au/clearinghouse/evidence/volunteers-in-sport/benefits',
+      use: 'Sport volunteering: 158 million hours a year worth $3 billion, giving about $18.99 an hour (derived), used to value volunteer time in Legacy-funded activity.' },
+    'CLEARINGHOUSE': { org: 'Australian Sports Commission', title: 'Clearinghouse for Sport: value and benefits of sport', year: 2026, url: 'https://www.ausport.gov.au/clearinghouse/evidence/value-and-benefits',
+      use: 'The national evidence base for the value of sport: economic, preventive health, social and mental wellbeing, volunteers. Context figures: sports injuries cost about $55 per person a year (AIHW 2018–19); physical inactivity is about 2% of Australia\'s disease burden (AIHW 2024); Gold Coast 2018 drew 1.3 million visitors and over $1.1 billion visitor spending (Queensland Government 2019).' },
+    'AUSPLAY': { org: 'Australian Sports Commission', title: 'AusPlay survey results July 2025 – June 2026: NSW data tables', year: 2026, file: 'C4S-AusPlay-NSW-Data-Tables-29-October-2026 (1).xlsx',
+      use: 'Independent population survey of sport participation in NSW (released 29 October 2026): rugby union players by age, gender and organiser, with AusPlay margins of error. A state-wide baseline beside Rugby Analytics registrations.' },
+    'NSWT-EB': { org: 'NSW Treasury', title: 'Evidence Bank annual insights report', year: 2026, file: 'nsw-treasury-evidence-bank-report-2025.pdf',
+      use: 'Points to the standard sources of values for NSW cost-benefit analysis: the Outcomes Values Database (OVD, standardised parameters for economic and social outcomes) and the DCJ Benefits Database. Recommended to us by NSW Rugby.' },
+    'DCJ-BD': { org: 'NSW Department of Communities and Justice (FACSIAR)', title: 'DCJ Benefits Database: standard values for human services cost-benefit analysis', year: 2024, url: 'https://dcj.nsw.gov.au/documents/about-us/facsiar/facsiar-publications-and-resources/dcj-benefits-database-standard-values-human-services-cost-benefit-analysis.pdf',
+      use: 'Independent standard values (FY2022/23) for monetising health and quality-of-life outcomes, e.g. one QALY $69,948; a child avoiding depression $555, anxiety $314 or obesity $127 a year; an avoided obesity hospital admission $7,496.' },
+    'DNSW': { org: 'Destination NSW', title: 'Tourism and events research: visitors, nights and spend', year: 2026, url: 'https://www.destinationnsw.com.au/',
+      use: 'Average spend per day trip, domestic overnight and international visitor, to value event visitors and overnight stays (suggested by NSW Rugby).' },
+    'SE-ACTIVE-LIVES': { org: 'Sport England', title: 'Active Lives survey, wellbeing analysis by Sheffield Hallam University', year: 2018, url: 'https://blogs.shu.ac.uk/hwbstaffnews/2018/01/05/physical-activity-and-wellbeing/',
+      use: 'Life satisfaction question scored out of ten ("Overall, how satisfied are you with your life nowadays?"), used for the happiness index, with averages by activity level (2016-17) for context.' },
+    'SPORT-NZ': { org: 'Sport NZ', title: 'Statement that its funding is population based, reported by 1News', year: 2020, url: 'https://www.1news.co.nz/2020/07/10/calls-for-review-into-auckland-sport-and-recreation-funding',
+      use: 'The idea behind the spend vs population screening indicator. It is a stated approach, not a published formula: the ratio and cut-offs are this project\'s (Framework section 4).' },
     'RA-ANALYTICS': { org: 'Rugby Australia', title: 'Rugby Analytics participation dashboard', year: 2026, file: 'NSW_Rugby_Participation_Dashboard_Data.xlsx',
       use: 'Participation definitions: retention = returning this year ÷ participants last year; churn = 1 − retention; recruitment = new this year ÷ participants this year; growth = this year ÷ last year − 1.' },
     'RA-CLUBS': { org: 'Rugby Australia', title: 'Club Impact Program (club standards: Bronze / Silver / Gold)', year: 2026, file: 'NSW_Rugby_Participation_Dashboard_Data.xlsx',
@@ -222,52 +236,46 @@ window.TACKLE_DATA = (() => {
     'MNW': { org: 'Maiam nayri Wingara Indigenous Data Sovereignty Collective', title: 'Indigenous Data Sovereignty principles', year: 2018, url: 'https://www.maiamnayriwingara.org/',
       use: 'How First Nations data should be collected, owned and used. A protocol for collection, not a measure.' },
     'KPI-HANDOVER': { org: 'NSW Rugby evaluation team', title: 'NSW Rugby KPI Formula Web Handover (27 KPIs: 9 economic, 8 social, 10 cultural)', year: 2026, file: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx',
-      use: 'Approved formulas, variable definitions, missing-data and zero-denominator rules, baseline requirements, formula references and the web input contract. Calculated on the Impact tab exactly as specified; supersedes the earlier economic KPI workbook.' },
+      use: 'Approved formulas, variable definitions, missing-data and zero-denominator rules, baseline requirements, formula references and the web input contract. Calculated exactly as specified; supersedes the earlier economic KPI workbook.' },
   };
 
   // status: measured | partial | none (no data yet). framework: key of `frameworks`. how: the framework's own method.
-  // calc: id of the calculator on the Impact tab (js/methods.js) that applies the published formula.
+  // calc: id of the calculator (js/methods.js) that applies the published formula.
   const impactMethods = {
     social: {
-      label: 'Social', question: 'Do people feel connected, included and well?',
+      label: 'Social', question: 'Do people reached by Legacy feel connected, included and well?',
       example: 'Women feel safe to play and train because the ground now has women-only changerooms.',
-      frameworks: ['KPI-HANDOVER', 'OECD-SC', 'R4G-BRF', 'NSWRL-2026', 'RA-ANALYTICS'],
+      frameworks: ['KPI-HANDOVER', 'OECD-SC', 'NSWRL-2026', 'RA-ANALYTICS'],
       measures: [
         { name: 'NSW Rugby KPI Framework: 8 social KPIs (S01 to S08)', framework: 'KPI-HANDOVER', status: 'none', dynamic: 'kpi', value: 'See NSW Rugby KPI Framework below', how: 'Survey items, cohort and profile formulas exactly as in the evaluation team\'s handover.', source: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx' },
-        { name: 'Participant retention, churn and recruitment', framework: 'RA-ANALYTICS', status: 'measured', value: 'Retention 62.1%, churn 37.9%, recruitment 39.2% (2026)', how: 'Rugby Analytics definitions: retention = returning this year ÷ participants last year; churn = 1 − retention; recruitment = new this year ÷ participants this year.', source: 'Rugby Analytics, 22/09/2026' },
-        { name: 'Female share of participants', framework: 'RA-ANALYTICS', status: 'measured', value: '18.3% (8,765 of 47,822, 2026)', how: 'Female participants ÷ all registered participants (Rugby Analytics gender split).', source: 'Rugby Analytics, 22/09/2026' },
+        { name: 'Participant retention, churn and recruitment', framework: 'RA-ANALYTICS', status: 'partial', value: 'All NSW rugby, not Legacy only: Retention 62.1%, churn 37.9%, recruitment 39.2% (2026)', how: 'Rugby Analytics definitions: retention = returning this year ÷ participants last year; churn = 1 − retention; recruitment = new this year ÷ participants this year.', source: 'Rugby Analytics, 22/09/2026' },
+        { name: 'Female share of participants', framework: 'RA-ANALYTICS', status: 'partial', value: 'All NSW rugby, not Legacy only: 18.3% (8,765 of 47,822, 2026)', how: 'Female participants ÷ all registered participants (Rugby Analytics gender split).', source: 'Rugby Analytics, 22/09/2026' },
         { name: 'Social capital: volunteered for a civic organisation in the last 12 months', framework: 'OECD-SC', status: 'none', value: 'No NSW Rugby survey yet. Benchmarks: 42% of sport participants, 19% of the general population', how: 'Ask the ABS General Social Survey question in the participant survey and compare with the national benchmarks, as NSWRL 2026 did (rugby league participants: 77%).', source: 'ABS GSS benchmarks as reported in NSWRL 2026' },
         { name: 'Social capital: three or more people to confide in', framework: 'OECD-SC', status: 'none', value: 'No survey yet. Benchmarks: 58% of sport participants, 37% of the general population', how: 'ABS General Social Survey confidants question, compared with national benchmarks (NSWRL 2026 method).', source: 'ABS GSS benchmarks as reported in NSWRL 2026' },
         { name: 'Social capital: no one to confide in (isolation)', framework: 'OECD-SC', status: 'none', value: 'No survey yet. Benchmarks: 10% of sport participants, 23% of the general population', how: 'ABS General Social Survey confidants question; lower is better (NSWRL 2026 method).', source: 'ABS GSS benchmarks as reported in NSWRL 2026' },
         { name: 'Social inclusion: feeling accepted, valued and safe', framework: 'OECD-SC', status: 'none', value: 'Not yet explored', how: 'OECD social inclusion dimension, explored through interviews and case studies (the qualitative approach NSWRL 2026 used).', source: 'OECD 2011; NSWRL 2026' },
-        { name: 'Improved health and wellbeing (Rugby For Good participants)', framework: 'R4G-BRF', status: 'partial', value: '97% reported improvement (2020 baseline); target 97%', how: 'Pre/post participant survey at the start and end of each program (R4G Benefits Realisation Framework, reduced anxiety and depression).', source: '2020 Rugby Benefits Participation Report, via R4G BRF' },
-        { name: 'Would seek help if needed', framework: 'R4G-BRF', status: 'partial', value: '62% baseline (Get Talkin\' 2022/23); target at least 70%', how: 'Pre/post participant sentiment survey (R4G BRF, reduced stigma).', source: 'Batyr & NSW Positive Rugby 2022/23, via R4G BRF' },
-        { name: 'Negative internal stigma about mental health', framework: 'R4G-BRF', status: 'partial', value: '44% baseline (2022); target below 40%', how: 'Pre/post participant sentiment survey (R4G BRF, reduced stigma).', source: 'NSW Positive Rugby Foundation 2022 survey, via R4G BRF' },
-        { name: 'Sense of optimism and belonging', framework: 'R4G-BRF', status: 'partial', value: '+10.4% for Tackle Life students (2023); target at least +10%', how: 'Survey before, at the mid-point and at the end of the program (R4G BRF, stronger community ties).', source: 'Rugby Tackle Life 2023, via R4G BRF' },
-        { name: 'Club standards (Rugby Australia Club Impact Program)', framework: 'RA-CLUBS', status: 'measured', value: '314 clubs: 72% Bronze, 18% Silver, 0.6% Gold, 6% not in place, 4% survey incomplete (2026)', how: 'Rugby Australia\'s Club Impact Program status by zone and association.', source: 'Rugby Analytics, 22/09/2026' },
-        { name: 'Health benefit in dollars', framework: 'R4G-CBA', status: 'none', value: 'Needs Legacy participant counts', how: 'Per-participant values from the R4G CBA, or the NSWRL DALY × VSLY method, discounted under TPG23-08. See the calculators below.', source: 'R4G CBA 2025; NSWRL 2026; TPG23-08', calc: 'health' },
+        { name: 'Club standards (Rugby Australia Club Impact Program)', framework: 'RA-CLUBS', status: 'partial', value: 'All NSW rugby, not Legacy only: 314 clubs: 72% Bronze, 18% Silver, 0.6% Gold, 6% not in place, 4% survey incomplete (2026)', how: 'Rugby Australia\'s Club Impact Program status by zone and association.', source: 'Rugby Analytics, 22/09/2026' },
+        { name: 'Social value of weekly participants in Legacy programs', framework: 'ASC-CLUB', status: 'none', value: 'Needs weekly participants in Legacy programs', how: 'People taking part weekly in Legacy-funded programs × $5,932 a year (Australian Sports Commission & Griffith 2018), plus volunteer hours × $18.99 (BCG for the ASC 2017), discounted under TPG23-08.', source: 'ASC & Griffith 2018; BCG for the ASC 2017; TPG23-08', calc: 'health' },
       ],
     },
     economic: {
-      label: 'Economic', question: 'Does rugby bring money and jobs into NSW communities?',
+      label: 'Economic', question: 'Does Legacy funding bring money and jobs into NSW communities?',
       example: 'The fish and chip shop near the ground is flat out every home game.',
-      frameworks: ['KPI-HANDOVER', 'NSWRL-2026', 'R4G-BRF', 'EVENTIMPACTS'],
+      frameworks: ['KPI-HANDOVER', 'NSWRL-2026', 'EVENTIMPACTS'],
       measures: [
         { name: 'NSW Rugby KPI Framework: 9 economic KPIs (P1-01 to P4-03)', framework: 'KPI-HANDOVER', status: 'none', dynamic: 'kpi', value: 'See NSW Rugby KPI Framework below', how: 'Formulas, input contract and status rules exactly as in the evaluation team\'s handover.', source: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx' },
-        { name: 'Economic contribution of rugby spending', framework: 'NSWRL-2026', status: 'none', value: 'Needs expenditure by category', how: 'Expenditure flow analysis: spend in each category × NSW retention rate × ABS-based multiplier; participant spend first discounted 50% for substitution. This is economic contribution, not net impact.', source: 'NSWRL 2026', calc: 'contribution' },
-        { name: 'Sustainable clubs', framework: 'R4G-BRF', status: 'none', value: 'Not currently tracked', how: 'From club income statements: total revenue rises while the share from traditional funding sources falls (R4G BRF).', source: 'R4G BRF 2025' },
-        { name: 'Sustainable employment', framework: 'R4G-BRF', status: 'measured', value: '12 First Nations school-based apprentices (Tackle Life); 10 full-time, 3 part-time and 51 casual program staff (2024)', how: 'Count of First Nations SBATs and FTE jobs running the programs, yearly (R4G BRF).', source: 'NSW Positive Rugby Foundation 2024, via R4G CBA' },
+        { name: 'Economic contribution of Legacy spending', framework: 'NSWRL-2026', status: 'none', value: 'Needs expenditure by category', how: 'Expenditure flow analysis: spend in each category × NSW retention rate × ABS-based multiplier; participant spend first discounted 50% for substitution. This is economic contribution, not net impact.', source: 'NSWRL 2026', calc: 'contribution' },
         { name: 'Event visitor spending (RWC hubs, carnivals, State Championships)', framework: 'EVENTIMPACTS', status: 'none', value: 'Not measured. 20 RWC hubs planned for 2027; 2026 State Championships drew 25,657 spectators', how: 'eventIMPACTS: survey attendees for where they live and what they spent; count only additional spending by visitors from outside the host area.', source: 'eventIMPACTS; NSWJRU Impact report 2026' },
       ],
     },
     cultural: {
-      label: 'Cultural', question: 'Does rugby strengthen cultural identity and belonging?',
+      label: 'Cultural', question: 'Does Legacy funding strengthen cultural identity and belonging?',
       example: 'Pasifika families now gather at the ground every Saturday - it has become a community meeting place.',
       frameworks: ['KPI-HANDOVER', 'CDN', 'RA-ANALYTICS', 'MNW'],
       measures: [
         { name: 'NSW Rugby KPI Framework: 10 cultural KPIs (C01 to C10, 4 inactive)', framework: 'KPI-HANDOVER', status: 'none', dynamic: 'kpi', value: 'See NSW Rugby KPI Framework below', how: 'Survey items, practice verification, leadership profile and qualitative protocol exactly as in the evaluation team\'s handover.', source: 'NSW_Rugby_KPI_Formula_Web_Handover.xlsx' },
-        { name: 'First Nations participants', framework: 'RA-ANALYTICS', status: 'measured', value: '3,174 (6.6% of participants, 2026); +35% since 2022', how: 'Participants recording Aboriginal and/or Torres Strait Islander heritage (Rugby Analytics heritage table). Collect and use under Indigenous Data Sovereignty principles.', source: 'Rugby Analytics, 22/09/2026' },
-        { name: 'Pasifika participants (Samoan, Fijian, Tongan)', framework: 'RA-ANALYTICS', status: 'measured', value: '3,486 in 2026 (Samoan 1,277, Fijian 1,145, Tongan 1,064); about 3.8 times the 2022 count (911)', how: 'Sum of the Samoan, Fijian and Tongan heritage rows in Rugby Analytics. Other Pacific groups were cut off in the source screenshot.', source: 'Rugby Analytics, 22/09/2026' },
+        { name: 'First Nations participants', framework: 'RA-ANALYTICS', status: 'partial', value: 'All NSW rugby, not Legacy only: 3,174 (6.6% of participants, 2026)', how: 'Participants recording Aboriginal and/or Torres Strait Islander heritage (Rugby Analytics heritage table). Collect and use under Indigenous Data Sovereignty principles.', source: 'Rugby Analytics, 22/09/2026' },
+        { name: 'Pasifika participants (Samoan, Fijian, Tongan)', framework: 'RA-ANALYTICS', status: 'partial', value: 'All NSW rugby, not Legacy only: 3,486 in 2026 (Samoan 1,277, Fijian 1,145, Tongan 1,064). Heritage labels changed over time, so growth since 2022 is not comparable', how: 'Sum of the Samoan, Fijian and Tongan heritage rows in Rugby Analytics. Other Pacific groups were cut off in the source screenshot.', source: 'Rugby Analytics, 22/09/2026' },
         { name: 'CDN outcome: sense of belonging to a shared cultural heritage deepened', framework: 'CDN', status: 'none', value: 'No survey yet', how: 'Participant / attendee survey using the CDN outcome, unchanged wording, after events and at season end.', source: 'CDN schema' },
         { name: 'CDN outcome: diversity of cultural expression appreciated', framework: 'CDN', status: 'none', value: 'No survey yet', how: 'Participant / attendee survey using the CDN outcome, unchanged wording.', source: 'CDN schema' },
         { name: 'CDN outcome: new knowledge, ideas and insight gained', framework: 'CDN', status: 'none', value: 'No survey yet', how: 'Participant / attendee survey using the CDN outcome, unchanged wording.', source: 'CDN schema' },
@@ -277,5 +285,10 @@ window.TACKLE_DATA = (() => {
     },
   };
 
-  return { regions, aliases, grants, dashboard, firstNationsReach, kpis, context, frameworks, impactMethods };
+  // Grants that are not part of the program, left out everywhere (Analytics.allGrants), even if an uploaded file lists them.
+  const excludedGrants = [
+    { match: /woonona shamrocks/i, reason: 'Did not accept the Round 1 offer, as only part funding was offered (NSW Rugby, Nov 2026).' },
+  ];
+
+  return { regions, aliases, grants, dashboard, excludedGrants, firstNationsReach, kpis, context, frameworks, impactMethods };
 })();

@@ -9,11 +9,11 @@
 
   // ---------- report types (page 10 of the design: which pages each audience gets) ----------
   const TYPES = {
-    board: { label: 'Board Summary', audience: 'NSW Rugby Board and executive', length: '3 pages · 5-minute read', pages: ['p2', 'p6', 'p8'],
-      changes: ['Only the overview, risk flags and recap', 'Page 6 lists only regions that trigger a flag', 'A "decisions for the Board" box on the recap'] },
-    acquittal: { label: 'Funding Acquittal', audience: 'Office of Sport (funder)', length: '6 pages · formal and verifiable', pages: ['p1', 'p2', 'p3', 'p5', 'p7', 'p9'],
-      changes: ['Page 2 shows grant vs actual expenditure', 'Page 5 keeps only indicators tied to grant targets', 'Full assumptions and the formula appendix', 'Declaration and sign-off'] },
-    annual: { label: 'Annual Report Chapter', audience: 'Public, partners and members', length: '8+ pages · the full year', pages: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p8'],
+    board: { label: 'Board Summary', audience: 'NSW Rugby Board and executive', length: '4 pages · 5-minute read', pages: ['p2', 'exp', 'p6', 'p8'],
+      changes: ['Only the overview, expenditure, regional reach and recap', 'Regional reach shows every region in neutral language', 'A "decisions for the Board" box on the recap'] },
+    acquittal: { label: 'Funding Acquittal', audience: 'Office of Sport (funder)', length: '7 pages · formal and verifiable', pages: ['p1', 'p2', 'exp', 'p3', 'p5', 'p7', 'p9'],
+      changes: ['An expenditure page shows grant vs actual expenditure', 'Page 5 keeps only indicators tied to grant targets', 'Full assumptions and the formula appendix', 'Declaration and sign-off'] },
+    annual: { label: 'Annual Report Chapter', audience: 'Public, partners and members', length: '9+ pages · the full year', pages: ['p1', 'p2', 'exp', 'p3', 'p4', 'p5', 'p6', 'p8'],
       changes: ['Full structure, one chapter per pillar', 'Page 6 features one or two regions as case studies', 'Only completed valuations are shown'] },
     community: { label: 'Community Story', audience: 'Clubs, parents and local communities', length: '3 pages · people and stories', pages: ['p1', 'p4', 'p6'],
       changes: ['Led by photos and quotes', 'Page 6 told from the local view', 'No more than three numbers, no valuations or formulas'] },
@@ -69,7 +69,7 @@
     const kpiResult = id => {
       const k = window.KPIF?.KPIS.find(x => x.id === id), ev = k && window.KPIs?.evaluateEntry(k);
       const i = ev ? ev.res.map((r, n) => [r, n]).reverse().find(([r]) => window.KPIF.isCalculated(r.status)) : null;
-      return i ? { ...i[0], wave: k.waves[i[1]], real: i[0].status !== window.KPIF.STATUS.HYPOTHETICAL } : null;
+      return i ? { ...i[0], wave: k.waves[i[1]], real: i[0].status !== window.KPIF.STATUS.HYPOTHETICAL || !!ev.e.dummy } : null; // Demo view assumes all the data is there; each page carries a [DUMMY] mark
     };
     const participants = scoped.reduce((s, p) => s + (num(res[p.id]?.participants) || 0), 0);
     const coaches = latest('coaches'), mos = latest('matchOfficials');
@@ -79,7 +79,7 @@
       { v: int(scoped.filter(p => ['FE', 'PW', 'INC'].includes(p.pillar)).length), l: 'deliverables across Pillars 1, 3, 4' },
       { v: int(new Set(scoped.filter(p => p.region !== 'Statewide').map(p => p.region)).size), l: 'NSW regions reached' },
       participants ? { v: int(participants), l: 'participants reached (recorded results)' } : { v: null, l: 'participants reached · data collection required' },
-      coaches && mos ? { v: int(coaches.value + mos.value), l: `coaches & match officials (${coaches.year})` } : { v: null, l: 'coaches & referees · data collection required' },
+      coaches && mos ? { v: int(coaches.value + mos.value), l: `coaches & match officials, all NSW rugby (${coaches.year})` } : { v: null, l: 'coaches & referees · data collection required' },
       vol?.real ? { v: `${int(vol.value)} hrs`, l: 'verified volunteer hours' } : { v: null, l: 'verified volunteer hours · data collection required' },
     ];
     return { P, rows, c, kind, val, scoped, deliverable, scopeLabel, pillarsInScope, res, allocated, spentRows, ms, latest, kpiTarget, kpiResult, figures, coaches, mos };
@@ -92,8 +92,6 @@
     wins.push(...verified.map(i => i.title));
     const progs = m.scoped.filter(p => p.pillar === key);
     const growth = id => { const s = m.ms[id]?.series && A.latestGrowth(m.ms[id].series); return s ? `${s.growth >= 0 ? 'up' : 'down'} ${Math.abs(s.growth * 100).toFixed(1)}% in ${s.year} (${int(s.value)})` : null; };
-    const behind = A.kpiTargets().filter(k => k.area === key && k.status === 'Behind').map(k => k.name.toLowerCase());
-    const noData = A.kpiTargets().filter(k => k.area === key && k.status === 'No data').length;
     if (key === 'FE') {
       const grants = progs.filter(p => p.kind !== 'budget');
       if (grants.length) wins.push(`${grants.length} facility projects funded (${M(grants.reduce((s, p) => s + p.cost, 0))})`);
@@ -103,20 +101,18 @@
       if (!m.kpiResult('P1-01')) gaps.push('No field-usage records yet to show whether grounds are used more (facility utilisation)');
     } else if (key === 'PW') {
       const cg = growth('coaches'), mg = growth('matchOfficials');
-      if (cg) wins.push(`Coaches ${cg}`);
-      if (mg) wins.push(`Match officials ${mg}`);
+      if (cg) wins.push(`Coaches across NSW rugby ${cg}`);
+      if (mg) wins.push(`Match officials across NSW rugby ${mg}`);
       const mr = m.kpiTarget('moRatio');
-      if (mr?.actual != null) wins.push(`Players per match official down from ${mr.baseline}:1 to ${(+mr.actual).toFixed(1)}:1`);
-      if (behind.length) gaps.push(`Behind the pace needed: ${behind.slice(0, 3).join(', ')}`);
+      if (mr?.actual != null) wins.push(`Players per match official across NSW rugby: ${mr.baseline}:1 to ${(+mr.actual).toFixed(1)}:1`);
     } else {
       const fn = m.latest('firstNationsParticipants'), pa = m.latest('pasifikaParticipants');
-      if (fn) wins.push(`${int(fn.value)} First Nations participants in ${fn.year}, up ${Math.round((fn.value / fn.firstValue - 1) * 100)}% since ${fn.first}`);
-      if (pa) wins.push(`Pasifika participants up from ${int(pa.firstValue)} to ${int(pa.value)} since ${pa.first}`);
+      if (fn) wins.push(`${int(fn.value)} First Nations participants across NSW rugby in ${fn.year}`);
+      if (pa) wins.push(`${int(pa.value)} Samoan, Tongan and Fijian participants across NSW rugby in ${pa.year}`);
       const f = m.latest('femaleParticipants');
-      if (f) wins.push(`${int(f.value)} female participants in ${f.year}`);
+      if (f) wins.push(`${int(f.value)} female participants across NSW rugby in ${f.year}`);
       if (!m.kpiResult('C03')) gaps.push('No survey yet on whether participants feel their culture is respected');
     }
-    if (noData) gaps.push(`${noData} ${PILLARS[key].short.toLowerCase()} target${noData === 1 ? ' has' : 's have'} no figure reported yet`);
     if (!wins.length) wins.push(`${M(progs.reduce((s, p) => s + p.cost, 0))} allocated across ${progs.length} deliverables`);
     return { wins: wins.slice(0, 3), gaps: gaps.slice(0, 2), allocated: progs.reduce((s, p) => s + p.cost, 0) };
   }
@@ -133,15 +129,14 @@
   // Rule-based narrative (the AI can replace these; on-page edits override both).
   function narrative(m) {
     const ai = state.ai || {};
-    const fn = m.latest('firstNationsParticipants'), pa = m.latest('pasifikaParticipants');
     const flagged = m.rows.filter(r => r.status !== 'balanced' || r.fnGap);
     return {
-      headline: ai.headline || `${M(m.allocated)} in known allocations is reaching ${m.figures[2].v} NSW regions, with growth in First Nations and Pasifika participation and gaps still to measure.`,
-      summary: ai.summary || `The NSW Rugby World Cup Legacy Program invests in facilities, people and inclusion ahead of Rugby World Cup 2027. ${M(m.allocated)} has been allocated to ${m.figures[1].v} deliverables (${m.scopeLabel.toLowerCase()}); these are known allocations, not audited spend. ${Math.round(m.c.centralShare * 100)}% of known dollars still sit in statewide budgets rather than a named region. ${fn ? `Rugby Analytics shows First Nations participants up ${Math.round((fn.value / fn.firstValue - 1) * 100)}% since ${fn.first}${pa ? ` and Pasifika participants up from ${int(pa.firstValue)} to ${int(pa.value)}` : ''}. ` : ''}Most social and cultural outcomes are not yet measured: the next step is collecting baseline data for the KPI framework.`,
-      outcome: ai.outcome || (fn && pa ? 'More First Nations and Pasifika players on the field' : 'Progress against the baseline'),
+      headline: ai.headline || `${M(m.allocated)} of the $10M Legacy Program is allocated so far, reaching ${m.figures[2].v} NSW regions. Results will follow as projects report.`,
+      summary: ai.summary || `The $10M NSW Rugby World Cup Legacy Program invests in facilities, people and inclusion ahead of Rugby World Cup 2027. ${M(m.allocated)} has been allocated to ${m.figures[1].v} deliverables (${m.scopeLabel.toLowerCase()}); these are known allocations, not audited spend. ${Math.round(m.c.centralShare * 100)}% of known dollars are in statewide budgets, not yet split by region. No grant project has finished yet, so most social and cultural results are still to come: the next step is collecting baseline data for the KPI framework.`,
+      outcome: ai.outcome || 'Funding now reaching communities across NSW',
       media_headline: ai.media_headline || `Rugby World Cup legacy reaching ${m.figures[2].v} NSW regions`,
       media_lead: ai.media_lead || `NSW Rugby's $10 million Rugby World Cup Legacy Program has ${M(m.allocated)} in known allocations across ${m.figures[1].v} facility, workforce and inclusion deliverables in ${m.figures[2].v} regions of NSW.`,
-      region: r => ai.regions?.[r.name] || (r.status === 'over' ? `${r.name} receives ${r.spendIndex.toFixed(1)} times its population share of known spend.` : r.status === 'under' ? `${r.name} receives only ${Math.round(r.spendIndex * 100)}% of its population share of known spend.` : r.fnGap ? `${r.name} has a large First Nations community and no First Nations program reach yet.` : `${r.name} receives roughly its population share of known spend.`),
+      region: r => ai.regions?.[r.name] || (r.status === 'over' ? `${r.name} has ${r.spendIndex.toFixed(1)} times its population share of known allocations${r.facilityCount ? `, including ${r.facilityCount} facility project${r.facilityCount === 1 ? '' : 's'}` : ''}.` : r.status === 'under' ? `${r.name} has ${Math.round(r.spendIndex * 100)}% of its population share of known allocations. Statewide programs may also reach it.` : r.fnGap ? `${r.name} has a large First Nations community: an opportunity for a First Nations program.` : `${r.name} has about its population share of known allocations.`),
       flagged,
     };
   }
@@ -246,9 +241,9 @@
       const kpi = (id, label) => { const r = m.kpiResult(id); return row(r?.real ? r.display : null, `${label} (${id})`); };
       const ret = (D.impactMethods.social.measures.find(x => /retention/i.test(x.name))?.value.match(/Retention ([\d.]+)%/) || [])[1];
       const rows = acq
-        ? `<h6>Indicators tied to grant targets</h6>${A.kpiTargets().filter(k => m.pillarsInScope.includes(k.area) && k.status !== 'No target').sort((a, b) => (a.actual == null) - (b.actual == null)).slice(0, 8).map(k => row(k.actual == null ? null : k.kind === 'growth' ? `${k.actual >= 0 ? '+' : ''}${(k.actual * 100).toFixed(1)}%` : `${+(+k.actual).toFixed(1)}${k.kind === 'share' ? '%' : k.unit === ':1' ? ':1' : ''}`, `${k.name} · ${k.status}${k.baseline != null ? ` · base ${k.baseline}` : ''}${k.target != null ? ` → target ${k.kind === 'growth' ? '+' + Math.round(k.target * 100) + '%' : k.target}` : ''}`)).join('')}`
+        ? `<h6>Indicators tied to grant targets</h6>${A.kpiTargets().filter(k => m.pillarsInScope.includes(k.area) && k.target != null).sort((a, b) => (a.actual == null) - (b.actual == null)).slice(0, 8).map(k => row(k.actual == null ? null : k.kind === 'growth' ? `${k.actual >= 0 ? '+' : ''}${(k.actual * 100).toFixed(1)}%` : `${+(+k.actual).toFixed(1)}${k.kind === 'share' ? '%' : k.unit === ':1' ? ':1' : ''}`, `${k.name}${k.baseline != null ? ` · base ${k.baseline}` : ''}${k.target != null ? ` → target ${k.kind === 'growth' ? '+' + Math.round(k.target * 100) + '%' : k.target}` : ''}`)).join('')}`
         : `<h6>Social lens · participation &amp; retention</h6>${row(ret ? `${ret}%` : null, 'player retention (Rugby Analytics, 2026)')}${ratio('moRatio', 'players per referee')}${ratio('coachRatio', 'players per coach')}${kpi('S06', 'high participant satisfaction')}
-           <h6>Cultural lens · inclusion</h6>${row(fn ? int(fn.value) : null, `First Nations participants${fn ? ` · base ${int(fn.firstValue)} (${fn.first})` : ''}`)}${row(pa ? int(pa.value) : null, `Pasifika participants${pa ? ` · base ${int(pa.firstValue)} (${pa.first})` : ''}`)}${kpi('C03', 'participants who feel their culture is respected')}`;
+           <h6>Cultural lens · inclusion</h6>${row(fn ? int(fn.value) : null, 'First Nations participants, all NSW rugby')}${row(pa ? int(pa.value) : null, 'Pasifika participants, all NSW rugby')}${kpi('C03', 'participants who feel their culture is respected')}`;
       const q = quoteFor(m);
       return page('p-outcome', `<div class="p5-grid"><div class="p5-left">
           ${ed('p5.title', n.outcome, 'h1', 'rp-title')}
@@ -267,7 +262,7 @@
           <div class="p6-title"><h1 class="rp-title">${esc(r.name)}<br><span class="red">In focus</span></h1><div class="club-logo">Club / sub-union<br>logo</div></div>
           ${ed(`p6.${r.name}.finding`, finding, 'p', 'finding')}
           ${ed(`p6.${r.name}.body`, `${r.name} has ${M(r.total)} in known allocations (${pct(r.spendShare)} of regionally allocated spend) for about ${pct(r.popShare)} of NSW's population, ${r.spendIndex.toFixed(2)} times its population share. ${r.facilityCount ? `It has ${r.facilityCount} funded facility project${r.facilityCount === 1 ? '' : 's'}.` : 'It has no funded facility project yet.'} ${r.fnReach ? 'A First Nations program reaches the region.' : 'No First Nations program reaches the region yet.'}`, 'p', 'rp-body')}
-          ${r.status !== 'balanced' || r.fnGap ? `<div class="flagbox"><b>Flag:</b> ${r.status === 'over' ? `spend-to-population ratio ${r.spendIndex.toFixed(2)} (≥ 1.75): check whether outcomes justify the higher share.` : r.status === 'under' ? `spend-to-population ratio ${r.spendIndex.toFixed(2)} (≤ 0.5): check whether the region is under-served.` : 'high First Nations population share and no First Nations program reach.'}</div>` : ''}</div>
+          ${r.status !== 'balanced' || r.fnGap ? `<div class="flagbox"><b>Note:</b> ${r.status === 'over' ? `known allocations are ${r.spendIndex.toFixed(2)} times this region's population share.` : r.status === 'under' ? `known allocations are ${r.spendIndex.toFixed(2)} times this region's population share; statewide programs may also reach it.` : 'a large First Nations community, and an opportunity for a First Nations program.'}</div>` : ''}</div>
         <div class="ind-list">
           <div class="ind"><i>$</i>${M(r.total)} allocated (${pct(share)} of known NSW allocations)</div>
           <div class="ind"><i>#</i>${r.facilityCount} funded facility project${r.facilityCount === 1 ? '' : 's'}</div>
@@ -280,10 +275,9 @@
     const P6 = () => {
       if (m.deliverable) {
         const p = m.deliverable, r = m.res[p.id] || {}, met = window.Programs.metrics(p);
-        const driver = (window.Programs.drivers(p, m.P) || []).find(d => !/^No results recorded/.test(d.text));
         return page('p-region', `<div class="p6-grid"><div>
             <div class="p6-title"><h1 class="rp-title">${esc(p.name)}<br><span class="red">${esc(PILLARS[p.pillar]?.short || p.pillar)}</span></h1><div class="club-logo">Club / sub-union<br>logo</div></div>
-            ${ed(`p6.${p.id}.finding`, driver?.text || `${p.name} has ${M(p.cost)} allocated in ${p.region}.`, 'p', 'finding')}
+            ${ed(`p6.${p.id}.finding`, `${p.name} has ${M(p.cost)} allocated in ${p.region}.`, 'p', 'finding')}
             ${ed(`p6.${p.id}.body`, `${p.recipient ? p.recipient + ' · ' : ''}${p.region}. ${met.hasResults ? 'Results have been recorded for this deliverable.' : 'No results have been recorded for this deliverable yet, so its return cannot be judged.'}`, 'p', 'rp-body')}</div>
           <div class="ind-list">
             <div class="ind"><i>$</i>${M(p.cost)} allocated${num(r.spent) != null ? ` · ${M(r.spent)} spent` : ''}</div>
@@ -293,11 +287,14 @@
           </div></div>`);
       }
       if (state.type === 'board') {
-        const list = n.flagged;
-        return page('p-region', `<div class="rp-accent"></div><h1 class="rp-title">Regions <span class="red">to watch</span></h1>
-          <p class="rp-sub">${list.length} of ${m.rows.length} regions trigger a flag (spend-to-population ratio ≥ 1.75 or ≤ 0.5, or a First Nations gap).</p>
-          <table class="watch-table" style="margin-top:14px"><thead><tr><th>Region</th><th>Flag</th><th>Known allocations</th><th>Finding</th></tr></thead><tbody>
-          ${list.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.status === 'over' ? '<span class="flag-chip">Overspend risk</span>' : r.status === 'under' ? '<span class="flag-chip under">Under-served</span>' : ''} ${r.fnGap ? '<span class="flag-chip fn">First Nations gap</span>' : ''}</td><td>${M(r.total)} · ${r.spendIndex.toFixed(2)}x</td><td>${ed(`p6.${r.name}.finding`, n.region(r))}</td></tr>`).join('')}</tbody></table>`);
+        const list = [...m.rows].sort((a, b) => b.total - a.total);
+        const share = r => r.status === 'over' ? '<span class="share-chip">Above population share</span>' : r.status === 'under' ? '<span class="share-chip">Below population share</span>' : '<span class="share-chip even">In line</span>';
+        const spentIn = r => { const ps = m.P.filter(p => p.region === r.name && num(m.res[p.id]?.spent) != null); return ps.length ? M(ps.reduce((s, p) => s + m.res[p.id].spent, 0)) : 'Not reported'; };
+        return page('p-region', `<div class="rp-accent"></div><h1 class="rp-title">Regional <span class="red">reach</span></h1>
+          <p class="rp-sub">How known allocations are spread across NSW, compared with each region's share of the population. A different share is not a problem in itself: it can reflect where clubs applied and how many people play there.</p>
+          <table class="watch-table reach" style="margin-top:8px"><thead><tr><th>Region</th><th>Allocated</th><th>Spent</th><th>Compared with population</th><th>Opportunity</th></tr></thead><tbody>
+          ${list.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${M(r.total)}</td><td>${spentIn(r)}</td><td>${share(r)} ${r.spendIndex.toFixed(2)}x</td><td>${ed(`p6.${r.name}.note`, r.fnGap ? 'First Nations program' : r.status === 'under' ? 'Future funding' : '')}</td></tr>`).join('')}</tbody></table>
+          <p class="rp-small" style="margin-top:6px">A further ${M(m.c.central)} sits in statewide budgets, not yet split by region. Population figures are indicative.</p>`);
       }
       const picks = m.kind === 'region' ? m.rows.filter(r => r.name === m.val)
         : state.type === 'annual' ? [[...m.rows].sort((a, b) => b.total - a.total)[0], n.flagged.find(r => r.status === 'under') || n.flagged[0]].filter((r, i, a) => r && a.indexOf(r) === i)
@@ -305,9 +302,27 @@
       return picks.map(r => page('p-region', regionBlock(r, n.region(r)))).join('');
     };
 
+    // Expenditure: the funding, what is allocated and what has been reported as spent, by pillar and by year.
+    const EXP = () => {
+      const funding = D.context.totalLegacyFunding, whole = m.kind === 'program' || !m.kind || m.scoped.length === m.P.length;
+      const PILLAR_ROWS = [['FE', 'Facilities & Equipment'], ['PW', 'Programs & Workforce'], ['INC', 'Inclusion'], ['ACT', 'RWC Activation'], ['PM', 'Management & evaluation']];
+      const reported = list => list.filter(p => num(m.res[p.id]?.spent) != null);
+      const spentOf = list => reported(list).reduce((s, p) => s + m.res[p.id].spent, 0);
+      const rows = PILLAR_ROWS.map(([k, label]) => { const list = m.scoped.filter(p => p.pillar === k); return { label, list, cost: list.reduce((s, p) => s + p.cost, 0) }; }).filter(r => r.list.length);
+      const totalSpent = spentOf(m.scoped), anyReported = reported(m.scoped).length > 0;
+      const y = [0, 1, 2].map(i => m.scoped.reduce((s, p) => s + (p.years?.[i] || 0), 0));
+      const tile = (v, l) => `<div class="exp-tile"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
+      return page('p-exp', `<div class="rp-accent"></div><h1 class="rp-title">Expenditure: <span class="red">where the money is going</span></h1>
+        <div class="exp-tiles">${whole ? tile(M(funding), 'total Legacy funding') : ''}${tile(M(m.allocated), whole ? `allocated so far (${Math.round(m.allocated / funding * 100)}%)` : `allocated · ${esc(m.scopeLabel)}`)}${whole ? tile(M(Math.max(0, funding - m.allocated)), 'not yet allocated') : ''}${tile(anyReported ? M(totalSpent) : 'Not reported', anyReported ? `spent, across ${reported(m.scoped).length} of ${m.scoped.length} lines` : 'actual spend')}</div>
+        <table class="watch-table" style="margin-top:12px"><thead><tr><th>Pillar</th><th>Allocated</th><th>Share of allocated</th><th>Spent</th><th>Spent as % of allocated</th></tr></thead><tbody>
+        ${rows.map(r => { const has = reported(r.list).length > 0, sp = spentOf(r.list); return `<tr><td><b>${esc(r.label)}</b></td><td>${M(r.cost)}</td><td>${m.allocated ? Math.round(r.cost / m.allocated * 100) : 0}%</td><td>${has ? M(sp) : 'Not reported'}</td><td>${has && r.cost ? Math.round(sp / r.cost * 100) + '%' : '–'}</td></tr>`; }).join('')}</tbody></table>
+        ${y.some(Boolean) ? `<p class="rp-small" style="margin-top:10px"><b>3-year budget lines by year:</b> Year 1 ${M(y[0])} · Year 2 ${M(y[1])} · Year 3 ${M(y[2])}. Round 1 grants are not split by year.</p>` : ''}
+        ${ed('exp.note', anyReported ? 'Spend is as recorded so far and has not been audited.' : 'Allocations are budgets, not audited spend. No grant project has finished yet: recipients report actual spend in their acquittal report when the project ends (Category 2 by 31/12/2027, Category 1 by 30/06/2028).', 'p', 'rp-small')}`);
+    };
+
     const P7 = () => {
-      const C = window.Methods?.CALCS || [], inputs = Store.get('methods') || {};
-      const run = id => { const c = C.find(x => x.id === id); const r = c?.run(inputs[id] || {}); return r && !r.missing ? Object.fromEntries(r.rows.map(([l, v]) => [l, v])) : null; };
+      const C = window.Methods?.CALCS || [];
+      const run = id => { const c = C.find(x => x.id === id); const r = c?.run(window.Methods.inputsFor(id).p); return r && !r.missing ? Object.fromEntries(r.rows.map(([l, v]) => [l, v])) : null; };
       const val = s => s == null ? null : parseFloat(String(s).replace(/[^0-9.-]/g, ''));
       const eco = run('contribution'), soc = run('health');
       const sub = (v, label) => `<div class="vsub"><b>${esc(v)}</b><i></i><small>${esc(label)}</small></div>`;
@@ -323,22 +338,22 @@
             <p><b>Deadweight:</b> not yet estimated (what would have happened anyway).</p>
             <p><b>Attribution:</b> not yet estimated (share credited to this program).</p>
             <p><b>Duration:</b> benefits counted over ${years} years, discounted at 5% (3% and 7% sensitivity, NSW Treasury TPG23-08).</p>
-            <p><b>Proxies:</b> Rugby For Good cost-benefit values (Balmoral 2025); NSW Rugby League 2026 retention rates and multipliers.</p>
+            <p><b>Proxies:</b> the Australian Sports Commission\'s value of weekly community club sport ($5,932 per participant a year, 2018) and of volunteer time; the expenditure-flow method with its retention rates and multipliers.</p>
             <p class="rp-red"><b>Full formulas → Appendix</b></p></div></div>
         <div class="not-valued"><h5>Benefits we do not put a dollar value on</h5><span>Cultural belonging</span><span>Community pride</span><span>Safer, inclusive clubs</span><span>Stories in the Evidence log (${A.evidenceStore.all().length})</span></div>`);
     };
 
     const recapTiles = () => {
       const pl = m.latest('players'), co = m.ms.coaches?.series && A.latestGrowth(m.ms.coaches.series), mo = m.ms.matchOfficials?.series && A.latestGrowth(m.ms.matchOfficials.series);
-      const f = m.latest('femaleParticipants'), fn = m.latest('firstNationsParticipants'), pa = m.latest('pasifikaParticipants');
+      const f = m.latest('femaleParticipants'), fn = m.latest('firstNationsParticipants');
       const fe = m.P.filter(p => p.pillar === 'FE' && p.kind !== 'budget');
       const kpisNoData = (window.KPIF?.KPIS || []).filter(k => k.state !== 'inactive' && !window.KPIs?.evaluateEntry(k).calculated).length;
       const ev = A.evidenceStore.all();
       return [
-        ['More people playing & staying', [pl ? `${int(pl.value)} players in ${pl.year} (Rugby Analytics)` : 'Player numbers: upload the Rugby Analytics export', 'Player retention 62.1% in 2026']],
-        ['Stronger workforce', [co ? `Coaches up ${(co.growth * 100).toFixed(1)}% in ${co.year}` : 'Coach numbers not uploaded yet', mo ? `Match officials up ${(mo.growth * 100).toFixed(1)}% in ${mo.year}` : 'Match official numbers not uploaded yet']],
-        ['Women & girls', [f ? `${int(f.value)} female participants in ${f.year}` : 'Female participation not uploaded yet', `${fe.filter(p => p.tags.includes('women')).length} facility projects target women and girls`]],
-        ['First Nations & Pasifika inclusion', [fn ? `First Nations participants up ${Math.round((fn.value / fn.firstValue - 1) * 100)}% since ${fn.first}` : 'First Nations participation not uploaded yet', pa ? `Pasifika participants ${int(pa.firstValue)} → ${int(pa.value)}` : 'Pasifika participation not uploaded yet']],
+        ['Rugby across NSW (context)', [pl ? `${int(pl.value)} players in ${pl.year}, all NSW rugby` : 'Player numbers: upload the Rugby Analytics export', 'Player retention 62.1% in 2026, all NSW rugby']],
+        ['Workforce (context)', [co ? `Coaches up ${(co.growth * 100).toFixed(1)}% in ${co.year}, all NSW rugby` : 'Coach numbers not uploaded yet', mo ? `Match officials up ${(mo.growth * 100).toFixed(1)}% in ${mo.year}, all NSW rugby` : 'Match official numbers not uploaded yet']],
+        ['Women & girls', [f ? `${int(f.value)} female participants in ${f.year}, all NSW rugby` : 'Female participation not uploaded yet', `${fe.filter(p => p.tags.includes('women')).length} facility projects target women and girls`]],
+        ['First Nations & Pasifika inclusion', [fn ? `${int(fn.value)} First Nations participants, all NSW rugby` : 'First Nations participation not uploaded yet', `${M(m.P.filter(p => p.tags.includes('firstNations') || p.tags.includes('pasifika')).reduce((s, p) => s + p.cost, 0))} of Legacy funding allocated to First Nations and Pasifika programs`]],
         ['Better facilities', [`${fe.length} facility projects funded (${M(fe.reduce((s, p) => s + p.cost, 0))})`, `${Math.round((1 - m.c.feMetroShare) * 100)}% outside Greater Sydney`]],
         ['Local economy', [`${M(m.P.filter(p => p.pillar === 'FE').reduce((s, p) => s + p.cost, 0))} in facility works in local areas`, 'Visitor spending at RWC hubs to be measured in 2027']],
         ['Community pride & belonging', [`${ev.length} stories and records in the Evidence log`, 'Cultural belonging survey (CDN outcomes) not yet run']],
@@ -347,12 +362,12 @@
     };
     const P8 = () => {
       const board = state.type === 'board';
-      return page('p-recap', `<div class="rp-kicker">Summary</div><h1 class="rp-title">A recap of the <span class="red">overall impact</span></h1>
+      return page('p-recap', `<div class="rp-kicker">Summary</div><h1 class="rp-title">A recap of <span class="red">progress so far</span></h1>
         <div class="recap ${board ? 'with-decisions' : ''}">${recapTiles().map(([t, pts], i) => `<div class="tile ${i === 7 ? 'gap' : ''}"><h5>${esc(t)}</h5><ul>${pts.map((p, j) => `<li>${ed(`p8.${i}.${j}`, p)}</li>`).join('')}</ul></div>`).join('')}</div>
         ${board ? `<div class="decisions"><h5>Decisions for the Board</h5><ol>
           <li>${ed('p8.d1', 'Approve adding the KPI framework\'s survey questions to the end-of-season participant survey.')}</li>
           <li>${ed('p8.d2', `Request region-by-region delivery figures for the ${M(m.c.central)} held in statewide budgets.`)}</li>
-          <li>${ed('p8.d3', 'Fund baseline data collection (field usage, workforce cohorts, training costs) before Round 2.')}</li></ol></div>` : ''}`);
+          <li>${ed('p8.d3', 'Fund baseline data collection (field usage, workforce cohorts, training costs) before the next funding round.')}</li></ol></div>` : ''}`);
     };
 
     const P9 = () => {
@@ -388,7 +403,7 @@
           <div class="media-right">${photo('media', 'One photo')}<p class="rp-small">Figures are known allocations from the RWC Legacy Dashboard and Round 1 grants (high confidence). Uncertain figures are left out of media material.</p></div></div>`);
     };
 
-    const build = { p1: P1, p2: P2, p3: P3, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9, media: MEDIA,
+    const build = { exp: EXP, p1: P1, p2: P2, p3: P3, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9, media: MEDIA,
       p4: () => (state.type === 'community' && m.kind !== 'pillar' ? [m.deliverable?.pillar && PILLARS[m.deliverable.pillar] ? m.deliverable.pillar : 'FE'] : m.pillarsInScope).map(P4).join('') };
     return T.pages.map(p => build[p]()).join('');
   }
@@ -424,7 +439,7 @@
   async function writeWithAi() {
     if (!window.App.requireModel()) return;
     const btn = $('#storyAi'), m = model(), n = narrative({ ...m });
-    const flagged = n.flagged.slice(0, 6).map(r => `${r.name}: ${r.status}${r.fnGap ? ', First Nations gap' : ''}, ${r.spendIndex.toFixed(2)}x population share, ${M(r.total)}`);
+    const flagged = n.flagged.slice(0, 6).map(r => `${r.name}: ${r.spendIndex.toFixed(2)}x its population share of known allocations${r.fnGap ? ', large First Nations community with no program yet' : ''}, ${M(r.total)}`);
     const facts = { reportType: TYPES[state.type].label, audience: TYPES[state.type].audience, scope: m.scopeLabel, period: state.period,
       keyFigures: m.figures.map(f => `${f.v ?? 'NO DATA'} ${f.l}`), pillarWins: Object.fromEntries(m.pillarsInScope.map(k => [PILLARS[k].name, pillarStory(m, k)])), flaggedRegions: flagged };
     btn.disabled = true; btn.textContent = 'Writing…';
@@ -434,7 +449,7 @@
 REPORT FACTS (use only these and DATA):
 ${JSON.stringify(facts, null, 1)}
 
-TASK: Write the narrative sentences for a ${facts.reportType} for ${facts.audience}. Plain Australian English, no jargon (avoid "baseline", "attribution"). Never invent numbers, names, quotes or people. Describe budgets as allocations, not money spent. Be honest about gaps.
+TASK: Write the narrative sentences for a ${facts.reportType} for ${facts.audience}. Plain Australian English, no jargon (avoid "baseline", "attribution"). Never invent numbers, names, quotes or people. Describe budgets as allocations, not money spent. Be honest about gaps. Keep a respectful tone for a board and funders: never say overspent, over budget, under-served or risk about a region; say above or below its population share. Say which figures are all NSW rugby rather than Legacy results.
 ${$('#storyNotes').value.trim() ? 'Extra direction: ' + $('#storyNotes').value.trim() : ''}
 Return JSON: {"headline":"one sentence: what the investment has changed so far","summary":"2-3 short paragraphs in one string: what the program is, what was funded, what has changed, what is still unknown","outcome":"6-9 word title stating the change, e.g. More women and girls on the field","media_headline":"max 12 words","media_lead":"one sentence","regions":{"<region name>":"one sentence finding for each flagged region"}}` }],
       { json: true, label: 'Report narrative', onProgress: pr => { btn.textContent = pr.phase === 'writing' ? `Writing… ${pr.tokens} tokens` : `Reading the data… ${Math.round((Date.now() - pr.start) / 1000)}s`; } });
