@@ -19,6 +19,26 @@ const GENERAL = [
   ['NSW rugby First Nations Pasifika community program', 'cultural'], ['rugby union NAIDOC round NSW', 'cultural'], ['Aboriginal rugby union carnival NSW', 'cultural'],
   ['Pasifika rugby union NSW community', 'cultural'], ['First Nations rugby union program NSW girls', 'cultural'], ['multicultural rugby union NSW club', 'cultural'],
 ];
+// Clearinghouse for Sport subjects (Australian Sports Commission) that relate to the Legacy Program, each tied to one of
+// the three impacts. They guide the extra statewide searches and tag every story with the subject it matches, so public
+// evidence is sorted the way the national sport evidence base is. [subject, impact, keywords, search words].
+const SUBJECTS = [
+  ['Major Sporting Events', 'economic', /world cup|carnival|tournament|championship|event hub|host(ed|ing)? (the|a) /i, 'rugby world cup 2027 NSW event'],
+  ['Grants and Funding', 'economic', /grant|funding|funded|investment|legacy program/i, 'rugby club grant funding NSW'],
+  ['Rural and Regional Australia', 'economic', /regional|rural|country town|outback/i, 'regional NSW rugby club town'],
+  ['Value and Benefits of Sport', 'economic', /economic (impact|boost|benefit)|visitors?|touris[mt]|local business/i, 'rugby event boost local economy NSW'],
+  ['Participation in Sport', 'social', /participat|registrations?|players? (numbers|growth)|record numbers|new players/i, 'rugby union participation growth NSW'],
+  ['Children and Youth', 'social', /junior|kids|children|youth|schools?|under ?\d{1,2}s?/i, 'junior rugby union NSW club'],
+  ['Women', 'social', /women|girls|female/i, 'women girls rugby union NSW'],
+  ['Volunteers', 'social', /volunteer|coach(es|ing)?|referee|match official/i, 'rugby club volunteers coaches NSW'],
+  ['Disability', 'social', /disabilit|inclusive rugby|wheelchair|all abilities/i, 'inclusive rugby all abilities NSW'],
+  ['Safeguarding', 'social', /safeguard|child safe|safety|concussion/i, 'rugby club safety facilities NSW'],
+  ['Physical Activity', 'social', /physical activity|fitness|active|health(y)?/i, 'rugby health physical activity community NSW'],
+  ['First Nations\' People', 'cultural', /first nations|aboriginal|indigenous|torres strait|naidoc|koori/i, 'First Nations rugby union NSW'],
+  ['Cultural Diversity', 'cultural', /pasifika|pacific|samoan|tongan|fijian|multicultural|cald|migrant|refugee/i, 'Pasifika multicultural rugby union NSW'],
+  ['Sexuality and Gender', 'cultural', /pride|lgbt|gay|inclusive club/i, 'pride inclusive rugby club NSW'],
+  ['Role Models', 'cultural', /role model|wallab|waratah|inspire|hero/i, 'Waratahs Wallabies community visit NSW club'],
+];
 // Per funded town: rugby in general, then with economic words, then with cultural words (OR so any one word is enough).
 const PER_PLACE = [
   ['social', p => `"${p}" rugby`],
@@ -108,7 +128,8 @@ export default async function handler(req, res) {
   const started = Date.now();
   // Google News is rate-limited, so it is used for the general searches; each place is looked up on Bing News.
   // Each funded town is searched twice: rugby in general, and rugby events with local business or visitors.
-  const jobs = [...GENERAL.flatMap(([q, lens]) => [{ q, lens, fn: googleNews }, { q, lens, fn: bingNews }]), ...places.flatMap(p => PER_PLACE.map(([lens, q]) => ({ q: q(p.place), lens, fn: bingNews, place: p }))),
+  const GENERAL_ALL = [...GENERAL, ...SUBJECTS.map(([, lens, , q]) => [q, lens])];
+  const jobs = [...GENERAL_ALL.flatMap(([q, lens]) => [{ q, lens, fn: googleNews }, { q, lens, fn: bingNews }]), ...places.flatMap(p => PER_PLACE.map(([lens, q]) => ({ q: q(p.place), lens, fn: bingNews, place: p }))),
     ...GENERAL.map(([q, lens]) => ({ q, lens, fn: reddit })), ...GENERAL.map(([q, lens]) => ({ q: q.replace(/\bNSW\b/, '').trim(), lens, fn: bluesky })),
     ...places.slice(0, 10).map(p => ({ q: `${p.place} rugby`, lens: 'social', fn: bluesky, place: p })),
     ...extra.flatMap(e => (e.place ? [bingNews, bluesky] : [bingNews, googleNews, bluesky]).map(fn => ({ q: e.q, lens: e.lens, fn, place: e.place, ai: true })))];
@@ -125,7 +146,7 @@ export default async function handler(req, res) {
     if (d && !isNaN(d) && d.getFullYear() < year - 1) return;
     const k = norm(r.title), prev = seen.get(k);
     if (prev) { if (!prev.snippet) prev.snippet = r.snippet; if (job.place && !prev.place) { prev.place = job.place.place; prev.region = job.place.region; } return; }
-    seen.set(k, { ...r, fromAi: !!job.ai, place: job.place?.place || '', region: job.place?.region || '', lens: lensOf(text, job.lens), lensBy: (LENS.some(([, re]) => (text.match(re) || []).length) ? 'words' : 'search'), legacy: LEGACY.test(text), event: EVENT.test(text), business: BUSINESS.test(text), tourism: TOURISM.test(text) });
+    seen.set(k, { ...r, fromAi: !!job.ai, place: job.place?.place || '', region: job.place?.region || '', lens: lensOf(text, job.lens), subjects: SUBJECTS.filter(([, , re]) => re.test(text)).map(([s, l]) => [s, l]).slice(0, 3), lensBy: (LENS.some(([, re]) => (text.match(re) || []).length) ? 'words' : 'search'), legacy: LEGACY.test(text), event: EVENT.test(text), business: BUSINESS.test(text), tourism: TOURISM.test(text) });
   }));
   const list = [...seen.values()].sort((a, b) => (!!b.place - !!a.place) || (b.legacy - a.legacy) || ((new Date(b.date) || 0) - (new Date(a.date) || 0))).slice(0, 120);
   const social = list.filter(it => it.channel === 'social').length;

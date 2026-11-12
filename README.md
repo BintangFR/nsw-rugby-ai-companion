@@ -2,6 +2,17 @@
 
 AI companion for finding the impact of NSW Rugby's **$10M Rugby World Cup Legacy Program**. Every impact figure traces back to Legacy money or to people reached by Legacy-funded work, across three kinds of impact: **economic**, **social** and **cultural**. Rugby-wide numbers are labelled as context, and other programs' results (such as Rugby For Good) are not measured.
 
+## Running with an empty Dataset folder
+
+Partner data is not committed, so `Dataset/` may be empty. Everything still runs: the built-in program data loads, and the parts that need partner files say what to upload. Upload these in **Data Studio** (they are kept in your browser, so they survive a reload):
+
+- Rugby Analytics association exports: *Hierarchy Churn*, *Hierarchy Metrics*, *Heritage*, *Key Stats by Age Group* (zone view)
+- NSW Rugby's club list (*List of all NSW RU Clubs.xlsx*) (zone view)
+- AusPlay NSW data tables from the Clearinghouse for Sport (independent baseline)
+- Participation dashboard data and any grant or survey files (map, baselines, impact)
+
+Demo view's made-up data lives in `demo/Dummy-dataset.csv`, not in `Dataset/`.
+
 ## Quick start
 
 1. Install [Node.js](https://nodejs.org) 18+ and [Ollama](https://ollama.com), then run `ollama pull qwen2.5:7b` once.
@@ -35,7 +46,7 @@ Every screen shows the real figures and every column. There is no simplified vie
 
 ### Demo view
 
-Switch on **Demo view** in the top bar (or open `?demoview=on`) to fill everything not recorded or measured yet with made-up figures from `Dataset/Dummy-dataset.csv`, so every page shows working data. Every such figure is tagged `[DUMMY]`, each report page says so, and the AI is told. Nothing is saved while it is on, and with it off only real data appears. Regenerate the file with `node scripts/make-dummy-data.mjs`.
+Switch on **Demo view** in the top bar (or open `?demoview=on`) to fill everything not recorded or measured yet with made-up figures from `demo/Dummy-dataset.csv`, so every page shows working data. Every such figure is tagged `[DUMMY]`, each report page says so, and the AI is told. Nothing is saved while it is on, and with it off only real data appears. Regenerate the file with `node scripts/make-dummy-data.mjs`.
 
 ### Prototype data
 
@@ -152,7 +163,7 @@ js/signals.js         Impact > Evidence: public news about Legacy-funded places
 js/history.js         Data Studio > History: log of every data change, revert, AI refresh
 api/signals.js        public news search behind Public signals
 js/recommendations.js Dashboard: what happened, likely cause, what we can do
-js/demo-view.js       Demo view: fills gaps from Dataset/Dummy-dataset.csv, tagged [DUMMY]
+js/demo-view.js       Demo view: fills gaps from demo/Dummy-dataset.csv, tagged [DUMMY]
 js/reset.js           Data Studio > Reset, with backup and restore
 js/upload.js          Data Studio, dashboard integration, quality rating
 js/story.js           story generator and PDF export

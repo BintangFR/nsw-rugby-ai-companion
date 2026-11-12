@@ -435,7 +435,7 @@ window.Analytics = (() => {
         if (k.actual == null && dm.actual != null) { k.actual = dm.actual; k.actualYear = k.actualYear || year; used.push('actual'); }
         if (k.target == null && dm.target != null) { k.target = dm.target; used.push('target'); }
         if (k.baseline == null && dm.baseline != null) { k.baseline = dm.baseline; used.push('baseline'); }
-        if (used.length) { k.dummy = true; k.actualFrom = `[DUMMY] made-up ${used.join(', ')} from Dataset/Dummy-dataset.csv, not collected data.`; }
+        if (used.length) { k.dummy = true; k.actualFrom = `[DUMMY] made-up ${used.join(', ')} from demo/Dummy-dataset.csv, not collected data.`; }
       }
       // An uploaded yearly series replaces the typed-in growth figure (same file, same definition for both years).
       const m = k.measure && ms[k.measure];

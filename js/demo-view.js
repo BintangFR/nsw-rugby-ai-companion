@@ -1,11 +1,11 @@
-// Demo view (top bar switch): fills what is not recorded or not measured with made-up values from Dataset/Dummy-dataset.csv.
+// Demo view (top bar switch): fills what is not recorded or not measured with made-up values from demo/Dummy-dataset.csv.
 // Off by default: without it the app shows real data only. When on, the page runs in the sandbox, so nothing is saved
 // and real records stay untouched; a real value always wins over a dummy one. Every dummy value is tagged [DUMMY] on
 // screen and in the AI briefing. Demo view assumes all the data is there, so nothing reads as unmeasured while it is on.
 // Switching reloads the page.
 window.DemoView = (() => {
   const FILE = 'Dummy-dataset.csv', KEY = 'tackle.demoView';
-  const NOTE = `[DUMMY] made-up figure from Dataset/${FILE}, not collected data.`;
+  const NOTE = `[DUMMY] made-up figure from demo/${FILE}, not collected data.`;
   const TAG = `<span class="dummy-tag" data-tip="${NOTE} It only appears in Demo view.">[DUMMY]</span>`;
   const isOn = () => { try { return localStorage.getItem(KEY) === 'on'; } catch { return false; } };
   let on = false, targets = {}, measures = {};
@@ -45,7 +45,7 @@ window.DemoView = (() => {
     if (!isOn()) return;
     let data;
     try {
-      const res = await fetch('Dataset/' + FILE);
+      const res = await fetch('demo/' + FILE);
       if (!res.ok) throw new Error(res.status);
       data = group(parseCsv(await res.text()));
     } catch (e) {

@@ -46,7 +46,7 @@
     for (const ds of datasets.filter(d => d.preloaded)) {
       await loadPreloaded(ds);
       loaded++;
-      preloadText = loaded < PROJECT_FILES.length ? `· loading project files ${loaded}/${PROJECT_FILES.length}…` : '';
+      preloadText = loaded < PROJECT_FILES.length ? `· checking project files ${loaded}/${PROJECT_FILES.length}…` : '';
       renderSources();
     }
   }
@@ -62,8 +62,9 @@
       if (ds.kind === 'table') integrate(ds);
       assessQuality(ds);
     } catch (e) {
-      ds.kind = 'error';
-      ds.error = e.message;
+      // The Dataset/ folder may be empty (partner data is not committed): drop the file instead of showing an error.
+      if (/HTTP 404/.test(e.message)) { datasets.splice(datasets.indexOf(ds), 1); if (active === ds) active = datasets[0] || null; }
+      else { ds.kind = 'error'; ds.error = e.message; }
     }
     renderTabs();
     if (active === ds) renderActive();
@@ -74,6 +75,7 @@
     for (const file of files) {
       try {
         toast(`Reading ${file.name}…`);
+        window.DataFiles?.put(file); // so the zone view, AusPlay and others can read it too, after a reload
         const ds = await parseFile(file);
         datasets.push(ds);
         active = ds;
@@ -708,6 +710,7 @@ ${datasetDigest(ds, 3500)}`;
     $('#removeDs').addEventListener('click', async () => {
       if (ds.contribution && (Store.get('datasets') || []).some(d => d.id === ds.id)) { removeContribution(ds.id, ds.name); return; }
       if (!(await window.Feedback.confirmDelete('Dataset', ds.name))) return;
+      window.DataFiles?.remove(ds.name);
       datasets.splice(datasets.indexOf(ds), 1);
       active = datasets[datasets.length - 1] || null;
       renderTabs(); renderActive();

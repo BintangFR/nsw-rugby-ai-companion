@@ -69,7 +69,7 @@ for (const k of D.kpis) {
 for (const [id, f] of Object.entries(D.frameworks)) {
   if (!f.org || !f.title || !f.year || !f.use) fail(`frameworks.${id}: needs org, title, year and use`);
   if (!f.url && !f.file) fail(`frameworks.${id}: needs a url or a Dataset file`);
-  if (f.file && !existsSync(path.join(root, 'Dataset', f.file))) fail(`frameworks.${id}: Dataset/${f.file} not found`);
+  // Dataset/ may be empty (partner files are not committed), so a cited file only has to be named, not present.
 }
 for (const [lens, l] of Object.entries(D.impactMethods)) {
   for (const id of l.frameworks) if (!D.frameworks[id]) fail(`impactMethods.${lens}.frameworks: unknown framework "${id}"`);

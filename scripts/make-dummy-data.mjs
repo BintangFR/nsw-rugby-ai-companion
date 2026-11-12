@@ -1,4 +1,4 @@
-// Generates Dataset/Dummy-dataset.csv: every made-up value used by Demo view, in one file. Nothing here is collected data.
+// Generates demo/Dummy-dataset.csv: every made-up value used by Demo view, in one file. Nothing here is collected data.
 // It fills what is not recorded or not measured yet: program results, surveys, target actuals, KPI inputs, valuation
 // inputs, impact measures and evidence. Same input, same output: values come from a hash of each item's name.
 // Each KPI is run through the real KPI rules, so a bad value fails here rather than on screen.
@@ -137,7 +137,7 @@ for (const k of KF.KPIS.filter(x => x.state !== 'inactive')) {
   });
 }
 
-const out = path.join(root, 'Dataset', 'Dummy-dataset.csv');
+const out = path.join(root, 'demo', 'Dummy-dataset.csv');
 writeFileSync(out, rows.join('\r\n') + '\r\n');
 console.log(`${rows.length - 1} [DUMMY] rows written to ${path.relative(root, out)}${bad ? `; ${bad} PROBLEM(S) above` : '; all KPI inputs pass the KPI rules'}`);
 if (bad) process.exitCode = 1;

@@ -1,0 +1,39 @@
+type,name,zone,note
+association,Sydney Junior Rugby Union,Sydney,Rugby Analytics name; grouped as Sydney (NSW Rugby agreed)
+association,Sydney Rugby Union,Sydney,Rugby Analytics name; grouped as Sydney (NSW Rugby agreed)
+association,NSW Suburban Rugby Union,Sydney,Rugby Analytics name; grouped as Sydney (NSW Rugby agreed)
+association,Hunter Junior Rugby Union,Hunter,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Hunter Rugby,Hunter,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Central Coast Zone JRU,Central Coast,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Central Coast Zone,Central Coast,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Illawarra Zone JRU,Illawarra,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Illawarra Zone,Illawarra,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Central West Rugby Union,Central West,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Central West Zone JRU,Central West,Rugby Analytics name (club list: Central West Junior Rugby Union)
+association,Central North Zone JRU,Central North,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Central North Zone,Central North,Rugby Analytics name; zone as in NSW Rugby's club list
+association,New England Zone,New England,Rugby Analytics name; zone as in NSW Rugby's club list
+association,New England Zone JRU,New England,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Mid North Coast Zone JRU,Mid North Coast,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Mid North Coast Zone,Mid North Coast,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Far North Coast Zone JRU,Far North Coast,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Far North Coast Zone,Far North Coast,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Western Plains Zone,Western Plains,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Western Plains Zone JRU,Western Plains,Rugby Analytics name; zone as in NSW Rugby's club list
+association,Southern Inland Junior Rugby Union,Southern Inland,ACT & Southern NSW Rugby: not in the NSW Rugby club list
+association,Southern Inland Rugby Union,Southern Inland,ACT & Southern NSW Rugby: not in the NSW Rugby club list
+town,Goulburn,Southern Inland,ACT & Southern NSW Rugby: not in the NSW Rugby club list
+region,Western Sydney,Sydney,fallback when a grant names no club or town in the club list
+region,Sydney - East,Sydney,fallback when a grant names no club or town in the club list
+region,Sydney - Northern Beaches,Sydney,fallback when a grant names no club or town in the club list
+region,Sydney - South,Sydney,fallback when a grant names no club or town in the club list
+region,Sydney - Inner & Bayside,Sydney,fallback when a grant names no club or town in the club list
+region,Hunter,Hunter,fallback when a grant names no club or town in the club list
+region,Illawarra,Illawarra,fallback when a grant names no club or town in the club list
+region,Central West,Central West,fallback when a grant names no club or town in the club list
+region,Mid North Coast,Mid North Coast,fallback when a grant names no club or town in the club list
+region,New England,New England,fallback when a grant names no club or town in the club list
+region,Northern Rivers,Far North Coast,fallback when a grant names no club or town in the club list
+region,Western NSW,Western Plains,fallback when a grant names no club or town in the club list
+region,Riverina,Southern Inland,fallback when a grant names no club or town in the club list
+region,Southern Tablelands,Southern Inland,fallback when a grant names no club or town in the club list
