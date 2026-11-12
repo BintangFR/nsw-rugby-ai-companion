@@ -16,15 +16,16 @@
   }
   // Header labels for the value columns (the row just above "Participation rate").
   function header(rows) {
-    const i = rows.findIndex(r => String(r[0] ?? '').trim() === 'Participation rate');
-    return i > 0 ? rows[i - 1].slice(1).map(h => String(h ?? '').replace(/\s+/g, ' ').replace(/#$/, '').trim()) : [];
+    const i = rows.findIndex(r => r.some(c => String(c ?? '').trim() === 'Participation rate'));
+    return i > 0 ? rows[i - 1].slice(1).map(h => String(h ?? '').replace(/[^\w\s/-]/g, '').replace(/\s+/g, ' ').trim()) : [];
   }
   // Relative margin of error by size of estimate, for adults or children (table 27), interpolated on a log scale.
   function rmoeTable(rows, label) {
-    const i = rows.findIndex(r => String(r[0] ?? '').startsWith(label));
+    const i = rows.findIndex(r => r.some(c => String(c ?? '').startsWith(label)));
     if (i < 0) return [];
     const out = [];
-    for (const r of rows.slice(i + 2)) { if (!Number.isFinite(r[0])) break; if (Number.isFinite(r[1])) out.push([r[0], r[1]]); }
+    // Each row: size of estimate, then the NSW relative margin (the first two numbers in the row).
+    for (const r of rows.slice(i + 2)) { const nums = r.filter(c => Number.isFinite(c)); if (!nums.length) break; if (nums.length >= 2) out.push([nums[0], nums[1]]); }
     return out;
   }
   function rmoe(table, n) {
@@ -40,9 +41,9 @@
 
   async function load() {
     try {
-      const res = await fetch('Dataset/' + encodeURIComponent(FILE));
-      if (!res.ok) throw new Error(`${FILE}: HTTP ${res.status}`);
-      const wb = XLSX.read(await res.arrayBuffer(), { type: 'array' });
+      const f = await DataFiles.get(/ausplay.*\.xlsx$/i, FILE);
+      if (!f) throw new Error('not uploaded yet: upload the AusPlay NSW data tables (Clearinghouse for Sport) in Data Studio');
+      const wb = XLSX.read(f.buffer, { type: 'array' });
       const moe = rowsOf(wb, '27'), adultM = rmoeTable(moe, 'Relative margins of error for adult'), childM = rmoeTable(moe, 'Relative margins of error for child');
       const est = (n, who) => ({ n, rmoe: rmoe(who === 'child' ? childM : adultM, n), get quality() { return quality(this.rmoe); } });
       const pick = (sheet, code) => { const rows = rowsOf(wb, sheet), a = activity(rows, code); return a ? { head: header(rows), ...a } : null; };
@@ -65,7 +66,7 @@
           return { code: c, adults: tot, femaleShare: tot ? f / tot : null, children: ch ? col(ch, 'Total') : null }; }),
         sportVolunteers: volRow ? volRow[2] : null, ruInTop10Volunteers: vol10.includes('Rugby union'),
       };
-    } catch (e) { failed = e.message; console.error('AusPlay:', e); }
+    } catch (e) { failed = e.message; data = null; }
     document.dispatchEvent(new CustomEvent('ausplay-ready'));
   }
 
@@ -107,5 +108,6 @@
   }
 
   document.addEventListener('app-ready', load);
+  document.addEventListener('datafile-added', e => { if (/ausplay/i.test(e.detail.name)) { failed = ''; load(); } });
   window.AusPlay = { get data() { return data; }, get failed() { return failed; }, baselineRows, findings, contextLines, FILE };
 })();

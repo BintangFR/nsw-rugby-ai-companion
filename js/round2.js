@@ -20,9 +20,9 @@
   // Club names reduced to their distinctive words, to match grant recipients.
   const words = s => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/\b(rugby|union|club|football|inc|incorporated|ltd|rufc|ruc|rfc|jrc|jru|jrufc|jufc|junior|juniors|seniors|the|and|of|rc|council|shire|regional|city|nsw|sydney|district|zone|association|new|south|wales|australia|australian)\b/g, ' ').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
   async function clubList() {
-    const res = await fetch('Dataset/' + encodeURIComponent(CLUB_FILE));
-    if (!res.ok) throw new Error(`${CLUB_FILE}: HTTP ${res.status}`);
-    const wb = XLSX.read(await res.arrayBuffer(), { type: 'array' });
+    const f = await DataFiles.get(/club/i, CLUB_FILE);
+    if (!f) throw new Error(`missing: NSW Rugby's club list (${CLUB_FILE})`);
+    const wb = XLSX.read(f.buffer, { type: 'array' });
     const list = [], standards = {};
     for (const name of wb.SheetNames) {
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null });
@@ -35,9 +35,9 @@
   const num = v => (typeof v === 'number' ? v : Number(v)) || 0;
   // Rows of the first sheet, with blank leading cells filled from the row above (the exports leave repeats blank).
   async function sheet(file, fill) {
-    const res = await fetch('Dataset/' + encodeURIComponent(file));
-    if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
-    const wb = XLSX.read(await res.arrayBuffer(), { type: 'array' });
+    const f = await DataFiles.get(new RegExp('^' + file.replace(/\s*\(\d+\)/, '').replace(/\.xlsx$/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '.*\\.xlsx$', 'i'), file);
+    if (!f) throw new Error(`missing: ${file}`);
+    const wb = XLSX.read(f.buffer, { type: 'array' });
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: null });
     const last = [];
     return rows.map(r => r.map((v, i) => { if (i < fill) { if (v == null || v === '') return last[i]; last[i] = v; } return v; }));
@@ -46,13 +46,11 @@
 
   async function load() {
     try {
-      const res = await fetch('Dataset/' + encodeURIComponent(MAP_FILE));
-      if (!res.ok) throw new Error(`${MAP_FILE}: HTTP ${res.status}`);
-      mapping = csv(await res.text());
+      mapping = csv(D.zoneMapping);
       clubs = await clubList();
       const [churn, metrics, heritage, age] = await Promise.all([sheet(FILES.churn, 2), sheet(FILES.metrics, 2), sheet(FILES.heritage, 3), sheet(FILES.age, 2)]);
       zones = build({ churn, metrics, heritage, age });
-    } catch (e) { failed = e.message; console.error('Zone view:', e); }
+    } catch (e) { failed = e.message; zones = null; }
     render();
     document.dispatchEvent(new CustomEvent('round2-ready'));
   }
@@ -130,7 +128,7 @@
   function render() {
     const host = $('#round2Table');
     if (!host) return;
-    if (failed) { host.innerHTML = `<p class="muted">Could not read the Rugby Analytics files in Dataset/: ${esc(failed)}</p>`; return; }
+    if (failed) { host.innerHTML = `<p class="muted"><b>Upload data to see the zone view.</b> In Data Studio, upload the Rugby Analytics association exports (Hierarchy Churn, Hierarchy Metrics, Heritage, Key Stats by Age Group) and NSW Rugby's club list. Still needed: ${esc(failed.replace(/^missing: /, ''))}.</p>`; if ($('#round2Note')) $('#round2Note').textContent = ''; return; }
     if (!zones) { host.innerHTML = '<p class="muted">Reading the Rugby Analytics files…</p>'; return; }
     const { list, nsw } = zones;
     const sorted = [...list].sort((a, b) => ((a[sortKey] ?? -Infinity) > (b[sortKey] ?? -Infinity) ? 1 : -1) * sortDir * (sortKey === 'name' ? -1 : 1));
@@ -151,5 +149,7 @@
   }
 
   document.addEventListener('app-ready', () => { if ($('#round2Card')) { render(); load(); } });
+  // A Rugby Analytics export or the club list uploaded in Data Studio: rebuild the zone view.
+  document.addEventListener('datafile-added', e => { if (/hierarchy|heritage|key stats|club/i.test(e.detail.name)) { failed = ''; zones = null; render(); load(); } });
   window.Round2 = { contextLines, get zones() { return zones; } };
 })();

@@ -1,9 +1,9 @@
 // Impact > Overview: activity, dollar value and happiness index for each facility and each region.
 // Dollar value = people taking part weekly × the social benefit of weekly community club sport ($5,932 a year, Australian
 // Sports Commission & Griffith 2018, via the Clearinghouse for Sport; js/methods.js). One-off attendees are not valued.
-// Happiness index = the life satisfaction question from Sport England's Active Lives survey (0-10) averaged over
+// Happiness index = the life satisfaction question from the ASC Community Perceptions Monitor (0-10), so Legacy results compare with national data, averaged over
 // respondents, × 10 (0-100). Without a real survey the place is flagged "Survey needed".
-// In Demo view (js/demo-view.js) missing results and surveys are filled from Dataset/Dummy-dataset.csv: they are tagged
+// In Demo view (js/demo-view.js) missing results and surveys are filled from demo/Dummy-dataset.csv: they are tagged
 // [DUMMY], never count as collected data, and any real figure replaces them.
 // Life satisfaction is not converted to dollars: the WELLBY value is HM Treasury (UK) guidance with no Australian equivalent.
 (() => {
@@ -12,7 +12,7 @@
   const aud = v => '$' + Math.round(v).toLocaleString('en-AU');
   const num = v => Math.round(v).toLocaleString('en-AU');
   const tip = s => `data-tip="${esc(s)}" tabindex="0"`;
-  const QUESTION = 'Overall, how satisfied are you with your life nowadays? (score out of 10)';
+  const QUESTION = 'On a scale of 0 to 10, how satisfied are you with your life as a whole at the moment?';
   const DV = window.DemoView, DUMMY_TAG = DV.TAG, DUMMY_NOTE = DV.NOTE;
   let view = 'facility';
 
@@ -71,7 +71,7 @@
     let happy = '<span class="muted">–</span>';
     if (s) {
       const idx = s.mean * 10;
-      happy = `<b ${tip(`${s.dummy ? '[DUMMY] ' : ''}Happiness index: ${idx.toFixed(0)} out of 100\n\nSurvey question (Sport England, Active Lives survey): "${QUESTION}"\nAverage answer ${s.mean.toFixed(1)} out of 10 from ${num(s.n)} respondent${s.n === 1 ? '' : 's'}${s.date ? ` (${s.date})` : ''}.\nIndex = average × 10, so it reads on the same 0-100 scale as the app's percentages.\nFor context, Active Lives 2016-17 averages in England: 6.51 for inactive people, 7.00 fairly active, 7.24 active.${Number.isFinite(s.before) ? `\n\nChange: ${s.before.toFixed(1)} → ${s.mean.toFixed(1)} = ${(s.mean - s.before >= 0 ? '+' : '') + (s.mean - s.before).toFixed(1)} points on the 0-10 scale. Descriptive, not proof the program caused it.` : ''}\n\nSource: ${s.from}\nNot converted to dollars: the WELLBY value (£13,000 per point per person per year) is UK HM Treasury guidance with no Australian equivalent.`)}>${idx.toFixed(0)}</b><span class="muted small"> /100 · n=${num(s.n)}</span>${s.dummy ? ' ' + DUMMY_TAG : ''}`;
+      happy = `<b ${tip(`${s.dummy ? '[DUMMY] ' : ''}Happiness index: ${idx.toFixed(0)} out of 100\n\nSurvey question (ASC Community Perceptions Monitor): "${QUESTION}"\nAverage answer ${s.mean.toFixed(1)} out of 10 from ${num(s.n)} respondent${s.n === 1 ? '' : 's'}${s.date ? ` (${s.date})` : ''}.\nIndex = average × 10, so it reads on the same 0-100 scale as the app's percentages.\nNational benchmark (CPM, Dec 2022 - Sep 2025, n=17,604): 44% of adults involved in sport score 8-10, against 38% of those not involved; 9% against 13% score 0-3. England (Active Lives 2016-17) averages: 6.51 inactive, 7.24 active.${Number.isFinite(s.before) ? `\n\nChange: ${s.before.toFixed(1)} → ${s.mean.toFixed(1)} = ${(s.mean - s.before >= 0 ? '+' : '') + (s.mean - s.before).toFixed(1)} points on the 0-10 scale. Descriptive, not proof the program caused it.` : ''}\n\nSource: ${s.from}\nNot converted to dollars: the WELLBY value (£13,000 per point per person per year) is UK HM Treasury guidance with no Australian equivalent.`)}>${idx.toFixed(0)}</b><span class="muted small"> /100 · n=${num(s.n)}</span>${s.dummy ? ' ' + DUMMY_TAG : ''}`;
     }
     if (needsSurvey(p)) flags.push(['risk', 'Survey needed', `No life satisfaction survey for this ${p.key.startsWith('facility') ? 'facility' : 'region'} yet. Ask users: "${QUESTION}" Then enter the results below, or upload the survey with a region column and a "life satisfaction" column.`]);
 
@@ -90,7 +90,7 @@
     host.innerHTML = `<table class="pretty-table"><thead><tr><th>${view === 'facility' ? 'Facility' : 'Region'}</th>${view === 'facility' ? '<th>Region</th>' : ''}
       <th ${tip('People reached by Legacy-funded work. Tagged [DUMMY] in Demo view.')}>People taking part</th>
       <th ${tip(`People taking part weekly × ${M.healthWorking}.`)}>Social value</th>
-      <th ${tip(`Average answer to Sport England's Active Lives life satisfaction question × 10 (0-100). "${QUESTION}"`)}>Happiness index</th><th>Flags</th></tr></thead>
+      <th ${tip(`Average answer to the ASC Community Perceptions Monitor life satisfaction question × 10 (0-100). "${QUESTION}"\nNational benchmark: 44% of adults involved in sport score 8-10, against 38% of those not involved (CPM 2022-25).`)}>Happiness index</th><th>Flags</th></tr></thead>
       <tbody>${places.map(row).join('')}</tbody></table>`;
     $('#wbPlace').innerHTML = places.map(p => `<option value="${esc(p.key)}">${esc(p.name)}${view === 'facility' ? ` (${esc(p.region)})` : ''}</option>`).join('');
   }
@@ -133,7 +133,7 @@
     const lines = [];
     for (const [label, places] of [['FACILITY', facilities()], ['REGION', regions()]]) {
       const known = places.filter(p => p.activity || survey(p));
-      lines.push(`${label} ACTIVITY & HAPPINESS (social value = people taking part weekly × $${M.HEALTH_PER_PERSON.toLocaleString('en-AU')}/yr, ASC 2018; happiness = Active Lives life satisfaction 0-10 × 10; anything marked [DUMMY] is made up for testing: never report it as a result): `
+      lines.push(`${label} ACTIVITY & HAPPINESS (social value = people taking part weekly × $${M.HEALTH_PER_PERSON.toLocaleString('en-AU')}/yr, ASC 2018; happiness = ASC Community Perceptions Monitor life satisfaction 0-10 × 10 (national: 44% of sport-involved adults score 8-10 vs 38% not involved); anything marked [DUMMY] is made up for testing: never report it as a result): `
         + (known.length ? known.map(p => { const s = survey(p); return `${p.name}: ${p.activity ? `${p.activity.dummy ? '[DUMMY] ' : ''}${num(p.activity.n)} people${p.activity.weekly != null ? `, ${num(p.activity.weekly)} weekly, ${aud(p.activity.weekly * M.HEALTH_PER_PERSON)}/yr` : ', weekly count not recorded'}` : 'activity not recorded'}; ${s ? `${s.dummy ? '[DUMMY] ' : ''}happiness ${(s.mean * 10).toFixed(0)}/100 (n=${s.n})` : 'SURVEY NEEDED'}`; }).join(' | ') : 'none recorded')
         + `. ${places.filter(needsSurvey).length} of ${places.length} need a survey, ${places.filter(needsActivity).length} need activity data.`);
     }

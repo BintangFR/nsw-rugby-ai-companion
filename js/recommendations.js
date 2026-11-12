@@ -103,7 +103,7 @@
       can: 'we can add the one-question survey to end-of-season surveys and acquittal reports',
       happened: 'Grants were announced on 6 May 2026, and no project has been completed yet.',
       cause: 'Recipients only report at acquittal, when their project ends (31/12/2027 or 30/06/2028), so nothing measures the effect before then.',
-      how: `Question: "${window.Activity.QUESTION}" (Sport England Active Lives). Project terms: published grant recipient lists.` });
+      how: `Question: "${window.Activity.QUESTION}" (ASC Community Perceptions Monitor, with a national benchmark). Project terms: published grant recipient lists.` });
 
     return out;
   }

@@ -172,7 +172,7 @@
         ['Clearinghouse for Sport', 'Australian Sports Commission', 'Value of weekly club sport ($5,932 per participant a year) and of volunteer time'],
         ['Community Impact of Rugby League (2026)', 'Rugby league, NSW', 'Expenditure-flow <b>method</b> for economic contribution (method only, no figures)'],
         ['eventIMPACTS toolkit', 'UK events', 'Visitor and overnight spending from a post-event survey'],
-        ['Sport England Active Lives', 'England', 'Life satisfaction question for quality of life'],
+        ['ASC Community Perceptions Monitor', 'Australian Sports Commission', 'Life satisfaction question with a national benchmark (44% vs 38% score 8–10)'],
         ['Cultural Development Network outcomes', 'Australia', 'Cultural outcomes measured as % who agree']], 'sm')}
       ${spec('Rugby For Good and Rugby League were examples of how others measured impact: we use their methods where helpful, never their figures, as they are separate programs.')}${src('NSW Treasury (2023a; 2023b; 2025); DCJ (2024); eventIMPACTS (n.d.); Cultural Development Network (2018).')}`,
       notes: 'This answers "how did you reach your formula" at the framework level. Point to the Framework page sources section on the tool.' },
@@ -190,7 +190,7 @@
         ['Economic contribution', 'Expenditure-flow analysis; ABS input-output multipliers', 'Benchmarked sport (method) · data bank'],
         ['Visitor and overnight spending', 'eventIMPACTS method; Destination NSW visitor spend', 'Benchmarked events · data bank'],
         ['Physical activity hours', 'AusPlay definition of participation; our attendance capture', 'Research · Legacy data'],
-        ['Quality of life', 'Sport England life satisfaction question; DCJ QALY value', 'Benchmarked sport · data bank'],
+        ['Quality of life', 'ASC Community Perceptions Monitor question and benchmark; DCJ QALY value', 'National sport agency · data bank'],
         ['Weekly participation and volunteering', 'Australian Sports Commission values via the Clearinghouse for Sport', 'National sport agency'],
         ['Health outcomes avoided', 'DCJ Benefits Database standard values', 'Data bank'],
         ['Present values', 'NSW Treasury TPG23-08 (5%, with 3% and 7%)', 'Government guideline'],
@@ -201,7 +201,7 @@
       ${so('Change is only measurable against a fixed starting point. These are recorded now, before the 2027 Rugby World Cup peak.')}`,
       notes: 'Live from the uploaded Rugby Analytics files. Rugby-wide numbers are context for Legacy, not Legacy impact; the Legacy-specific baseline is set per project at the start of each funded activity.' },
     { sec: 'solution', by: 2, secs: 35, tag: 'Deliverable 4 · Tracking tools', title: 'What NSW Rugby should capture after each event', body: () => `<div class="pt-g3">
-        <div class="pt-card"><h4>Post-event survey</h4>${ul(['Where do you live? (postcode or country) → domestic or international', 'Was the event your main reason to visit?', 'Nights stayed, and where', 'Spend in the area: accommodation, food, travel, shopping', '"Overall, how satisfied are you with your life nowadays?" (0–10)', 'Hours of physical activity in a typical week', 'I feel I belong at this club (agree / disagree)'])}</div>
+        <div class="pt-card"><h4>Post-event survey</h4>${ul(['Where do you live? (postcode or country) → domestic or international', 'Was the event your main reason to visit?', 'Nights stayed, and where', 'Spend in the area: accommodation, food, travel, shopping', '"How satisfied are you with your life as a whole at the moment?" (0–10, ASC benchmark)', 'Hours of physical activity in a typical week', 'I feel I belong at this club (agree / disagree)'])}</div>
         <div class="pt-card"><h4>Attendance capture</h4>${ul(['Date, venue, Legacy line', 'Participants by session (girls, First Nations, Pasifika, disability)', 'Session length in hours', 'Coaches, referees and volunteers present', 'Spectators (count or estimate method)'])}</div>
         <div class="pt-card"><h4>Post-event follow-up</h4>${ul(['Within 7 days: send the survey link (QR at the venue)', 'Within 30 days: club enters attendance on the Legacy lines template', 'At acquittal: spend, people reached, photos and a short story'])}</div></div>
       ${so('Most Legacy events have not run yet. These tools make sure every event produces the numbers the value scorecard needs.')}`,
@@ -399,6 +399,15 @@
 
   // Scroll only the nearest scrolling container (scrollIntoView also moves the page itself).
   function reveal(t) {
+    // PDF export (?clean): headless capture does not paint after a long scroll, so hide what sits above the target instead.
+    if (document.body.classList.contains('pt-clean')) {
+      $$('[data-pt-hidden]').forEach(el => { el.style.display = ''; el.removeAttribute('data-pt-hidden'); });
+      for (let el = t; el && el !== document.body && !el.classList.contains('tab-panel'); el = el.parentElement)
+        for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling)
+          if (getComputedStyle(sib).position !== 'fixed' && getComputedStyle(sib).position !== 'sticky') { sib.setAttribute('data-pt-hidden', ''); sib.style.display = 'none'; }
+      scrollTo(0, 0);
+      return;
+    }
     let c = t.parentElement;
     while (c && c !== document.body && c !== document.documentElement) {
       const oy = getComputedStyle(c).overflowY;
