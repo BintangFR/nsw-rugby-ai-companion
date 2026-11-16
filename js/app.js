@@ -169,7 +169,7 @@ window.App = (() => {
     const spent = reported.reduce((s, r) => s + r.spent, 0), dummy = reported.some(r => r.dummy);
     const tiles = [
       ['Legacy funding', money(funding), '2025 to 2028', 'Total NSW Rugby World Cup Legacy Program funding. Everything on this page is about what this money delivers.'],
-      ['Allocated so far', money(c.knownTotal), `${Math.round(c.knownTotal / funding * 100)}% of the $10M`, `${moneyFull(c.knownTotal)} = Round 1 Legacy grants + 3-year RWC Dashboard budgets + any uploaded spend. Allocations, not audited spend.`],
+      ['Allocated so far', money(c.knownTotal), `${Math.round(c.knownTotal / funding * 100)}% of the $10M`, `${moneyFull(c.knownTotal)} = Round 1 Legacy grants + 3-year RWC Dashboard budgets + any uploaded spend. Allocations, not audited spend.${D.publicRecord ? `\n\nPublic record (nsw.gov.au): the Office of Sport approved ${moneyFull(D.publicRecord.nswruLegacyGrant.amount)} to NSW Rugby for its own Legacy plan (${D.publicRecord.nswruLegacyGrant.approved}). The RWC Dashboard budget lines trace ${moneyFull(c.dashTotal)} of it, so ${moneyFull(Math.max(0, D.publicRecord.nswruLegacyGrant.amount - c.dashTotal))} of NSW Rugby's grant is not yet linked to an initiative.` : ''}`],
       ['Not yet traced', money(Math.max(0, funding - c.knownTotal)), 'no project or budget line yet', `${moneyFull(funding)} − ${moneyFull(c.knownTotal)} allocated. Includes Round 2 grants, which are decided but not announced yet. Its impact cannot be measured until it is assigned.`],
       ['Spent so far', reported.length ? money(spent) + (dummy ? ' [DUMMY]' : '') : 'Not reported', reported.length ? `${reported.length} lines reported` : 'recipients report at acquittal', reported.length ? `Sum of spend recorded for ${reported.length} lines.${dummy ? ' Made-up figures from Demo view.' : ''}` : 'No project has finished. Recipients report actual spend in their acquittal report, when the project ends (31/12/2027 or 30/06/2028).'],
     ];
@@ -322,7 +322,7 @@ window.App = (() => {
       <div class="pop-key">${parts.map(([k, l, c]) => `<span><i style="background:${c}"></i>${l} ${money(r[k])}</span>`).join('')}</div>` : ''}
       <div class="pop-meta">Audit gaps fixed: <b>${r.gaps.size ? [...r.gaps].join(', ') : 'none'}</b><br>
       Inclusion focus: <b>${tags.length ? tags.join(', ') : 'none tagged'}</b>${r.fnGap ? `<br><span class="status risk">First Nations gap</span> ~${r.fnShare}% of residents` : ''}</div>
-      ${r.items.length ? `<details><summary>${r.items.length} funded item${r.items.length > 1 ? 's' : ''}</summary><ul>${r.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></details>` : ''}`;
+      ${r.items.length ? `<details><summary>${r.items.length} funded item${r.items.length > 1 ? 's' : ''}</summary><ul>${r.items.map(i => { const g = D.grants.find(x => x.approvedFor && String(i).includes(x.project)); return `<li${g ? ` data-tip="${esc(`Approved for: ${g.approvedFor}\nProject location: ${g.projectLocation}${g.approvedOn ? ` · approved ${g.approvedOn}` : ''}\nSource: nsw.gov.au grant recipient pages`)}" tabindex="0"` : ''}>${esc(i)}</li>`; }).join('')}</ul></details>` : ''}`;
   }
 
   // "How is this measured?" for every map measure (shown on hover over the legend).

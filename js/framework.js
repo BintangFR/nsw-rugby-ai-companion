@@ -174,6 +174,7 @@
       ['Clubs meeting a club standard', '241 of 307 (45 Silver, 196 Bronze; 0 Gold)', 'next check', 'NSW Rugby club list (2026)'],
       ['Facilities with female-friendly changerooms', `${D.context.facilityAudit.femaleChangerooms}%`, 'next audit', 'Rugby Australia facility audit'],
       ['Facilities with adequate lighting', `${D.context.facilityAudit.adequateLighting}%`, 'next audit', 'Rugby Australia facility audit'],
+      ...(D.publicRecord ? [['Round 1 applications funded', `${D.publicRecord.round1Demand.cat1.funded + D.publicRecord.round1Demand.cat2.funded} of ${D.publicRecord.round1Demand.cat1.applied + D.publicRecord.round1Demand.cat2.applied} (${Math.round((D.publicRecord.round1Demand.cat1.funded + D.publicRecord.round1Demand.cat2.funded) / (D.publicRecord.round1Demand.cat1.applied + D.publicRecord.round1Demand.cat2.applied) * 100)}%)`, 'next round', 'nsw.gov.au grant recipient pages']] : []),
       ...(window.AusPlay?.baselineRows() || []),
       ['Legacy lines reporting people reached', '0', 'at acquittal', 'Legacy lines template'],
       ['Legacy events with a post-event survey', '0', 'after each event', 'Post-event survey']];

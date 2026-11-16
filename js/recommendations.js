@@ -83,6 +83,16 @@
       cause: 'Statewide budget lines are recorded as one amount, with no region attached.',
       how: 'Spend on lines marked Statewide ÷ all known spend. Known allocations, not audited spend.' });
 
+    // Demand: Round 1 applications that were not funded (public grant pages).
+    const dem = window.TACKLE_DATA.publicRecord?.round1Demand;
+    if (dem) { const applied = dem.cat1.applied + dem.cat2.applied, funded = dem.cat1.funded + dem.cat2.funded;
+      out.push({ area: 'Demand', page: 'round2',
+        since: `${applied - funded} of ${applied} Round 1 applications from clubs, councils and associations were not funded`,
+        can: 'we can use the unfunded applications as a ready list for future Legacy or partner funding, and check them against the zone view so gaps are not repeated',
+        happened: `Category 1 (facilities) funded ${dem.cat1.funded} of ${dem.cat1.applied} applications; Category 2 (participation) funded ${dem.cat2.funded} of ${dem.cat2.applied}.`,
+        cause: 'Demand from clubs is about three times the Round 1 money: funding, not interest, is the limit.',
+        how: `(${dem.cat1.applied} + ${dem.cat2.applied}) − (${dem.cat1.funded} + ${dem.cat2.funded}) = ${applied - funded}. Source: ${dem.source}.` }); }
+
     // Zones where several things stand out at once (falling participation, no facility grant, low funding per head).
     const z2 = (window.Round2?.zones?.list || []).map(x => ({ x, key: x.notes.filter(([l]) => /falling|No Round 1 facility|Low Legacy funding/.test(l)) })).filter(o => o.key.length >= 2)
       .sort((a, b) => b.key.length - a.key.length || (a.x.growth ?? 0) - (b.x.growth ?? 0));

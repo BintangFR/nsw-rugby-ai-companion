@@ -126,6 +126,7 @@
           L.econ ? `${esc(L.econ[0])}: <b>${esc(L.econ[1])}</b>` : 'Economic contribution: needs spend by category',
           L.cult ? `${esc(L.cult[0])}: <b>${esc(L.cult[1])}</b>` : 'First Nations and Pasifika investment: needs tagged lines',
           L.fall.length ? `${esc(L.fall[0].name)}: participation ${(L.fall[0].growth * 100).toFixed(1)}%${L.fall[0].facility ? '' : ', no Round 1 facility grant'}` : 'Zone data: load the Rugby Analytics files',
+          ...(D.publicRecord ? [`Demand: <b>${D.publicRecord.round1Demand.cat1.applied + D.publicRecord.round1Demand.cat2.applied - D.publicRecord.round1Demand.cat1.funded - D.publicRecord.round1Demand.cat2.funded}</b> of ${D.publicRecord.round1Demand.cat1.applied + D.publicRecord.round1Demand.cat2.applied} Round 1 applications were not funded`] : []),
           ...(window.AusPlay?.data ? [`AusPlay (independent survey): about <b>${N(window.AusPlay.data.adults.n + window.AusPlay.data.children.n)}</b> NSW rugby union players; women only ${Math.round(window.AusPlay.data.adultWomen.n / window.AusPlay.data.adults.n * 100)}% of adults`] : []),
           'No funded project has reported people reached yet: results arrive at acquittal'])}</div>
         <div class="pt-card"><h4>Influential partner feedback</h4><ul class="pt-quotes">${[
