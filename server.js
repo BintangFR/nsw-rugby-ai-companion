@@ -50,6 +50,8 @@ const server = http.createServer(async (req, res) => {
     if (!file.startsWith(root)) { res.statusCode = 403; return res.end(); }
     const data = await fs.readFile(file);
     res.setHeader('Content-Type', MIME[path.extname(file).toLowerCase()] || 'application/octet-stream');
+    // Pages, styles and scripts are re-checked on every load, so an updated stylesheet never mixes with an old page.
+    if (/\.(html|css|js)$/i.test(file)) res.setHeader('Cache-Control', 'no-cache');
     res.end(data);
   } catch (e) {
     if (e.code === 'ENOENT' || e.code === 'EISDIR') { res.statusCode = 404; return res.end('Not found'); }

@@ -10,7 +10,7 @@
 (() => {
   const { $, $$, esc, toast } = window.App;
   const A = window.Analytics, D = window.TACKLE_DATA;
-  const BUDGET = 15 * 60, KEY = 'tackle.present.v2', IMG = 'img/present/';
+  let BUDGET = 15 * 60; const KEY = 'tackle.present.v2', IMG = 'img/present/';
   const FOOT = 'CDEV6000 · RWC Legacy Impact Framework · Team 1';
   // Team 1, as in the Project Plan presentation.
   // As in the Template-Based Presentation (Presentation/Template-Based Presentation.pdf).
@@ -61,7 +61,7 @@
 
   // ---------- the slides ----------
   // sec: assessment heading; tag: the red section label; by: default presenter (0 Xiao, 1 Yinnan, 2 Bintang); secs: time.
-  const SECTIONS = { intro: '1. Introduction', problem: '2. Problem context', stake: '3. Stakeholder engagement', solution: '4. Solution development', impl: '5. Implementation', close: '6. Conclusion', refs: 'Reference list', appendix: '7. Appendix' };
+  const SECTIONS = { intro: '1. Introduction', problem: '2. Problem context', stake: '3. Stakeholder engagement', solution: '4. Solution development', impl: '5. Implementation', close: '6. Conclusion', refs: 'Reference list', appendix: '7. Appendix', demo: 'Live demo' };
   const SLIDES = [
     { sec: 'intro', by: 2, secs: 15, kind: 'cover', title: 'Measuring the Legacy', notes: 'Welcome NSW Rugby. Tackle AI is the working name of the tool; the framework is "Measuring the Legacy". Say we will end by asking for your feedback, because we finalise the deliverable after today. Present with Demo view off, so every figure is real.' },
     { sec: 'intro', by: 2, secs: 20, kind: 'aoc', title: 'Acknowledgement of Country', notes: 'Read the acknowledgement slowly.' },
@@ -263,6 +263,24 @@
     const moved = SLIDES.filter(s => s.appx).map(s => ({ ...s, sec: 'appendix', secs: 0, tag: 'Appendix · For Q&A' }));
     SLIDES.splice(0, SLIDES.length, ...main, ...tail, ...moved); }
 
+  // ---------- Live demo (?livedemo): opened from the "Tackle AI" slide in the PowerPoint deck ----------
+  // Four quick stops on the Impact page, about two minutes, real data only. Run "Deep search with AI" once before the
+  // pitch: results are saved, so the demo shows them instantly (a live deep search takes 5-12 minutes on a laptop).
+  const DEMO = [
+    { sec: 'demo', by: 2, secs: 30, kind: 'live', tab: 'overview', view: ['impact', 'overview'], target: '#dollarCard', tag: 'Live demo · 1 of 4', title: 'What the $10M has delivered',
+      body: 'The three impacts side by side, each tied to Legacy money. <b>Hover any figure</b> to see its formula and its source.', notes: 'Hover the economic figure: Legacy spend × share kept in NSW × multiplier. Point at "Needs data" on social: that is what the tracking tools fill.' },
+    { sec: 'demo', by: 2, secs: 30, kind: 'live', tab: 'overview', view: ['impact', 'overview'], target: '#signalCard', tag: 'Live demo · 2 of 4', title: 'Searching the internet for impact',
+      body: () => { const st = Store.get('signals') || {}, n = (st.items || []).length; return `Public news, Reddit and Bluesky, searched for every Legacy-funded town and sorted into the three impacts.${n ? ` <b>${n}</b> stories and posts found.` : ' Searching now, about 15 seconds…'}`; },
+      before: () => { const st = Store.get('signals'); if (!st?.items?.length && !document.querySelector('#sigRun')?.disabled) window.Signals?.run(); },
+      notes: 'Each story is linked to the funded club, town or region it names. Nothing here is counted as Legacy impact until a person checks it.' },
+    { sec: 'demo', by: 2, secs: 30, kind: 'live', tab: 'overview', view: ['impact', 'overview'], target: '#sigList .sig-card.club, #sigList .sig-card.town, #sigList .sig-card', tag: 'Live demo · 3 of 4', title: 'Linked to a funded project',
+      body: 'This story names a club the Legacy Program funded, so it is linked to that grant and tagged with its theme and Clearinghouse subject. <b>Add to evidence</b> puts it in the reports.', notes: 'If Inverell is showing: "Inverell sees the light", linked to the $150,000 Playing Safe Under Lights grant: the same grant as our worked example.' },
+    { sec: 'demo', by: 2, secs: 30, kind: 'live', tab: 'overview', view: ['impact', 'overview'], target: '.sig-sum, #sigDeep', tag: 'Live demo · 4 of 4', title: 'Deep search: our AI reads it for us',
+      body: () => (Store.get('signals') || {}).deep ? 'Our own AI model planned extra searches, judged which stories are really about Legacy-funded work, and wrote this summary for each impact. Every figure it uses is checked against the stories.' : 'Deep search uses our own AI model to plan extra searches, judge each story and summarise each impact. It runs on the laptop, so data stays with NSW Rugby.',
+      notes: 'Close with: code calculates every number; the AI only reads and explains. Then Esc, and back to the slides (Alt+Tab).' },
+  ];
+  const isDemo = () => new URLSearchParams(location.search).has('livedemo');
+
   // UNSW Harvard reference list from the sources the tool uses, plus partner documents and data banks.
   function refs() {
     const viewed = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -433,6 +451,7 @@
     const s = SLIDES[i];
     if (s.tab) window.App.showTab(s.tab);
     if (s.view) window.App.showView(...s.view);
+    try { s.before?.(); } catch {}
     render();
     setTimeout(() => { const t = isLive(s) && targetOf(s); if (t) reveal(t); setTimeout(place, 450); }, 120);
     $('.pt-nav .primary', els.bar)?.focus({ preventScroll: true });
@@ -457,6 +476,7 @@
     els = els || build();
     Object.values(els).forEach(el => el.hidden = false);
     addEventListener('keydown', onKey); addEventListener('resize', place); addEventListener('scroll', place, { passive: true });
+    if (isDemo()) { SLIDES.splice(0, SLIDES.length, ...DEMO); BUDGET = DEMO.reduce((a, s) => a + s.secs, 0); }
     go(Math.max(0, at - 1)); // ?present=5 opens at slide 5, for rehearsing one part
   }
 
@@ -465,14 +485,15 @@
     document.body.classList.remove('demo-on', 'presenting');
     if (els) Object.values(els).forEach(el => { el.hidden = true; el.removeAttribute('style'); });
     removeEventListener('keydown', onKey); removeEventListener('resize', place); removeEventListener('scroll', place);
-    const url = new URL(location.href); if (url.searchParams.has('present')) { url.searchParams.delete('present'); history.replaceState(null, '', url); }
+    const url = new URL(location.href); if (url.searchParams.has('present') || url.searchParams.has('livedemo')) { url.searchParams.delete('present'); url.searchParams.delete('livedemo'); history.replaceState(null, '', url); }
+    if (isDemo() || els?.demo) toast('Demo finished: Alt+Tab back to the slides.', 5000);
   }
 
   document.addEventListener('app-ready', () => {
     $('#presentBtn')?.addEventListener('click', () => start());
     const q = new URLSearchParams(location.search);
     if (q.has('clean')) document.body.classList.add('pt-clean'); // ?present=N&clean: slide only, for exporting to PDF
-    if (q.has('present')) setTimeout(() => start(q.get('present')), 600);
+    if (q.has('present') || q.has('livedemo')) setTimeout(() => start(q.get('present')), 600);
   });
   window.Present = { start, stop, SLIDES, BUDGET, total: () => timed.reduce((t, s) => t + s.secs, 0), shares };
 })();

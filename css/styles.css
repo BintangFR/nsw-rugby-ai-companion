@@ -285,10 +285,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--brand); }
 .bubble p { font-size: .9rem; color: var(--ink-2); }
 .bubble .evidence { font-size: .8rem; background: var(--surface-2); border-radius: 8px; padding: 6px 8px; margin: 6px 0; font-variant-numeric: tabular-nums; }
 .bubble .action { font-size: .85rem; }
-.bubble .action::before { content: "â†’ "; color: var(--brand); font-weight: 700; }
+.bubble .action::before { content: "→ "; color: var(--brand); font-weight: 700; }
 .bubble.answer { grid-column: 1 / -1; border-radius: 18px 18px 4px 18px; }
 .bubble.answer .md p { color: var(--ink); }
-.bubble.thinking p::after { content: "â–"; animation: blink 1s steps(2) infinite; }
+.bubble.thinking p::after { content: "▍"; animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
 .empty { text-align: center; padding: 40px 16px; color: var(--ink-2); border: 1px dashed var(--axis); border-radius: var(--radius); grid-column: 1 / -1; }
@@ -559,7 +559,7 @@ dialog { box-shadow: 0 20px 60px rgba(0, 0, 0, .55); }
 .menu { position: relative; }
 .menu > summary { list-style: none; cursor: pointer; }
 .menu > summary::-webkit-details-marker { display: none; }
-.menu > summary::after { content: " â–¾"; }
+.menu > summary::after { content: " ▾"; }
 .menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 3000; min-width: 260px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 28px rgba(0,0,0,.35); padding: 4px; display: flex; flex-direction: column; }
 .menu-list button { all: unset; box-sizing: border-box; cursor: pointer; padding: 8px 10px; border-radius: var(--radius); display: flex; flex-direction: column; gap: 2px; }
 .menu-list button:hover, .menu-list button:focus-visible { background: var(--surface-2); }
@@ -569,7 +569,7 @@ dialog { box-shadow: 0 20px 60px rgba(0, 0, 0, .55); }
 .subview { display: none; }
 .subview.active { display: block; }
 .subnav button.on, .subnav button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
-/* â“˜: the long explanation lives in the hover tip, not on the page */
+/* ⓘ: the long explanation lives in the hover tip, not on the page */
 .info { font-size: .8em; color: var(--muted); cursor: help; text-decoration: none !important; font-weight: 400; vertical-align: middle; }
 .info:hover { color: var(--brand); }
 /* Impact lens cards: measure list folded away */
@@ -720,7 +720,7 @@ body.demo-on .demo-btn { display: none; }
 .pt-member { text-align: center; padding: 20px 16px 16px; }
 .pt-member h3 { margin: 8px 0 2px; color: #0b2a5c; }
 .pt-avatar { width: 74px; height: 74px; margin: 0 auto; border-radius: 50%; border: 3px solid #c8102e; display: grid; place-items: center; font: 700 1.5rem Helvetica, Arial, sans-serif; color: #0b2a5c; background: #f3f7fc; }
-.pt-head { width: 128px; height: 128px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; }
+.pt-head { width: 128px; height: 128px; border-radius: 6px; border: 1px solid #c9d6e8; object-fit: cover; display: block; margin: 0 auto; }
 .pt-brings { font-size: .85em; text-align: left; color: #1d2f4f; margin: 0 0 12px; }
 .pt-brings b { color: #0b2a5c; margin-right: 4px; }
 .pt-kick.red { color: #c8102e; }
@@ -846,7 +846,7 @@ dialog.fw-guide h3 { margin: 4px 0 8px; font-size: 1.2rem; }
 /* Framework summary diagram (Framework tab, section 13) */
 .fw-flow { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 22px 26px; }
 .fw-flow li { position: relative; display: flex; gap: 10px; border: 1px solid var(--brand); border-radius: var(--radius); padding: 10px 12px; background: var(--surface-2); min-width: 0; }
-.fw-flow li:not(:last-child)::after { content: "â†’"; position: absolute; right: -21px; top: 50%; transform: translateY(-50%); color: var(--brand); font-weight: 700; }
+.fw-flow li:not(:last-child)::after { content: "→"; position: absolute; right: -21px; top: 50%; transform: translateY(-50%); color: var(--brand); font-weight: 700; }
 .fw-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--brand); color: var(--brand-ink); display: grid; place-items: center; font: 700 .85rem var(--font-mono); }
 .fw-flow b { color: var(--ink); }
 .fw-flow p { margin: 2px 0 6px; font-size: .85rem; color: var(--ink-2); }
@@ -865,7 +865,7 @@ dialog.fw-guide h3 { margin: 4px 0 8px; font-size: 1.2rem; }
 .fw-separate { margin-top: 16px; border: 1px dashed var(--border); border-radius: var(--radius); padding: 4px 14px 10px; background: var(--surface-2); }
 .fw-separate h3 { margin: 10px 0 4px; }
 .fw-conclusion { border-left: 4px solid var(--brand); background: var(--surface-2); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; font-size: .95rem; color: var(--ink); }
-@media (max-width: 640px) { .fw-flow li:not(:last-child)::after { content: "â†“"; right: auto; left: 50%; top: auto; bottom: -20px; transform: translateX(-50%); } }
+@media (max-width: 640px) { .fw-flow li:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -20px; transform: translateX(-50%); } }
 /* =====================================================================
    PIP-BOY LAYER: grimdark cyan phosphor terminal, blocky panels.
    Pixel font (VT323) for headings, labels and headline numbers only;
@@ -891,7 +891,7 @@ body { text-shadow: var(--glow-soft); }
 
 /* headings: pixel caps with a block cursor */
 h2:not(.report *) { font: 400 1.5rem/1.1 var(--font-pixel); text-transform: uppercase; letter-spacing: .04em; color: var(--brand); text-shadow: var(--glow); }
-h2:not(.report *)::before { content: "â–Œ"; margin-right: .3em; opacity: .85; }
+h2:not(.report *)::before { content: "▌"; margin-right: .3em; opacity: .85; }
 .card h3:not(.report *), .ek-pillar, .target-group, .kpi .label, .matrix th, .pretty-table th, .demo-badge { font-family: var(--font-pixel) !important; font-size: 1.05rem !important; letter-spacing: .06em; font-weight: 400 !important; }
 .target-subgroup { font: 400 1.1rem var(--font-pixel) !important; letter-spacing: .04em; }
 
@@ -1209,7 +1209,7 @@ a { color: var(--brand); }
 }
 @media print { .tabs { display: none !important; } main, .site-foot { margin-left: 0 !important; } }
 
-/* collapsible Pages pane: a narrow rail of icons, toggled by the â˜° button (remembered per browser) */
+/* collapsible Pages pane: a narrow rail of icons, toggled by the ☰ button (remembered per browser) */
 .rail-toggle { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, .22); border-radius: var(--radius); background: rgba(255, 255, 255, .1); color: #fff; cursor: pointer; font-size: 18px; line-height: 1; }
 .rail-toggle:hover { background: rgba(255, 255, 255, .2); }
 .tabs button .ti { display: inline-block; width: 22px; margin-right: 8px; text-align: center; font-style: normal; }
@@ -1269,7 +1269,7 @@ html.demo-view .demo-only { display: block; }
 html.demo-view .demo-switch { background: var(--rugby-red); border-color: var(--rugby-red); }
 /* Reports made in Demo view say so on every page, including when printed */
 html.demo-view .rp-page::after { content: "[DUMMY] Demo view: contains made-up figures"; position: absolute; top: 8px; right: 12px; z-index: 5; padding: 2px 8px; border: 1px dashed #c8102e; background: #fff; color: #c8102e; font: 700 11px var(--font-ui); }
-/* Insights > Recommendations: what happened â†’ likely cause â†’ what we can do */
+/* Insights > Recommendations: what happened → likely cause → what we can do */
 .reco-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .reco { padding: 10px 14px; border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: var(--radius); background: var(--surface); }
 .reco-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; font-size: 14px; }
@@ -1308,7 +1308,7 @@ html.demo-view .rp-page::after { content: "[DUMMY] Demo view: contains made-up f
 .sig-list .btn { padding: 5px 10px; font-size: 12px !important; }
 /* Round 2 by zone */
 .r2-table th[data-sort] { cursor: pointer; white-space: nowrap; }
-.r2-table th.sorted::after { content: " â–¾"; }
+.r2-table th.sorted::after { content: " ▾"; }
 .r2-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .r2-note { display: inline-block; margin: 1px 2px; padding: 1px 7px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 11.5px; white-space: nowrap; }
 .r2-total td { border-top: 2px solid var(--axis); background: var(--surface-2); }
