@@ -237,7 +237,7 @@
       const big = (x, label) => x ? `<div><b>+${Math.round((x.value / x.firstValue - 1) * 100)}%</b><span>${esc(label)} vs ${x.first} (${int(x.firstValue)})</span></div>` : `<div class="none"><b>NO DATA</b><span>${esc(label)} · data collection required</span></div>`;
       const row = (val, text) => val == null ? `<div class="lrow none"><b>NO DATA</b><span>${esc(text)} · data collection required</span></div>` : `<div class="lrow"><b>${esc(val)}</b><span>${esc(text)}</span></div>`;
       const tgt = id => m.kpiTarget(id);
-      const ratio = (id, label) => { const t = tgt(id); return row(t?.actual != null ? `${(+t.actual).toFixed(1)}:1` : null, `${label} · base ${t?.baseline}:1 → target ${t?.target}:1`); };
+      const ratio = (id, label) => { const t = tgt(id); return row(t?.actual != null ? `${(+t.actual).toFixed(1)}:1` : null, `${label}${t?.baseline != null ? ` · base ${t.baseline}:1 → target ${t.target}:1` : ''}`); };
       const kpi = (id, label) => { const r = m.kpiResult(id); return row(r?.real ? r.display : null, `${label} (${id})`); };
       const ret = (D.impactMethods.social.measures.find(x => /retention/i.test(x.name))?.value.match(/Retention ([\d.]+)%/) || [])[1];
       const rows = acq

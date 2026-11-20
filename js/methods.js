@@ -346,7 +346,7 @@
             .map(([h, b]) => `<div ${tip(b)}><b>${h}</b><span>${esc(b)}</span></div>`).join('<span class="arrow">→</span>')}
         </div>`) +
       section('m-data', 'Data in', steps([
-        ['Built-in data', 'Round 1 Legacy grants and the 3-year RWC Dashboard budgets, compiled from <i>RWC_Legacy_Data_Compilation.xlsx</i> and <i>RWC Dashboard 010926 (2).xlsx</i>, plus plan targets. Region population and First Nations share are indicative ABS 2021 approximations.'],
+        ['Built-in data', 'Round 1 Legacy grants from the public nsw.gov.au recipient lists, plus plan targets. NSW Rugby\'s internal 3-year budget lines are not included (Demo view shows made-up ones, tagged [DUMMY]). Region population and First Nations share are indicative ABS 2021 approximations.'],
         ['Project files', 'Every file in <i>Dataset/</i> is loaded as if it had been uploaded, so it is profiled, quality-rated and available to the AI.'],
         ['Uploads', 'Data Studio reads Excel, CSV, JSON, PDF, Word and text. Tables are profiled column by column (number, money, date, region, category).'],
         ['What an upload changes', 'A region + amount column becomes spend on the dashboard. Other numeric region columns become map layers. A "lens"/"impact" column becomes impact evidence. Yearly counts (players, coaches, match officials, female, First Nations or Pasifika participants) become yearly figures the recommendations and reports use.'],

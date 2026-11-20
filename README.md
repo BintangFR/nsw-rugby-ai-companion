@@ -130,7 +130,7 @@ Switch models from the AI pill in the top bar.
 
 ## Data notes
 
-- Seed data in [js/data.js](js/data.js) was compiled from `Dataset/RWC_Legacy_Data_Compilation.xlsx` and `Dataset/RWC Dashboard 010926 (2).xlsx`.
+- Seed data in [js/data.js](js/data.js) was compiled from public grant lists and reports. NSW Rugby's internal RWC Dashboard budgets are not included in the code; Demo view shows made-up budget lines tagged [DUMMY].
 - Spend is **known allocations** (3-year dashboard budgets plus Round 1 grants), not audited expenditure.
 - Region **population** and **First Nations share** are indicative ABS 2021 approximations, used only to normalise spend.
 - "Spend vs population" = a region's share of spend ÷ its share of population. 1.75x or more is flagged as overspend risk; 0.5x or less as under-served.

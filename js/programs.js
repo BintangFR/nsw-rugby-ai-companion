@@ -12,7 +12,7 @@
       const kind = g.datasetId ? 'upload' : 'grant';
       list.push({ kind, id: slug(`${kind}-${g.recipient || ''}-${g.project}`), name: g.project, recipient: g.recipient, pillar: g.pillar, region: g.region, town: g.town, type: g.type, tags: g.tags || [], cost: g.amount, source: g.source });
     }
-    for (const d of D.dashboard) list.push({ kind: 'budget', id: slug(`budget-${d.initiative}`), name: d.initiative, recipient: 'NSWRU', pillar: d.pillar, region: d.region, type: d.initiative, tags: d.tags || [], cost: d.total, years: [d.y1, d.y2, d.y3], status: d.status, source: 'RWC Dashboard' });
+    for (const d of D.dashboard) list.push({ kind: 'budget', id: slug(`budget-${d.initiative}`), name: d.initiative, recipient: 'NSWRU', pillar: d.pillar, region: d.region, type: d.initiative, tags: d.tags || [], cost: d.total, years: [d.y1, d.y2, d.y3], status: d.status, source: d.source || 'Budget line' });
     return list;
   }
 

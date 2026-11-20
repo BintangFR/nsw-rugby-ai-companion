@@ -97,7 +97,7 @@
       fnShare: x.herTotal ? x.fn / x.herTotal : null, pasShare: x.herTotal ? x.pas / x.herTotal : null, femShare: x.ageTotal ? x.female / x.ageTotal : null, perHead: x.ty ? x.legacy / x.ty : null, clubs: clubs.list.filter(c => c.zone === x.name).length, standards: clubs.standards[x.name] || null }));
     const nsw = { growth: total.ty / total.ly - 1, churn: 1 - total.ret / total.ly, perCoach: total.players / total.coaches, fnShare: total.fn / total.herTotal, pasShare: total.pas / total.herTotal, femShare: total.female / total.ageTotal,
       perHead: out.reduce((s, x) => s + x.legacy, 0) / out.reduce((s, x) => s + x.ty, 0) };
-    const target = A.kpiTargets().find(k => k.id === 'coachRatio')?.target || 10;
+    const target = A.kpiTargets().find(k => k.id === 'coachRatio')?.target ?? null, ref = target ?? nsw.perCoach;
     // What stands out against the total of these zones. Each is a reason to look closer, not a verdict.
     for (const x of out) {
       x.notes = [];
@@ -105,7 +105,7 @@
       if (!x.facility) x.notes.push(['No Round 1 facility grant', 'None of the Round 1 facility grants is placed in this zone.']);
       if (x.perHead != null && x.perHead < nsw.perHead / 2) x.notes.push(['Low Legacy funding per participant', `${money(x.perHead)} per participant, under half the ${money(nsw.perHead)} across these zones.`]);
       if (x.churn != null && x.churn > nsw.churn + 0.05) x.notes.push(['High churn', `${pct(x.churn)} of last year's participants did not return (NSW zones ${pct(nsw.churn)}).`]);
-      if (x.perCoach != null && x.perCoach > target + 2) x.notes.push(['Few coaches for its players', `${x.perCoach.toFixed(1)} players per coach against the plan's ${target}:1.`]);
+      if (x.perCoach != null && ref && x.perCoach > ref * 1.2) x.notes.push(['Few coaches for its players', `${x.perCoach.toFixed(1)} players per coach against ${target != null ? `the plan's ${target}:1` : `${ref.toFixed(1)}:1 across NSW zones`}.`]);
       if (x.fnShare != null && x.fnShare > nsw.fnShare * 1.5) x.notes.push(['Large First Nations community', `${pct(x.fnShare)} of participants are First Nations (NSW zones ${pct(nsw.fnShare)}).`]);
       if (x.pasShare != null && x.pasShare > nsw.pasShare * 1.5) x.notes.push(['Large Pasifika community', `${pct(x.pasShare)} are Samoan, Tongan or Fijian (NSW zones ${pct(nsw.pasShare)}).`]);
     }

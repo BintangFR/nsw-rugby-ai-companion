@@ -34,7 +34,7 @@ This page is for whoever takes the project over. Start here, then read:
 
 ## Where the data comes from
 
-- Built-in data in `js/data.js` was compiled from `Dataset/RWC_Legacy_Data_Compilation.xlsx` and `Dataset/RWC Dashboard 010926 (2).xlsx` (compiled 24 Sep 2026).
+- Built-in data in `js/data.js` was compiled from public grant lists and reports. NSW Rugby's internal RWC Dashboard budgets are not included in the code; Demo view shows made-up budget lines tagged [DUMMY].
 - KPI formulas, input rules, baselines and sources come from `Dataset/NSW_Rugby_KPI_Formula_Web_Handover.xlsx` (27 KPIs; it supersedes `NSW_Rugby_Economic_KPI_Formula_Summary.xlsx`).
 - The **Framework** tab is the project deliverable in tool-independent form; download it as a document, `framework.json` or `input-fields.csv` to rebuild it elsewhere.
 - Region populations and First Nations shares are **indicative** ABS 2021 approximations, used only to compare spend fairly between regions.

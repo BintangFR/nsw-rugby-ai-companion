@@ -169,7 +169,7 @@ window.App = (() => {
     const spent = reported.reduce((s, r) => s + r.spent, 0), dummy = reported.some(r => r.dummy);
     const tiles = [
       ['Legacy funding', money(funding), '2025 to 2028', 'Total NSW Rugby World Cup Legacy Program funding. Everything on this page is about what this money delivers.'],
-      ['Allocated so far', money(c.knownTotal), `${Math.round(c.knownTotal / funding * 100)}% of the $10M`, `${moneyFull(c.knownTotal)} = Round 1 Legacy grants + 3-year RWC Dashboard budgets + any uploaded spend. Allocations, not audited spend.${D.publicRecord ? `\n\nPublic record (nsw.gov.au): the Office of Sport approved ${moneyFull(D.publicRecord.nswruLegacyGrant.amount)} to NSW Rugby for its own Legacy plan (${D.publicRecord.nswruLegacyGrant.approved}). The RWC Dashboard budget lines trace ${moneyFull(c.dashTotal)} of it, so ${moneyFull(Math.max(0, D.publicRecord.nswruLegacyGrant.amount - c.dashTotal))} of NSW Rugby's grant is not yet linked to an initiative.` : ''}`],
+      ['Allocated so far', money(c.knownTotal) + (c.dashTotal && window.DemoView?.on ? ' [DUMMY]' : ''), `${Math.round(c.knownTotal / funding * 100)}% of the $10M`, `${moneyFull(c.knownTotal)} = Round 1 Legacy grants${c.dashTotal ? ` + ${moneyFull(c.dashTotal)} in 3-year budget lines${window.DemoView?.on ? ' (made-up lines from Demo view, not real budgets)' : ''}` : ''} + any uploaded spend. Allocations, not audited spend. NSW Rugby's own 3-year budget lines are internal and not included.${D.publicRecord ? `\n\nPublic record (nsw.gov.au): the Office of Sport approved ${moneyFull(D.publicRecord.nswruLegacyGrant.amount)} to NSW Rugby for its own Legacy plan (${D.publicRecord.nswruLegacyGrant.approved}). It is not yet linked to initiatives here.` : ''}`],
       ['Not yet traced', money(Math.max(0, funding - c.knownTotal)), 'no project or budget line yet', `${moneyFull(funding)} − ${moneyFull(c.knownTotal)} allocated. Includes Round 2 grants, which are decided but not announced yet. Its impact cannot be measured until it is assigned.`],
       ['Spent so far', reported.length ? money(spent) + (dummy ? ' [DUMMY]' : '') : 'Not reported', reported.length ? `${reported.length} lines reported` : 'recipients report at acquittal', reported.length ? `Sum of spend recorded for ${reported.length} lines.${dummy ? ' Made-up figures from Demo view.' : ''}` : 'No project has finished. Recipients report actual spend in their acquittal report, when the project ends (31/12/2027 or 30/06/2028).'],
     ];
@@ -329,8 +329,8 @@ window.App = (() => {
   const PROTO = '\n\nPrototype screening indicator: not from an external framework. Pending review by the evaluation team.';
   const COL_TIPS = {
     fe: 'Sum of Facilities & Equipment (Pillar 1) Legacy grants located in this region: Round 1 grants plus uploaded spend.',
-    pw: 'Sum of Programs & Workforce (Pillar 3) grants and 3-year RWC Dashboard budget lines located in this region (other non-facility, non-inclusion lines such as activation are counted here too).',
-    inc: 'Sum of Inclusion (Pillar 4) grants and 3-year RWC Dashboard budget lines located in this region.',
+    pw: 'Sum of Programs & Workforce (Pillar 3) grants and any 3-year budget lines located in this region (other non-facility, non-inclusion lines such as activation are counted here too).',
+    inc: 'Sum of Inclusion (Pillar 4) grants and any 3-year budget lines located in this region.',
     total: 'All known allocations located in this region (grants + dashboard budgets + uploads). "Statewide" lines held centrally are not in any region.',
     perResident: 'Total $ in the region ÷ region population (indicative ABS 2021 approximation).',
     spendIndex: 'Region\'s share of regionally allocated spend ÷ its share of NSW population. 1.75x or more = above population share; 0.5x or less = below it.' + PROTO,

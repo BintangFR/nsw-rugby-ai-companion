@@ -65,6 +65,12 @@ window.DemoView = (() => {
     fill('wellbeing', f => ({ ...numbers(f), date: '', dummy: true }));
     fill('methods', f => ({ ...numbers(f), _dummy: true }));
     fill('kpis', (f, id) => { const k = window.KPIF.KPIS.find(x => x.id === id); return k ? kpiEntry(k, f) : undefined; });
+    // Made-up 3-year budget lines, so the demo shows a full program. Real budget lines are never in the code.
+    const D = window.TACKLE_DATA;
+    if (D && !D.dashboard.length) for (const [name, f] of Object.entries(data.budget || {})) {
+      const y = [1, 2, 3].map(i => Number(f['y' + i]) || 0);
+      D.dashboard.push({ source: '[DUMMY] ' + FILE, initiative: '[DUMMY] ' + name, pillar: f.pillar, region: f.region, y1: y[0], y2: y[1], y3: y[2], total: y[0] + y[1] + y[2], tags: (f.tags || '').split(/[;\s]+/).filter(Boolean), status: '', dummy: true });
+    }
     targets = Object.fromEntries(Object.entries(data.targets || {}).map(([id, f]) => [id, numbers(f)]));
     measures = Object.fromEntries(Object.entries(data.measures || {}).map(([name, f]) => [name, f.value]));
     const evidence = Object.values(data.evidence || {}).map((f, i) => ({ id: `dummy-${i + 1}`, created: 0, date: '', ...f, text: `[DUMMY] ${f.text}`, source: `[DUMMY] ${f.source}`, dummy: true }));

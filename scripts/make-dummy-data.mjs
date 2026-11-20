@@ -39,7 +39,25 @@ function program(id, name, cost, spentShare) {
   add('programs', id, name, 'status', 'In progress');
 }
 for (const g of D.grants) program(slug(`grant-${g.recipient || ''}-${g.project}`), g.project, g.amount, between(g.project, 'spent', 0.15, 0.6));
-for (const d of D.dashboard) program(slug(`budget-${d.initiative}`), d.initiative, d.total, d.y1 / d.total * between(d.initiative, 'spent', 0.8, 1) || 0.05);
+// ---------- made-up 3-year budget lines (NSW Rugby's real budget lines are internal and never in the code) ----------
+// [name, pillar, region, year 1, year 2, year 3, tags]. Demo view adds them to the program as "[DUMMY] name".
+const BUDGET = [
+  ['Regional development officers', 'PW', 'Statewide', 60000, 70000, 70000, ''],
+  ['Western Sydney club support', 'PW', 'Western Sydney', 90000, 90000, 80000, ''],
+  ['Hunter community rugby program', 'PW', 'Hunter', 40000, 50000, 60000, ''],
+  ['Referee recruitment and mentoring', 'PW', 'Statewide', 45000, 45000, 45000, 'women'],
+  ['First Nations rugby programs', 'INC', 'Statewide', 70000, 75000, 75000, 'firstNations'],
+  ['Pasifika community programs', 'INC', 'Statewide', 50000, 50000, 40000, 'pasifika'],
+  ['Women and girls participation', 'INC', 'Statewide', 60000, 65000, 65000, 'women'],
+  ['All abilities rugby', 'INC', 'Statewide', 20000, 20000, 20000, 'access'],
+  ['RWC 2027 community hubs', 'ACT', 'Statewide', 0, 50000, 300000, ''],
+  ['Monitoring and evaluation', 'PM', 'Statewide', 50000, 40000, 60000, ''],
+];
+for (const [name, pillar, region, y1, y2, y3, tags] of BUDGET) {
+  for (const [f, v] of Object.entries({ pillar, region, y1, y2, y3, tags })) if (v !== '') add('budget', name, name, f, v);
+  const total = y1 + y2 + y3;
+  program(slug(`budget-[DUMMY] ${name}`), `[DUMMY] ${name}`, total, (y1 / total) * between(name, 'spent', 0.8, 1) || 0.05);
+}
 
 // ---------- life satisfaction surveys (happiness index) ----------
 for (const g of D.grants.filter(x => x.pillar === 'FE')) {
@@ -63,7 +81,7 @@ const TARGETS = {
 };
 for (const [id, v] of Object.entries(TARGETS)) {
   const k = D.kpis.find(x => x.id === id);
-  if (!k) throw new Error(`Unknown target ${id}`);
+  if (!k) continue; // target removed from the public data (e.g. it came from the internal RWC Dashboard)
   for (const [f, val] of Object.entries(v)) add('targets', id, k.name, f, val);
 }
 
