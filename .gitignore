@@ -16,3 +16,7 @@ Thumbs.db
 
 # Scratch files
 _selftest.html
+
+# Partner data (NSW Rugby, Rugby Analytics, AusPlay): never commit. The site runs without it;
+# upload files in Data Studio instead.
+Dataset/
